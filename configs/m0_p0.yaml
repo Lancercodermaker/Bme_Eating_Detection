@@ -1,6 +1,9 @@
 data_root: official_test_dataset/Data
 output_dir: artifacts/m0_p0
+cache_dir: cache/m0
 resample_hz: 25
+max_gap_ms: 2000
+preprocess_variant: p0_raw_mask
 window_sec: 15
 step_sec: 3
 seed: 7
