@@ -1,5 +1,19 @@
 # 智能手表进食检测项目：新对话接续摘要
 
+## 2026-09-01 权威更新
+
+更新时间：2026-09-01T09:51:58-04:00（America/New_York）。本节覆盖下方早期历史状态；新对话应优先遵守本节，以及设计文档和实施计划中同一时间戳的冻结记录。
+
+- 当前实现位于隔离 worktree：`E:\bme_compitition\.worktrees\smartwatch-baseline`。
+- 当前分支为 `codex/smartwatch-eating-baseline`，最新提交为 `b65c8e9 docs: freeze ppg and cached gpu training contract`；不要直接在 `master` 上实现，不要合并或 push，除非用户另行明确授权。
+- 环境、数据审计、时间轴恢复、标签、participant split、M0、事件评估、消融和复现检查已经完成；全套测试为 `46 passed`。
+- RTX 5060 CUDA 已验证可用；bounded M0 实际使用 `device=cuda`。93 GB full-data 尝试尚未通过：此前在第一遍 CPU CSV 解析/预处理阶段主动中断，尚未产生 full-data checkpoint 或指标。
+- 下一步不是直接重复启动无界 full-data 训练，而是先实现并验证 93 GB 的一次性解析/feature cache、cache-hit 训练和断点恢复；M0 使用 IMU-only 解析快路径，PPG 不在 M0 默认读取。
+- PPG 冻结契约：固定预处理和 PPG cache 不等于 PPG 模型；M1 使用独立 IMU/PPG encoder 做特征级融合并在本竞赛事件标签上联合训练；PPG-only 只做诊断对照；M1 默认从头联合训练；M0 权重仅在结构兼容时作为迁移消融；不直接使用外部 PPG 饮食任务权重；无效 PPG 必须配合 quality/modality mask 和 modality dropout。
+- 93 GB 的 CSV 解析、时间轴恢复、插值、重采样和 cache 构建属于 CPU；M0/M1 的 PyTorch batch 前向、反向和损失计算在 CUDA 可用时使用 RTX 5060。缓存命中后训练不得重复扫描原始 CSV。
+
+下方较早的 Current Status、Important Files、Known Data Facts 和 Immediate Next Steps 保留为历史接续材料；其中关于“尚未配置环境/尚未写训练代码”、旧提交号和旧文件数量的描述不再代表当前状态。
+
 ## Objective
 
 在 Windows 上基于竞赛提供的智能手表 IMU 与 PPG 数据，完成一个稳定、可运行、便于初学者学习和迭代的进食事件检测基线，并逐步提升事件级 F1。项目截止日期为 2026-09-30，最终代码必须可复现、可运行并适合作为竞赛提交基础。
