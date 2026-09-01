@@ -10,6 +10,8 @@
 
 **2026-09-01 冻结记录（America/New_York，时间戳：2026-09-01T09:51:58-04:00）：** 用户确认以下执行契约，后续新会话必须以此为准，不得恢复为“soft 阈值后返回 1”、 “把 PPG 当普通 IMU 通道”或“每个 epoch 重复解析 93 GB CSV”。M0 仍是 IMU-only；PPG 的固定预处理/缓存与可学习 PPG encoder 分离；M1 使用独立 IMU/PPG encoder 的特征级融合，并在本竞赛事件标签上联合训练。PPG-only 只做诊断对照，不是最终架构；M1 默认从头联合训练，M0 权重仅在结构兼容时作为单独迁移消融；不直接使用外部 PPG 饮食任务权重。M0/M1 的模型计算在 CUDA 可用时使用 RTX 5060，CSV 解析、时间轴恢复、重采样和缓存构建仍由 CPU 完成。
 
+**2026-09-01 本轮执行记录：** 已完成 93 GB 吞吐改造的 bounded gate：向量化重复 timestamp 聚合、M0 IMU-only parser、按文件可恢复 feature cache、cache-backed CUDA batch training。两个真实代表文件的旧/新 timestamp、ACC/GYRO、quality mask 数值等价；cache miss/hit、断点恢复、participant batch、GPU sample 和 reproducibility 均通过。最终复核为 `56 passed`、compileall、`git diff --check`、原始数据未跟踪、生成物被 Git 忽略、CUDA smoke 通过。无 `--limit-files/--max-rows` 的 full-data 和 M1 仍保持未启动，必须等待用户明确授权并再次复核 gate。
+
 ---
 
 ## 0. 当前事实、矛盾和执行边界
