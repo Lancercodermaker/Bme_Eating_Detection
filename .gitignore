@@ -1,0 +1,35 @@
+# Competition data and generated caches
+official_test_dataset/Data/01_dataset/
+official_test_dataset/Data/02_traindataset/
+official_test_dataset/Data/03_papers/*.pdf
+official_test_dataset/Data/03_papers/*.txt
+official_test_dataset/Data/03_papers/*.md
+data/
+artifacts/
+checkpoints/
+outputs/
+cache/
+tmp/
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+
+# Python and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+.conda/
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+Desktop.ini
