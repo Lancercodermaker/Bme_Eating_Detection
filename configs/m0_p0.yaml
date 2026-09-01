@@ -1,0 +1,10 @@
+data_root: official_test_dataset/Data
+output_dir: artifacts/m0_p0
+resample_hz: 25
+window_sec: 15
+step_sec: 3
+seed: 7
+chunksize: 50000
+label_positive_overlap: 0.25
+boundary_mode: soft
+event_iou_threshold: 0.25

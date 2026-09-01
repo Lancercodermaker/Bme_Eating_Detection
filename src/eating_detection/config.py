@@ -15,6 +15,10 @@ class Config:
     window_sec: int = 15
     step_sec: int = 3
     seed: int = 7
+    chunksize: int = 50_000
+    label_positive_overlap: float = 0.25
+    boundary_mode: str = "soft"
+    event_iou_threshold: float = 0.25
 
 
 def load_config(path: Path, **overrides: Any) -> Config:
@@ -33,9 +37,21 @@ def load_config(path: Path, **overrides: Any) -> Config:
         window_sec=int(raw.get("window_sec", 15)),
         step_sec=int(raw.get("step_sec", 3)),
         seed=int(raw.get("seed", 7)),
+        chunksize=int(raw.get("chunksize", 50_000)),
+        label_positive_overlap=float(raw.get("label_positive_overlap", 0.25)),
+        boundary_mode=str(raw.get("boundary_mode", "soft")),
+        event_iou_threshold=float(raw.get("event_iou_threshold", 0.25)),
     )
     if cfg.resample_hz not in {15, 16, 25, 50}:
         raise ValueError("resample_hz must be one of 15, 16, 25, 50")
     if cfg.window_sec <= 0 or cfg.step_sec <= 0 or cfg.step_sec > cfg.window_sec:
         raise ValueError("step_sec must be positive and no greater than window_sec")
+    if cfg.chunksize <= 0:
+        raise ValueError("chunksize must be positive")
+    if not 0 < cfg.label_positive_overlap <= 1:
+        raise ValueError("label_positive_overlap must be in (0, 1]")
+    if cfg.boundary_mode not in {"soft", "ignore"}:
+        raise ValueError("boundary_mode must be soft or ignore")
+    if not 0 < cfg.event_iou_threshold < 1:
+        raise ValueError("event_iou_threshold must be in (0, 1)")
     return cfg
