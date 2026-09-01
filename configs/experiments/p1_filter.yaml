@@ -1,0 +1,7 @@
+base_config: configs/m0_p0.yaml
+resample_hz: 25
+preprocess_variant: p1_lowpass_dynamic
+lowpass_cutoff_hz: 1.0
+dynamic_band_hz: [5.0, 10.0]
+median_kernel: 5
+reuse_split_manifest: artifacts/splits/m0_manifest.json

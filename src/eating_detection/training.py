@@ -1,6 +1,7 @@
 import copy
 import json
 import random
+import time
 from pathlib import Path
 
 import numpy as np
@@ -43,6 +44,16 @@ def train_one_batch(model, optimizer, x, y, pos_weight: float) -> float:
     return float(loss.detach().cpu())
 
 
+def mirror_imu_axes(batch):
+    """Mirror the raw x axes while preserving magnitudes and quality masks."""
+    if getattr(batch, "ndim", None) != 3 or batch.shape[1] < 6:
+        raise ValueError("batch must have shape (batch, channels, time) with six IMU channels")
+    mirrored = batch.clone() if isinstance(batch, torch.Tensor) else np.array(batch, copy=True)
+    mirrored[:, 0] *= -1
+    mirrored[:, 3] *= -1
+    return mirrored
+
+
 def save_checkpoint(
     path: Path,
     model,
@@ -80,17 +91,17 @@ def standardize_window_records(
     if not train_records:
         raise ValueError("no training windows for the requested participants")
     train_values = np.concatenate(
-        [record.features[:8].detach().cpu().numpy().T for record in train_records], axis=0
+        [record.features[:-2].detach().cpu().numpy().T for record in train_records], axis=0
     )
     train_masks = np.concatenate(
-        [record.features[8:].detach().cpu().numpy().T > 0.5 for record in train_records], axis=0
+        [record.features[-2:].detach().cpu().numpy().T > 0.5 for record in train_records], axis=0
     )
     stats = fit_standardizer(train_values, train_masks)
     standardized = []
     for record in records:
         raw = record.features.detach().cpu().numpy()
-        imu = apply_standardizer(raw[:8].T, stats).T
-        features = np.vstack([imu, raw[8:]]).astype(np.float32)
+        signal_values = apply_standardizer(raw[:-2].T, stats).T
+        features = np.vstack([signal_values, raw[-2:]]).astype(np.float32)
         standardized.append(
             WindowRecord(
                 participant=record.participant,
@@ -206,7 +217,7 @@ def fit_m0(
         "cuda" if device_name == "auto" and torch.cuda.is_available() else
         "cpu" if device_name == "auto" else device_name
     )
-    model = IMUCNN(in_channels=10).to(device)
+    model = IMUCNN(in_channels=int(records[0].features.shape[0])).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     train_dataset = WindowDataset(train_records)
     sampler = ParticipantBatchSampler(train_dataset, batch_size=batch_size)
@@ -214,12 +225,18 @@ def fit_m0(
     best_state = None
     epoch_losses = []
     output_dir.mkdir(parents=True, exist_ok=True)
+    started_at = time.perf_counter()
 
     for epoch in range(1, epochs + 1):
         losses = []
         for batch in sampler:
             x = torch.stack([train_records[index].features for index in batch]).to(device)
             y = torch.tensor([train_records[index].label for index in batch], device=device)
+            if (
+                config_payload.get("preprocess_variant") == "p2_train_axis_augmentation"
+                and random.random() < float(config_payload.get("axis_mirror_probability", 0.5))
+            ):
+                x = mirror_imu_axes(x)
             losses.append(train_one_batch(model, optimizer, x, y, pos_weight))
         predictions = _predict_records(model, val_records, device)
         val_participants_sorted = sorted(val_participants)
@@ -253,6 +270,19 @@ def fit_m0(
             "device": str(device),
             "pos_weight": pos_weight,
         }
+        f1_values = [float(item["f1"]) for item in participant_metrics.values()]
+        result.update(
+            {
+                "participant_f1_mean": float(np.mean(f1_values)) if f1_values else 0.0,
+                "participant_f1_std": float(np.std(f1_values)) if f1_values else 0.0,
+                "participant_f1_worst": min(f1_values) if f1_values else 0.0,
+                "window_count": len(train_records) + len(val_records),
+                "train_window_count": len(train_records),
+                "val_window_count": len(val_records),
+                "input_channels": int(records[0].features.shape[0]),
+                "window_samples": int(records[0].features.shape[1]),
+            }
+        )
         epoch_losses.append(float(np.mean(losses)) if losses else None)
         if best_result is None or result["f1"] > best_result["f1"]:
             best_result = result
@@ -275,7 +305,9 @@ def fit_m0(
 
     if best_result is None or best_state is None:
         raise RuntimeError("training produced no checkpoint")
+    best_result["training_time_sec"] = float(time.perf_counter() - started_at)
     model.load_state_dict(best_state["model"])
+    optimizer.load_state_dict(best_state["optimizer"])
     final_predictions = _predict_records(model, val_records, device)
     rows = []
     for participant in sorted(final_predictions):
@@ -298,4 +330,15 @@ def fit_m0(
     save_json(output_dir / "normalization.json", {"mean": stats.mean.tolist(), "std": stats.std.tolist()})
     save_json(output_dir / "events_val.json", best_result["events"])
     save_json(output_dir / "training_log.json", {"epoch_losses": epoch_losses})
+    save_checkpoint(
+        output_dir / "checkpoint.pt",
+        model,
+        optimizer,
+        config_payload,
+        split_manifest,
+        {"mean": stats.mean.tolist(), "std": stats.std.tolist()},
+        best_state["epoch"],
+        best_result,
+        seed=seed,
+    )
     return {"metrics": best_result, "stats": stats, "device": str(device)}

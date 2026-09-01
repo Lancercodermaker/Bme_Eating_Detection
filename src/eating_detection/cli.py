@@ -14,6 +14,7 @@ from .decoding import decode_windows
 from .io import read_meal_intervals
 from .metrics import event_metrics
 from .splits import load_manifest, make_manifest_from_directories
+from .preprocess import apply_variant
 from .training import evaluate_predictions, fit_m0, save_json
 
 
@@ -42,6 +43,8 @@ def _training_sensor_files(
 
 def _config_payload(config: Config, args: argparse.Namespace) -> dict[str, object]:
     payload = {key: str(value) if isinstance(value, Path) else value for key, value in asdict(config).items()}
+    raw_config = yaml.safe_load(Path(args.config).read_text(encoding="utf-8")) or {}
+    payload.update({key: value for key, value in raw_config.items() if key not in payload})
     payload.update(
         {
             "limit_files": args.limit_files,
@@ -116,6 +119,10 @@ def _run_train(args: argparse.Namespace) -> int:
     output_dir = config.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
     config_payload = _config_payload(config, args)
+    preprocess_variant = str(config_payload.get("preprocess_variant", "p0_raw_mask"))
+    config_payload["variant"] = apply_variant(
+        preprocess_variant, raw_imu_channels=6, magnitude_channels=2, mask_channels=2
+    )
     _write_config(output_dir / "config.yaml", config_payload)
     print(f"CONFIG_SAVED {output_dir / 'config.yaml'}")
 
@@ -160,6 +167,9 @@ def _run_train(args: argparse.Namespace) -> int:
         boundary_mode=config.boundary_mode,
         max_rows=args.max_rows,
         chunksize=config.chunksize,
+        preprocess_variant=preprocess_variant,
+        lowpass_cutoff_hz=float(config_payload.get("lowpass_cutoff_hz", 1.0)),
+        median_kernel=int(config_payload.get("median_kernel", 5)),
     )
     save_json(output_dir / "input_issues.json", issues)
     truth = {

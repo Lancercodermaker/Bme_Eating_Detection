@@ -11,6 +11,58 @@ class Standardizer:
     std: np.ndarray
 
 
+def apply_variant(
+    name: str,
+    raw_imu_channels: int,
+    magnitude_channels: int,
+    mask_channels: int,
+) -> dict[str, object]:
+    """Describe a preprocessing ablation while preserving the P0 fallback."""
+    if min(raw_imu_channels, magnitude_channels, mask_channels) < 0:
+        raise ValueError("channel counts must be non-negative")
+    base_channels = raw_imu_channels + magnitude_channels + mask_channels
+    if name == "p0_raw_mask":
+        return {"channels": base_channels, "keeps_raw": True, "derived": []}
+    if name == "p1_lowpass_dynamic":
+        return {
+            "channels": base_channels + 6,
+            "keeps_raw": True,
+            "derived": ["lowpass", "dynamic", "median"],
+        }
+    if name == "p2_train_axis_augmentation":
+        return {
+            "channels": base_channels,
+            "keeps_raw": True,
+            "derived": ["train_axis_mirror"],
+        }
+    raise ValueError(f"unknown preprocess variant: {name}")
+
+
+def apply_feature_variant(
+    values: np.ndarray,
+    sample_hz: int,
+    name: str,
+    lowpass_cutoff_hz: float = 1.0,
+    median_kernel: int = 5,
+) -> np.ndarray:
+    """Apply a reversible feature ablation to the eight P0 signal channels."""
+    array = np.asarray(values, dtype=np.float32)
+    if array.ndim != 2 or array.shape[1] != 8:
+        raise ValueError("values must have shape (rows, 8)")
+    if name in {"p0_raw_mask", "p2_train_axis_augmentation"}:
+        return array.copy()
+    if name != "p1_lowpass_dynamic":
+        raise ValueError(f"unknown preprocess variant: {name}")
+    if median_kernel < 1 or median_kernel % 2 == 0:
+        raise ValueError("median_kernel must be a positive odd integer")
+    if len(array) < max(32, median_kernel):
+        raise ValueError("signal is too short for the configured feature variant")
+    median_acc = signal.medfilt(array[:, :3], kernel_size=(median_kernel, 1))
+    lowpass_acc = lowpass_sos(median_acc, lowpass_cutoff_hz, sample_hz)
+    dynamic_acc = array[:, :3] - lowpass_acc
+    return np.column_stack([array, lowpass_acc, dynamic_acc]).astype(np.float32)
+
+
 def resample_uniform(
     values: np.ndarray, source_hz: float, target_hz: int
 ) -> np.ndarray:
@@ -31,10 +83,9 @@ def _column_valid_mask(valid: np.ndarray, channels: int) -> np.ndarray:
         raise ValueError("valid mask must be one- or two-dimensional")
     if mask.shape[1] == channels:
         return mask
-    if mask.shape[1] == 2 and channels == 8:
-        return np.column_stack(
-            [mask[:, 0]] * 4 + [mask[:, 1]] * 4
-        )
+    if mask.shape[1] == 2 and channels % 2 == 0:
+        half = channels // 2
+        return np.column_stack([mask[:, 0]] * half + [mask[:, 1]] * half)
     raise ValueError("valid mask channel count does not match values")
 
 

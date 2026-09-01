@@ -7,7 +7,7 @@ from torch.utils.data import Dataset, Sampler
 
 from .io import iter_sensor_chunks
 from .labels import label_window
-from .preprocess import imu_features, resample_uniform
+from .preprocess import apply_feature_variant, imu_features, resample_uniform
 from .timebase import canonicalize_stream, infer_rate_hz, interpolate_uniform
 
 
@@ -114,6 +114,9 @@ def build_records_from_sensor_file(
     max_rows: int | None = None,
     chunksize: int = 50_000,
     max_gap_ms: int = 2_000,
+    preprocess_variant: str = "p0_raw_mask",
+    lowpass_cutoff_hz: float = 1.0,
+    median_kernel: int = 5,
 ) -> list[WindowRecord]:
     acc_time, _, gyro_time, acc, gyro, _, _ = _read_sensor_file(
         path, max_rows=max_rows, chunksize=chunksize
@@ -138,6 +141,13 @@ def build_records_from_sensor_file(
         raise ValueError("aligned streams produced different time grids")
     features, mask = imu_features(acc_uniform, gyro_uniform, acc_mask, gyro_mask)
     resampled_features = resample_uniform(features, source_hz, resample_hz)
+    resampled_features = apply_feature_variant(
+        resampled_features,
+        sample_hz=resample_hz,
+        name=preprocess_variant,
+        lowpass_cutoff_hz=lowpass_cutoff_hz,
+        median_kernel=median_kernel,
+    )
     resampled_mask = resample_uniform(mask.astype(np.float32), source_hz, resample_hz) > 0.5
     length = min(len(resampled_features), len(resampled_mask))
     feature_tensor = torch.from_numpy(
@@ -168,6 +178,9 @@ def build_records_from_sensor_files(
     boundary_mode: str,
     max_rows: int | None = None,
     chunksize: int = 50_000,
+    preprocess_variant: str = "p0_raw_mask",
+    lowpass_cutoff_hz: float = 1.0,
+    median_kernel: int = 5,
 ) -> tuple[list[WindowRecord], list[dict[str, str]]]:
     records: list[WindowRecord] = []
     issues: list[dict[str, str]] = []
@@ -185,6 +198,9 @@ def build_records_from_sensor_files(
                     boundary_mode=boundary_mode,
                     max_rows=max_rows,
                     chunksize=chunksize,
+                    preprocess_variant=preprocess_variant,
+                    lowpass_cutoff_hz=lowpass_cutoff_hz,
+                    median_kernel=median_kernel,
                 )
             )
         except (OSError, ValueError) as exc:
