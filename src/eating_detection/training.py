@@ -1,13 +1,17 @@
 import copy
 import json
 import random
+import subprocess
 import time
 from pathlib import Path
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 
+from .cache import FeatureCache
 from .dataset import (
+    CachedWindowDataset,
     ParticipantBatchSampler,
     WindowDataset,
     WindowRecord,
@@ -91,6 +95,301 @@ def save_checkpoint(
 def save_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _resolve_device(device_name: str) -> torch.device:
+    if device_name == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(device_name)
+    if device.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested but torch.cuda.is_available() is false")
+    return device
+
+
+def _synchronize(device: torch.device) -> None:
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+
+
+def _gpu_runtime_stats(device: torch.device) -> dict[str, object]:
+    stats: dict[str, object] = {"device": str(device), "gpu_utilization_percent": None}
+    if device.type != "cuda":
+        return stats
+    stats.update(
+        {
+            "memory_allocated_mb": torch.cuda.memory_allocated(device) / 1_000_000,
+            "memory_reserved_mb": torch.cuda.memory_reserved(device) / 1_000_000,
+            "max_memory_allocated_mb": torch.cuda.max_memory_allocated(device) / 1_000_000,
+        }
+    )
+    try:
+        output = subprocess.check_output(
+            [
+                "nvidia-smi",
+                "--query-gpu=utilization.gpu",
+                "--format=csv,noheader,nounits",
+            ],
+            text=True,
+            timeout=5,
+        )
+        stats["gpu_utilization_percent"] = float(output.strip().splitlines()[0])
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        stats["gpu_utilization_percent"] = None
+    return stats
+
+
+def _fit_cached_standardizer(
+    caches: list[FeatureCache], train_participants: set[str]
+) -> Standardizer:
+    selected = [cache for cache in caches if cache.participant in train_participants]
+    if not selected:
+        raise ValueError("no training cache for the requested participants")
+    signal_channels = int(selected[0].features.shape[0] - 2)
+    if signal_channels <= 0 or signal_channels % 2:
+        raise ValueError("cached feature channels must contain an even signal channel count")
+    sums = np.zeros(signal_channels, dtype=np.float64)
+    squares = np.zeros(signal_channels, dtype=np.float64)
+    counts = np.zeros(signal_channels, dtype=np.int64)
+    for cache in selected:
+        if cache.features.shape[0] - 2 != signal_channels:
+            raise ValueError("all cached files must have the same signal channel count")
+        for channel in range(signal_channels):
+            valid = cache.quality_mask[0 if channel < signal_channels // 2 else 1]
+            values = cache.features[channel, valid]
+            sums[channel] += values.sum(dtype=np.float64)
+            squares[channel] += np.square(values, dtype=np.float64).sum(dtype=np.float64)
+            counts[channel] += int(valid.sum())
+    if np.any(counts == 0):
+        missing = np.flatnonzero(counts == 0).tolist()
+        raise ValueError(f"cached signal channels have no valid training samples: {missing}")
+    mean = sums / counts
+    std = np.sqrt(np.maximum(squares / counts - mean * mean, 1e-12))
+    return Standardizer(mean.astype(np.float32), std.astype(np.float32))
+
+
+def _standardize_batch(batch: torch.Tensor, stats: Standardizer) -> torch.Tensor:
+    if batch.ndim != 3 or batch.shape[1] < 3:
+        raise ValueError("cached batch must have shape (batch, channels, time)")
+    signal_channels = batch.shape[1] - 2
+    mean = torch.as_tensor(stats.mean, dtype=batch.dtype, device=batch.device).view(1, -1, 1)
+    std = torch.as_tensor(stats.std, dtype=batch.dtype, device=batch.device).view(1, -1, 1)
+    if mean.shape[1] != signal_channels:
+        raise ValueError("normalization statistics do not match cached signal channels")
+    return torch.cat(((batch[:, :signal_channels] - mean) / std, batch[:, signal_channels:]), dim=1)
+
+
+def _cached_loader(dataset: CachedWindowDataset, batch_size: int, device: torch.device):
+    sampler = ParticipantBatchSampler(dataset, batch_size=batch_size)
+    return DataLoader(
+        dataset,
+        batch_sampler=sampler,
+        num_workers=0,
+        pin_memory=device.type == "cuda",
+    )
+
+
+def _predict_cached(
+    model,
+    dataset: CachedWindowDataset,
+    stats: Standardizer,
+    device: torch.device,
+    batch_size: int,
+) -> dict[str, list[tuple[int, int, float]]]:
+    model.eval()
+    predictions: dict[str, list[tuple[int, int, float]]] = {}
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=device.type == "cuda",
+    )
+    offset = 0
+    with torch.inference_mode():
+        for batch, _, _ in loader:
+            batch = _standardize_batch(batch, stats).to(device, non_blocking=device.type == "cuda")
+            probabilities = torch.sigmoid(model(batch)).detach().cpu().tolist()
+            for probability in probabilities:
+                participant, start_ms, end_ms = dataset.window_metadata(offset)
+                predictions.setdefault(participant, []).append(
+                    (start_ms, end_ms, float(probability))
+                )
+                offset += 1
+    for participant in predictions:
+        predictions[participant].sort(key=lambda item: item[0])
+    return predictions
+
+
+def fit_m0_cached(
+    caches: list[FeatureCache],
+    train_participants: set[str],
+    val_participants: set[str],
+    truth: dict[str, list[tuple[int, int]]],
+    output_dir: Path,
+    config_payload: dict[str, object],
+    split_manifest: dict[str, object],
+    epochs: int,
+    batch_size: int,
+    seed: int,
+    iou_threshold: float,
+    device_name: str = "auto",
+    cache_issues: list[dict[str, str]] | None = None,
+) -> dict[str, object]:
+    """Train M0 from per-file caches without reading source sensor files."""
+    if not caches:
+        raise ValueError("no feature caches were built")
+    if epochs <= 0 or batch_size <= 0:
+        raise ValueError("epochs and batch_size must be positive")
+    set_seed(seed)
+    train_dataset = CachedWindowDataset(caches, train_participants)
+    val_dataset = CachedWindowDataset(caches, val_participants)
+    if not len(train_dataset):
+        raise ValueError("no training windows for the requested participants")
+    if not len(val_dataset):
+        raise ValueError("no validation windows for the requested participants")
+    stats = _fit_cached_standardizer(caches, train_participants)
+    train_labels = [
+        float(cache.window_labels[index])
+        for cache in caches
+        if cache.participant in train_participants
+        for index, usable in enumerate(cache.window_loss_mask)
+        if usable
+    ]
+    pos_weight = compute_pos_weight(train_labels)
+    device = _resolve_device(device_name)
+    input_channels = int(caches[0].features.shape[0])
+    model = IMUCNN(in_channels=input_channels).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    loader = _cached_loader(train_dataset, batch_size, device)
+    best_result = None
+    best_state = None
+    epoch_losses = []
+    epoch_times = []
+    epoch_gpu_stats = []
+    output_dir.mkdir(parents=True, exist_ok=True)
+    started_at = time.perf_counter()
+    cache_stats = {
+        "cache_files": len(caches),
+        "cache_hit_files": sum(cache.cache_hit for cache in caches),
+        "cache_miss_files": sum(not cache.cache_hit for cache in caches),
+        "cache_build_sec": sum(cache.timings.get("build_sec", 0.0) for cache in caches),
+        "cache_load_sec": sum(cache.timings.get("cache_load_sec", 0.0) for cache in caches),
+        "cache_issues": cache_issues or [],
+    }
+
+    for epoch in range(1, epochs + 1):
+        _synchronize(device)
+        epoch_started = time.perf_counter()
+        if device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(device)
+        losses = []
+        for batch, targets, participants in loader:
+            if len(set(participants)) != 1:
+                raise AssertionError("participant batch sampler mixed participant groups")
+            batch = _standardize_batch(batch, stats).to(device, non_blocking=device.type == "cuda")
+            targets = targets.to(device, non_blocking=device.type == "cuda")
+            losses.append(train_one_batch(model, optimizer, batch, targets, pos_weight))
+        _synchronize(device)
+        predictions = _predict_cached(model, val_dataset, stats, device, batch_size)
+        validation_participants = sorted(val_participants)
+        decoder = tune_decoder(
+            [[(start, end) for start, end, _ in predictions.get(participant, [])] for participant in validation_participants],
+            [[probability for _, _, probability in predictions.get(participant, [])] for participant in validation_participants],
+            [truth.get(participant, []) for participant in validation_participants],
+            iou_threshold=iou_threshold,
+        )
+        aggregate, participant_metrics, events = evaluate_predictions(
+            predictions, truth, decoder, iou_threshold, participants=val_participants
+        )
+        f1_values = [float(item["f1"]) for item in participant_metrics.values()]
+        epoch_time = time.perf_counter() - epoch_started
+        gpu_stats = _gpu_runtime_stats(device)
+        result = {
+            **aggregate.as_dict(),
+            "participant_metrics": participant_metrics,
+            "decoder": decoder,
+            "events": events,
+            "device": str(device),
+            "batch_size": batch_size,
+            "pos_weight": pos_weight,
+            "participant_f1_mean": float(np.mean(f1_values)) if f1_values else 0.0,
+            "participant_f1_std": float(np.std(f1_values)) if f1_values else 0.0,
+            "participant_f1_worst": min(f1_values) if f1_values else 0.0,
+            "window_count": len(train_dataset) + len(val_dataset),
+            "train_window_count": len(train_dataset),
+            "val_window_count": len(val_dataset),
+            "input_channels": input_channels,
+            "window_samples": int(caches[0].window_indices[0, 1] - caches[0].window_indices[0, 0]),
+            "epoch_time_sec": epoch_time,
+            "gpu_stats": gpu_stats,
+            "cache": cache_stats,
+        }
+        epoch_losses.append(float(np.mean(losses)) if losses else None)
+        epoch_times.append(epoch_time)
+        epoch_gpu_stats.append(gpu_stats)
+        if best_result is None or result["f1"] > best_result["f1"]:
+            best_result = result
+            best_state = {
+                "model": copy.deepcopy(model.state_dict()),
+                "optimizer": copy.deepcopy(optimizer.state_dict()),
+                "epoch": epoch,
+            }
+            save_checkpoint(
+                output_dir / "checkpoint.pt",
+                model,
+                optimizer,
+                config_payload,
+                split_manifest,
+                {"mean": stats.mean.tolist(), "std": stats.std.tolist()},
+                epoch,
+                result,
+                seed=seed,
+            )
+
+    if best_result is None or best_state is None:
+        raise RuntimeError("cached training produced no checkpoint")
+    best_result["training_time_sec"] = float(time.perf_counter() - started_at)
+    best_result["epoch_times_sec"] = epoch_times
+    best_result["epoch_gpu_stats"] = epoch_gpu_stats
+    model.load_state_dict(best_state["model"])
+    optimizer.load_state_dict(best_state["optimizer"])
+    final_predictions = _predict_cached(model, val_dataset, stats, device, batch_size)
+    rows = []
+    for participant in sorted(final_predictions):
+        for start, end, probability in final_predictions[participant]:
+            rows.append(
+                {
+                    "participant": participant,
+                    "start_ms": start,
+                    "end_ms": end,
+                    "probability": probability,
+                    "split": "val",
+                }
+            )
+    (output_dir / "window_probabilities.jsonl").write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8"
+    )
+    save_json(output_dir / "metrics.json", best_result)
+    save_json(output_dir / "decoder.json", best_result["decoder"])
+    save_json(output_dir / "normalization.json", {"mean": stats.mean.tolist(), "std": stats.std.tolist()})
+    save_json(output_dir / "events_val.json", best_result["events"])
+    save_json(
+        output_dir / "training_log.json",
+        {"epoch_losses": epoch_losses, "epoch_times_sec": epoch_times, "epoch_gpu_stats": epoch_gpu_stats, "cache": cache_stats},
+    )
+    save_json(output_dir / "cache_summary.json", cache_stats)
+    save_checkpoint(
+        output_dir / "checkpoint.pt",
+        model,
+        optimizer,
+        config_payload,
+        split_manifest,
+        {"mean": stats.mean.tolist(), "std": stats.std.tolist()},
+        best_state["epoch"],
+        best_result,
+        seed=seed,
+    )
+    return {"metrics": best_result, "stats": stats, "device": str(device), "cache": cache_stats}
 
 
 def standardize_window_records(

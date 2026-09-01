@@ -8,14 +8,15 @@ from typing import Sequence
 import yaml
 
 from .audit import audit_sensor_files
+from .cache import FeatureCacheConfig, build_feature_caches
 from .config import Config, load_config
-from .dataset import build_records_from_sensor_files, participant_from_sensor_path
+from .dataset import participant_from_sensor_path
 from .decoding import decode_windows
 from .io import read_meal_intervals
 from .metrics import event_metrics
 from .splits import load_manifest, make_manifest_from_directories
 from .preprocess import apply_variant
-from .training import evaluate_predictions, fit_m0, fit_m0_streaming, save_json
+from .training import evaluate_predictions, fit_m0_cached, save_json
 
 
 def _sensor_files(train_dir: Path, limit_files: int | None) -> list[Path]:
@@ -109,12 +110,14 @@ def _run_train(args: argparse.Namespace) -> int:
     index_dir = Path(args.index_dir) if args.index_dir else None
     train_dir = Path(args.train_dir) if args.train_dir else None
     output_dir = Path(args.output_dir) if args.output_dir else None
+    cache_dir = Path(args.cache_dir) if args.cache_dir else None
     config = load_config(
         Path(args.config),
         data_root=data_root,
         index_dir=index_dir,
         train_dir=train_dir,
         output_dir=output_dir,
+        cache_dir=cache_dir,
     )
     output_dir = config.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -157,21 +160,6 @@ def _run_train(args: argparse.Namespace) -> int:
         args.limit_files,
         explicit_paths=args.sensor_files,
     )
-    records, issues = build_records_from_sensor_files(
-        paths,
-        intervals,
-        resample_hz=config.resample_hz,
-        window_sec=config.window_sec,
-        step_sec=config.step_sec,
-        positive_overlap=config.label_positive_overlap,
-        boundary_mode=config.boundary_mode,
-        max_rows=args.max_rows,
-        chunksize=config.chunksize,
-        preprocess_variant=preprocess_variant,
-        lowpass_cutoff_hz=float(config_payload.get("lowpass_cutoff_hz", 1.0)),
-        median_kernel=int(config_payload.get("median_kernel", 5)),
-    )
-    save_json(output_dir / "input_issues.json", issues)
     truth = {
         participant: [list(interval) for interval in intervals.get(participant, [])]
         for participant in allowed
@@ -179,65 +167,51 @@ def _run_train(args: argparse.Namespace) -> int:
     save_json(output_dir / "truth_intervals.json", truth)
     try:
         truth_tuples = {key: [tuple(item) for item in value] for key, value in truth.items()}
-        streaming = args.max_rows is None and args.limit_files is None and not args.sensor_files
-        if streaming:
-            print(f"STREAMING_TRAIN files={len(paths)}")
-            result = fit_m0_streaming(
-                paths=paths,
-                intervals=intervals,
-                resample_hz=config.resample_hz,
-                window_sec=config.window_sec,
-                step_sec=config.step_sec,
-                positive_overlap=config.label_positive_overlap,
-                boundary_mode=config.boundary_mode,
-                chunksize=config.chunksize,
-                train_participants=train_participants,
-                val_participants=val_participants,
-                truth=truth_tuples,
-                output_dir=output_dir,
-                config_payload=config_payload,
-                split_manifest=manifest,
-                epochs=args.epochs,
-                batch_size=args.batch_size,
-                seed=config.seed,
-                iou_threshold=config.event_iou_threshold,
-                device_name=args.device,
-            )
-        else:
-            records, issues = build_records_from_sensor_files(
-                paths,
-                intervals,
-                resample_hz=config.resample_hz,
-                window_sec=config.window_sec,
-                step_sec=config.step_sec,
-                positive_overlap=config.label_positive_overlap,
-                boundary_mode=config.boundary_mode,
-                max_rows=args.max_rows,
-                chunksize=config.chunksize,
-                preprocess_variant=preprocess_variant,
-                lowpass_cutoff_hz=float(config_payload.get("lowpass_cutoff_hz", 1.0)),
-                median_kernel=int(config_payload.get("median_kernel", 5)),
-            )
-            save_json(output_dir / "input_issues.json", issues)
-            if not records:
-                print("TRAIN_BLOCKED reason=no windows were built from the selected files")
-                return 2
-            shape = tuple(records[0].features.shape)
-            print(f"features shape=({len(records)},{shape[0]},{shape[1]})")
-            result = fit_m0(
-                records=records,
-                train_participants=train_participants,
-                val_participants=val_participants,
-                truth=truth_tuples,
-                output_dir=output_dir,
-                config_payload=config_payload,
-                split_manifest=manifest,
-                epochs=args.epochs,
-                batch_size=args.batch_size,
-                seed=config.seed,
-                iou_threshold=config.event_iou_threshold,
-                device_name=args.device,
-            )
+        cache_config = FeatureCacheConfig(
+            resample_hz=config.resample_hz,
+            max_gap_ms=config.max_gap_ms,
+            preprocess_variant=preprocess_variant,
+            lowpass_cutoff_hz=config.lowpass_cutoff_hz,
+            median_kernel=config.median_kernel,
+            window_sec=config.window_sec,
+            step_sec=config.step_sec,
+            positive_overlap=config.label_positive_overlap,
+            boundary_mode=config.boundary_mode,
+            chunksize=config.chunksize,
+            max_rows=args.max_rows,
+        )
+        config_payload["cache_dir"] = str(config.cache_dir)
+        caches, issues = build_feature_caches(
+            paths, intervals, config.cache_dir, cache_config
+        )
+        save_json(output_dir / "input_issues.json", issues)
+        if not caches:
+            print("TRAIN_BLOCKED reason=no feature caches were built")
+            return 2
+        total_windows = sum(len(cache.window_indices) for cache in caches)
+        print(
+            f"CACHE_SUMMARY files={len(caches)} hits={sum(cache.cache_hit for cache in caches)} "
+            f"misses={sum(not cache.cache_hit for cache in caches)} windows={total_windows}"
+        )
+        print(
+            f"features shape=({total_windows},{caches[0].features.shape[0]},"
+            f"{caches[0].window_indices[0, 1] - caches[0].window_indices[0, 0]})"
+        )
+        result = fit_m0_cached(
+            caches=caches,
+            train_participants=train_participants,
+            val_participants=val_participants,
+            truth=truth_tuples,
+            output_dir=output_dir,
+            config_payload=config_payload,
+            split_manifest=manifest,
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            seed=config.seed,
+            iou_threshold=config.event_iou_threshold,
+            device_name=args.device,
+            cache_issues=issues,
+        )
     except ValueError as exc:
         print(f"TRAIN_BLOCKED reason={exc}")
         return 2
@@ -326,6 +300,7 @@ def build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument("--sensor-file", dest="sensor_files", action="append")
     train_parser.add_argument("--split-manifest")
     train_parser.add_argument("--output-dir")
+    train_parser.add_argument("--cache-dir")
     train_parser.add_argument("--limit-files", type=int)
     train_parser.add_argument("--max-rows", type=int)
     train_parser.add_argument("--epochs", type=int, default=1)

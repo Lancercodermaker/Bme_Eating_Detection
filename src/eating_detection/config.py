@@ -11,6 +11,7 @@ class Config:
     index_dir: Path
     train_dir: Path
     output_dir: Path
+    cache_dir: Path = Path("cache/m0")
     resample_hz: int = 25
     window_sec: int = 15
     step_sec: int = 3
@@ -19,6 +20,10 @@ class Config:
     label_positive_overlap: float = 0.25
     boundary_mode: str = "soft"
     event_iou_threshold: float = 0.25
+    max_gap_ms: int = 2_000
+    preprocess_variant: str = "p0_raw_mask"
+    lowpass_cutoff_hz: float = 1.0
+    median_kernel: int = 5
 
 
 def load_config(path: Path, **overrides: Any) -> Config:
@@ -33,6 +38,7 @@ def load_config(path: Path, **overrides: Any) -> Config:
         index_dir=Path(raw.get("index_dir", data_root / "01_dataset")),
         train_dir=Path(raw.get("train_dir", data_root / "02_traindataset")),
         output_dir=Path(raw.get("output_dir", "artifacts")),
+        cache_dir=Path(raw.get("cache_dir", "cache/m0")),
         resample_hz=int(raw.get("resample_hz", 25)),
         window_sec=int(raw.get("window_sec", 15)),
         step_sec=int(raw.get("step_sec", 3)),
@@ -41,6 +47,10 @@ def load_config(path: Path, **overrides: Any) -> Config:
         label_positive_overlap=float(raw.get("label_positive_overlap", 0.25)),
         boundary_mode=str(raw.get("boundary_mode", "soft")),
         event_iou_threshold=float(raw.get("event_iou_threshold", 0.25)),
+        max_gap_ms=int(raw.get("max_gap_ms", 2_000)),
+        preprocess_variant=str(raw.get("preprocess_variant", "p0_raw_mask")),
+        lowpass_cutoff_hz=float(raw.get("lowpass_cutoff_hz", 1.0)),
+        median_kernel=int(raw.get("median_kernel", 5)),
     )
     if cfg.resample_hz not in {15, 16, 25, 50}:
         raise ValueError("resample_hz must be one of 15, 16, 25, 50")
@@ -48,6 +58,8 @@ def load_config(path: Path, **overrides: Any) -> Config:
         raise ValueError("step_sec must be positive and no greater than window_sec")
     if cfg.chunksize <= 0:
         raise ValueError("chunksize must be positive")
+    if cfg.max_gap_ms < 0:
+        raise ValueError("max_gap_ms must be non-negative")
     if not 0 < cfg.label_positive_overlap <= 1:
         raise ValueError("label_positive_overlap must be in (0, 1]")
     if cfg.boundary_mode not in {"soft", "ignore"}:

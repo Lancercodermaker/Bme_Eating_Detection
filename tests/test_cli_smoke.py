@@ -24,8 +24,11 @@ def test_train_cli_accepts_explicit_data_directories():
             "sensor.txt",
             "--sensor-file",
             "sample.txt",
+            "--cache-dir",
+            "cache/features",
         ]
     )
     assert args.index_dir == "index"
     assert args.train_dir == "sensor.txt"
     assert args.sensor_files == ["sample.txt"]
+    assert args.cache_dir == "cache/features"
