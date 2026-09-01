@@ -78,11 +78,14 @@ def make_manifest_from_directories(
     meal_aliases = read_meal_participant_aliases(index_dir)
     sensor_ids = set(sensor_aliases.values())
     meal_ids = set(meal_aliases.values())
-    participants = sorted(sensor_ids & meal_ids)
+    reserved_test = {"test"}
+    participants = sorted((sensor_ids & meal_ids) - reserved_test)
     if len(participants) < 2:
         raise ValueError("at least two participants need both sensor data and meal metadata")
     split = make_group_split(participants, val_fraction, seed)
-    excluded_test = sorted(meal_ids - sensor_ids)
+    excluded_test = sorted(
+        (meal_ids - sensor_ids) | (reserved_test & (sensor_ids | meal_ids))
+    )
     aliases = {**sensor_aliases, **meal_aliases}
     unmatched_sensor = sorted(sensor_ids - meal_ids)
     save_manifest(

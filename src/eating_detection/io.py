@@ -47,6 +47,39 @@ def read_meal_participant_aliases(index_dir: Path) -> dict[str, str]:
     return aliases
 
 
+def read_meal_intervals(
+    index_dir: Path,
+) -> tuple[dict[str, list[tuple[int, int]]], dict[str, int]]:
+    from .labels import clean_interval
+
+    candidates = sorted(Path(index_dir).glob("*mealinfo*.csv"))
+    if not candidates:
+        raise FileNotFoundError(f"meal metadata CSV not found in {index_dir}")
+    frame = pd.read_csv(
+        candidates[0],
+        usecols=["externalid", "beforeTime", "afterTime"],
+        dtype={"externalid": "string", "beforeTime": "Int64", "afterTime": "Int64"},
+    )
+    intervals: dict[str, list[tuple[int, int]]] = {}
+    report = {
+        "ok": 0,
+        "missing_endpoint": 0,
+        "reversed_swapped": 0,
+        "zero_duration_excluded": 0,
+        "outside_sensor_coverage": 0,
+        "clipped_to_coverage": 0,
+    }
+    for row in frame.itertuples(index=False):
+        participant = canonical_participant_id(row.externalid)
+        start = None if pd.isna(row.beforeTime) else int(row.beforeTime)
+        end = None if pd.isna(row.afterTime) else int(row.afterTime)
+        interval, reason = clean_interval(start, end, (0, 10**18))
+        report[reason] += 1
+        if interval is not None:
+            intervals.setdefault(participant, []).append(interval)
+    return intervals, report
+
+
 def iter_sensor_chunks(path: Path, chunksize: int = 50_000) -> Iterator[SensorChunk]:
     ppg_cols = [f"PPG{i}" for i in range(1, 45)]
     usecols = [

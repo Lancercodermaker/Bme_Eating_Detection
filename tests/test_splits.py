@@ -68,3 +68,38 @@ def test_make_manifest_cli_intersects_meal_and_sensor_participants(tmp_path):
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert set(payload["train"]) | set(payload["val"]) == {"hnu1", "hnu2"}
     assert payload["excluded_test"] == ["test"]
+
+
+def test_manifest_excludes_reserved_test_participant_even_with_sensor_data(tmp_path):
+    index_dir = tmp_path / "index"
+    organized = tmp_path / "train" / "organized"
+    index_dir.mkdir()
+    for participant in ("p1", "p2", "test"):
+        (organized / participant).mkdir(parents=True)
+    (index_dir / "sample_mealinfo.csv").write_text(
+        "externalid,beforeTime,afterTime\n"
+        "p1,1000,2000\n"
+        "p2,3000,4000\n"
+        "test,5000,6000\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "manifest.json"
+    main(
+        [
+            "make-manifest",
+            "--index-dir",
+            str(index_dir),
+            "--train-dir",
+            str(tmp_path / "train"),
+            "--output",
+            str(output),
+            "--seed",
+            "7",
+            "--val-fraction",
+            "0.5",
+        ]
+    )
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert "test" not in payload["train"]
+    assert "test" not in payload["val"]
+    assert "test" in payload["excluded_test"]
