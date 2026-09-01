@@ -1,0 +1,53 @@
+Use `writing-plans`.
+
+先阅读并完全遵守下面的 handoff 摘要，把它和设计文档当作当前事实来源：
+
+`E:\bme_compitition\handoff-summary.md`
+
+设计文档：
+
+`E:\bme_compitition\docs\superpowers\specs\2026-08-31-smartwatch-eating-detection-baseline-design.md`
+
+不要重新开始已经完成的广泛领域搜索，也不要无理由推翻已经通过的设计。如果发现摘要、设计文档、竞赛文件或实际数据之间存在具体矛盾，先指出矛盾，再采用最小安全假设继续推进。
+
+## 当前目标
+
+在 Windows 的 `E:\bme_compitition` Git 仓库中执行已批准的智能手表进食检测基线：先配置独立 Conda/PyTorch 环境，完成数据审计和可复现的数据→标签→训练→事件评估闭环，再实现 IMU 1D CNN，随后按验证结果决定是否加入 PPG、方向鲁棒性、长上下文、TCN 或自监督预训练。
+
+## 已冻结的关键决定
+
+- 第一目标是稳定、可运行、便于学习迭代，不是先追求最大模型。
+- 竞赛主指标是事件级 Precision、Recall、F1，IoU > 0.25 才算命中，同时报告起止时间 MAE。
+- 必须按 participant 分组，禁止随机切相邻窗口；`test` 不参与训练或模型选择。
+- 原始约 93 GB 数据只读，不修改，不加入 Git；必须流式/分段处理。
+- 先恢复统一时间轴，再重采样；时间戳 0、重复包、全零 PPG 需要质量 mask。
+- 目标频率先试 25 Hz，并比较 15/16 Hz 和 50 Hz；15 秒窗口/3 秒步长是首个候选，均需验证。
+- P0 保留标准化原始 IMU、模长和 mask；滤波、动态分量、方向和镜像只做可回退消融。
+- M0 是小型 IMU 1D CNN；M1 才加入独立 PPG encoder 的特征级融合和 modality dropout。
+- M2 长上下文概率修正器只在 M1 主要问题是瞬时误报时启动；M3 TCN/MS-TCN 只在局部上下文/边界问题明确时启动；M4 自监督最后再试。
+- M0 首选训练集统计的 `pos_weight` 加权 `BCEWithLogitsLoss`；阈值和后处理参数只在验证集调。
+- 所有方案必须有“事实→风险→候选→标准→选择→实验”的证据链；论文证据不能替代本项目实验。
+
+## 本轮必须完成的工作
+
+1. 宣布正在使用 `writing-plans`，先检查仓库当前状态和设计文档。
+2. 根据设计文档创建详细实施计划，保存到：
+   `E:\bme_compitition\docs\superpowers\plans\2026-09-01-smartwatch-eating-detection-implementation-plan.md`
+3. 计划中必须明确每个文件的职责、测试文件、命令、预期输出和原子提交点。由于项目包含环境、数据、指标和模型多个子系统，如有必要拆为两个顺序清晰、各自可验收的计划。
+4. 计划阶段结束后，按 `writing-plans` 的要求说明执行方式；推荐在当前工作区 inline 执行，便于我学习和观察，但应遵守该 skill 的流程。
+5. 进入实现后，先使用 Context7：对于 PyTorch、SciPy、pandas、Conda 或其他库/CLI/API，必须先 `resolve-library-id`，再按单一概念 `query-docs`；不要凭记忆写当前 API。
+6. 用测试先行实现：数据解析、时间戳为 0 的处理、participant 无交叉、窗口标签、IoU 匹配、空预测/空真值和小批训练 smoke test。
+7. 先只读取少量样本完成数据报告和 smoke test，确认数据结构后再扩大规模；不要一开始扫描/缓存全部 93 GB。
+8. 环境配置必须使用独立 Conda 环境，不修改 base，不污染系统 Python；先验证 NVIDIA 驱动、CUDA 可见性和一个极小 PyTorch GPU 训练。
+9. 所有路径通过配置或命令行参数传入，不能写死绝对路径到训练逻辑；原始数据、缓存和权重必须被 Git 忽略。
+10. 每完成一个可验证阶段运行测试并做原子 Git 提交；最终使用 `verification-before-completion` 检查可复现运行、Git 状态和 README。
+
+## 重要路径
+
+- 仓库：`E:\bme_compitition`
+- 数据：`E:\bme_compitition\official_test_dataset\Data\`
+- 竞赛说明：`E:\bme_compitition\official_test_dataset\Data\03_papers\赛题二-进食检测_V1.1 (1).pdf`
+- 设计：`E:\bme_compitition\docs\superpowers\specs\2026-08-31-smartwatch-eating-detection-baseline-design.md`
+- 摘要：`E:\bme_compitition\handoff-summary.md`
+
+请从读取摘要和设计文档开始，先产出实施计划，再进入环境和代码工作；保持中文解释，并在每个关键选择处给出证据链和验证方法。
