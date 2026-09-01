@@ -78,7 +78,7 @@ def _read_sensor_file(
     gyro = []
     acc_valid = []
     gyro_valid = []
-    for chunk in iter_sensor_chunks(path, chunksize=chunksize):
+    for chunk in iter_sensor_chunks(path, chunksize=chunksize, include_ppg=False):
         take = len(chunk.acc) if max_rows is None else min(len(chunk.acc), max_rows - sum(map(len, acc)))
         if take <= 0:
             break

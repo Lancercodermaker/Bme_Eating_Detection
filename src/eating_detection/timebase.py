@@ -26,12 +26,14 @@ def canonicalize_stream(
     order = np.argsort(timestamps, kind="stable")
     timestamps = timestamps[order]
     array = array[order]
-    unique, inverse, counts = np.unique(
-        timestamps, return_inverse=True, return_counts=True
+    unique, starts, counts = np.unique(
+        timestamps, return_index=True, return_counts=True
     )
-    averaged = np.zeros((len(unique), array.shape[1]), dtype=np.float32)
-    for index in range(len(unique)):
-        averaged[index] = array[inverse == index].mean(axis=0)
+    if len(unique):
+        sums = np.add.reduceat(array, starts, axis=0)
+        averaged = sums / counts[:, None]
+    else:
+        averaged = np.empty((0, array.shape[1]), dtype=np.float32)
     return CanonicalStream(
         timestamps_ms=unique.astype(np.int64),
         values=averaged,

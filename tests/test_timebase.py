@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 from eating_detection.timebase import canonicalize_stream, infer_rate_hz, interpolate_uniform
 
@@ -14,6 +15,20 @@ def test_zero_timestamps_removed_and_duplicates_averaged():
 
 def test_rate_uses_positive_unique_deltas():
     assert infer_rate_hz(np.array([1000, 1020, 1040, 1060])) == 50.0
+
+
+def test_duplicate_aggregation_scales_for_large_packetized_stream():
+    timestamps = np.repeat(np.arange(1, 10_001, dtype=np.int64) * 100, 10)
+    values = np.arange(len(timestamps), dtype=np.float32)[:, None]
+
+    started = time.perf_counter()
+    out = canonicalize_stream(timestamps, values)
+    elapsed = time.perf_counter() - started
+
+    assert out.duplicate_rows == 90_000
+    assert out.timestamps_ms.shape == (10_000,)
+    assert np.allclose(out.values[[0, -1], 0], [4.5, 99_994.5])
+    assert elapsed < 0.75
 
 
 def test_interpolation_masks_large_gaps_and_out_of_range():

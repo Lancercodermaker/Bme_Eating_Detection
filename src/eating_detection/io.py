@@ -80,22 +80,18 @@ def read_meal_intervals(
     return intervals, report
 
 
-def iter_sensor_chunks(path: Path, chunksize: int = 50_000) -> Iterator[SensorChunk]:
+def iter_sensor_chunks(
+    path: Path, chunksize: int = 50_000, include_ppg: bool = True
+) -> Iterator[SensorChunk]:
     ppg_cols = [f"PPG{i}" for i in range(1, 45)]
-    usecols = [
-        "ACC_TIME",
-        "PPG_TIME",
-        "GYRO_TIME",
-        *ppg_cols,
-        "ACC_X",
-        "ACC_Y",
-        "ACC_Z",
-        "GYRO_X",
-        "GYRO_Y",
-        "GYRO_Z",
-    ]
+    usecols = ["ACC_TIME", "GYRO_TIME"]
+    if include_ppg:
+        usecols.extend(["PPG_TIME", *ppg_cols])
+    usecols.extend(["ACC_X", "ACC_Y", "ACC_Z", "GYRO_X", "GYRO_Y", "GYRO_Z"])
     numeric = {col: "float32" for col in usecols if not col.endswith("_TIME")}
-    numeric.update({"ACC_TIME": "Int64", "PPG_TIME": "Int64", "GYRO_TIME": "Int64"})
+    numeric.update({"ACC_TIME": "Int64", "GYRO_TIME": "Int64"})
+    if include_ppg:
+        numeric["PPG_TIME"] = "Int64"
     for frame in pd.read_csv(
         path,
         sep="\t",
@@ -104,18 +100,23 @@ def iter_sensor_chunks(path: Path, chunksize: int = 50_000) -> Iterator[SensorCh
         chunksize=chunksize,
     ):
         acc_time = frame["ACC_TIME"].fillna(0).to_numpy(np.int64)
-        ppg_time = frame["PPG_TIME"].fillna(0).to_numpy(np.int64)
         gyro_time = frame["GYRO_TIME"].fillna(0).to_numpy(np.int64)
         acc = frame[["ACC_X", "ACC_Y", "ACC_Z"]].to_numpy(np.float32)
         gyro = frame[["GYRO_X", "GYRO_Y", "GYRO_Z"]].to_numpy(np.float32)
-        ppg = frame[ppg_cols].to_numpy(np.float32)
         acc_valid = (acc_time > 0) & np.isfinite(acc).all(axis=1)
         gyro_valid = (gyro_time > 0) & np.isfinite(gyro).all(axis=1)
-        ppg_valid = (
-            (ppg_time > 0)
-            & np.isfinite(ppg).all(axis=1)
-            & (np.abs(ppg).sum(axis=1) > 0)
-        )
+        if include_ppg:
+            ppg_time = frame["PPG_TIME"].fillna(0).to_numpy(np.int64)
+            ppg = frame[ppg_cols].to_numpy(np.float32)
+            ppg_valid = (
+                (ppg_time > 0)
+                & np.isfinite(ppg).all(axis=1)
+                & (np.abs(ppg).sum(axis=1) > 0)
+            )
+        else:
+            ppg_time = np.zeros(len(frame), dtype=np.int64)
+            ppg = np.empty((len(frame), 0), dtype=np.float32)
+            ppg_valid = np.zeros(len(frame), dtype=bool)
         yield SensorChunk(
             timestamp_ms=np.column_stack([acc_time, ppg_time, gyro_time]),
             acc=acc,
