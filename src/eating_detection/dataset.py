@@ -223,14 +223,48 @@ class WindowDataset(Dataset):
             record.participant,
         )
 
+    def participant_for_index(self, index: int) -> str:
+        return self.records[index].participant
+
+
+class CachedWindowDataset(Dataset):
+    """Index-backed windows over per-file continuous feature arrays."""
+
+    def __init__(self, caches, participants: set[str] | None = None, include_ignored: bool = False):
+        self.caches = list(caches)
+        allowed = participants
+        self._references = []
+        for cache_index, cache in enumerate(self.caches):
+            if allowed is not None and cache.participant not in allowed:
+                continue
+            for window_index, usable in enumerate(cache.window_loss_mask):
+                if include_ignored or bool(usable):
+                    self._references.append((cache_index, window_index))
+
+    def __len__(self):
+        return len(self._references)
+
+    def participant_for_index(self, index: int) -> str:
+        cache_index, _ = self._references[index]
+        return self.caches[cache_index].participant
+
+    def __getitem__(self, index):
+        cache_index, window_index = self._references[index]
+        cache = self.caches[cache_index]
+        start, end = cache.window_indices[window_index]
+        features = torch.from_numpy(cache.features[:, int(start):int(end)])
+        label = torch.tensor(cache.window_labels[window_index], dtype=torch.float32)
+        return features, label, cache.participant
+
 
 class ParticipantBatchSampler(Sampler[list[int]]):
     def __init__(self, dataset: WindowDataset, batch_size: int):
         if batch_size <= 0:
             raise ValueError("batch_size must be positive")
         self.groups: dict[str, list[int]] = {}
-        for index, record in enumerate(dataset.records):
-            self.groups.setdefault(record.participant, []).append(index)
+        for index in range(len(dataset)):
+            participant = dataset.participant_for_index(index)
+            self.groups.setdefault(participant, []).append(index)
         self.batch_size = batch_size
 
     def __iter__(self):

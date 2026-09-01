@@ -2,6 +2,7 @@ import torch
 import numpy as np
 
 from eating_detection.dataset import (
+    CachedWindowDataset,
     build_records_from_sensor_file,
     ParticipantBatchSampler,
     WindowDataset,
