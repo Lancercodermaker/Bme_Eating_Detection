@@ -15,7 +15,7 @@ from .io import read_meal_intervals
 from .metrics import event_metrics
 from .splits import load_manifest, make_manifest_from_directories
 from .preprocess import apply_variant
-from .training import evaluate_predictions, fit_m0, save_json
+from .training import evaluate_predictions, fit_m0, fit_m0_streaming, save_json
 
 
 def _sensor_files(train_dir: Path, limit_files: int | None) -> list[Path]:
@@ -177,26 +177,67 @@ def _run_train(args: argparse.Namespace) -> int:
         for participant in allowed
     }
     save_json(output_dir / "truth_intervals.json", truth)
-    if not records:
-        print("TRAIN_BLOCKED reason=no windows were built from the selected files")
-        return 2
-    shape = tuple(records[0].features.shape)
-    print(f"features shape=({len(records)},{shape[0]},{shape[1]})")
     try:
-        result = fit_m0(
-            records=records,
-            train_participants=train_participants,
-            val_participants=val_participants,
-            truth={key: [tuple(item) for item in value] for key, value in truth.items()},
-            output_dir=output_dir,
-            config_payload=config_payload,
-            split_manifest=manifest,
-            epochs=args.epochs,
-            batch_size=args.batch_size,
-            seed=config.seed,
-            iou_threshold=config.event_iou_threshold,
-            device_name=args.device,
-        )
+        truth_tuples = {key: [tuple(item) for item in value] for key, value in truth.items()}
+        streaming = args.max_rows is None and args.limit_files is None and not args.sensor_files
+        if streaming:
+            print(f"STREAMING_TRAIN files={len(paths)}")
+            result = fit_m0_streaming(
+                paths=paths,
+                intervals=intervals,
+                resample_hz=config.resample_hz,
+                window_sec=config.window_sec,
+                step_sec=config.step_sec,
+                positive_overlap=config.label_positive_overlap,
+                boundary_mode=config.boundary_mode,
+                chunksize=config.chunksize,
+                train_participants=train_participants,
+                val_participants=val_participants,
+                truth=truth_tuples,
+                output_dir=output_dir,
+                config_payload=config_payload,
+                split_manifest=manifest,
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                seed=config.seed,
+                iou_threshold=config.event_iou_threshold,
+                device_name=args.device,
+            )
+        else:
+            records, issues = build_records_from_sensor_files(
+                paths,
+                intervals,
+                resample_hz=config.resample_hz,
+                window_sec=config.window_sec,
+                step_sec=config.step_sec,
+                positive_overlap=config.label_positive_overlap,
+                boundary_mode=config.boundary_mode,
+                max_rows=args.max_rows,
+                chunksize=config.chunksize,
+                preprocess_variant=preprocess_variant,
+                lowpass_cutoff_hz=float(config_payload.get("lowpass_cutoff_hz", 1.0)),
+                median_kernel=int(config_payload.get("median_kernel", 5)),
+            )
+            save_json(output_dir / "input_issues.json", issues)
+            if not records:
+                print("TRAIN_BLOCKED reason=no windows were built from the selected files")
+                return 2
+            shape = tuple(records[0].features.shape)
+            print(f"features shape=({len(records)},{shape[0]},{shape[1]})")
+            result = fit_m0(
+                records=records,
+                train_participants=train_participants,
+                val_participants=val_participants,
+                truth=truth_tuples,
+                output_dir=output_dir,
+                config_payload=config_payload,
+                split_manifest=manifest,
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                seed=config.seed,
+                iou_threshold=config.event_iou_threshold,
+                device_name=args.device,
+            )
     except ValueError as exc:
         print(f"TRAIN_BLOCKED reason={exc}")
         return 2

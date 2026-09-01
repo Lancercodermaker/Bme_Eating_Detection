@@ -7,7 +7,13 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .dataset import ParticipantBatchSampler, WindowDataset, WindowRecord
+from .dataset import (
+    ParticipantBatchSampler,
+    WindowDataset,
+    WindowRecord,
+    build_records_from_sensor_file,
+    participant_from_sensor_path,
+)
 from .decoding import decode_windows, tune_decoder
 from .metrics import EventMetrics, event_metrics
 from .models import IMUCNN
@@ -18,7 +24,10 @@ def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.use_deterministic_algorithms(True)
     if torch.cuda.is_available():
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
         torch.cuda.manual_seed_all(seed)
 
 
@@ -97,6 +106,12 @@ def standardize_window_records(
         [record.features[-2:].detach().cpu().numpy().T > 0.5 for record in train_records], axis=0
     )
     stats = fit_standardizer(train_values, train_masks)
+    return _apply_standardizer(records, stats), stats
+
+
+def _apply_standardizer(
+    records: list[WindowRecord], stats: Standardizer
+) -> list[WindowRecord]:
     standardized = []
     for record in records:
         raw = record.features.detach().cpu().numpy()
@@ -112,7 +127,7 @@ def standardize_window_records(
                 loss_mask=record.loss_mask,
             )
         )
-    return standardized, stats
+    return standardized
 
 
 def _predict_records(model, records: list[WindowRecord], device: torch.device):
@@ -325,6 +340,275 @@ def fit_m0(
         "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
         encoding="utf-8",
     )
+    save_json(output_dir / "metrics.json", best_result)
+    save_json(output_dir / "decoder.json", best_result["decoder"])
+    save_json(output_dir / "normalization.json", {"mean": stats.mean.tolist(), "std": stats.std.tolist()})
+    save_json(output_dir / "events_val.json", best_result["events"])
+    save_json(output_dir / "training_log.json", {"epoch_losses": epoch_losses})
+    save_checkpoint(
+        output_dir / "checkpoint.pt",
+        model,
+        optimizer,
+        config_payload,
+        split_manifest,
+        {"mean": stats.mean.tolist(), "std": stats.std.tolist()},
+        best_state["epoch"],
+        best_result,
+        seed=seed,
+    )
+    return {"metrics": best_result, "stats": stats, "device": str(device)}
+
+
+def fit_m0_streaming(
+    paths: list[Path],
+    intervals: dict[str, list[tuple[int, int]]],
+    resample_hz: int,
+    window_sec: float,
+    step_sec: float,
+    positive_overlap: float,
+    boundary_mode: str,
+    chunksize: int,
+    train_participants: set[str],
+    val_participants: set[str],
+    truth: dict[str, list[tuple[int, int]]],
+    output_dir: Path,
+    config_payload: dict[str, object],
+    split_manifest: dict[str, object],
+    epochs: int,
+    batch_size: int,
+    seed: int,
+    iou_threshold: float,
+    device_name: str = "auto",
+    max_rows: int | None = None,
+    max_gap_ms: int = 2_000,
+) -> dict[str, object]:
+    """Train M0 with per-file reads and a train-only first-pass standardizer."""
+    if epochs <= 0 or batch_size <= 0:
+        raise ValueError("epochs and batch_size must be positive")
+    set_seed(seed)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    issues: dict[str, str] = {}
+    signal_channels = None
+    sums = None
+    squares = None
+    counts = None
+    window_samples = None
+    train_positive = 0
+    train_negative = 0
+    train_window_count = 0
+    val_window_count = 0
+
+    def load_file(path: Path) -> list[WindowRecord] | None:
+        participant = participant_from_sensor_path(path)
+        try:
+            return build_records_from_sensor_file(
+                path,
+                intervals=intervals.get(participant, []),
+                resample_hz=resample_hz,
+                window_sec=window_sec,
+                step_sec=step_sec,
+                positive_overlap=positive_overlap,
+                boundary_mode=boundary_mode,
+                max_rows=max_rows,
+                chunksize=chunksize,
+                preprocess_variant=str(config_payload.get("preprocess_variant", "p0_raw_mask")),
+                lowpass_cutoff_hz=float(config_payload.get("lowpass_cutoff_hz", 1.0)),
+                median_kernel=int(config_payload.get("median_kernel", 5)),
+                max_gap_ms=max_gap_ms,
+            )
+        except (OSError, ValueError) as exc:
+            issues[str(path)] = str(exc)
+            return None
+
+    def accumulate(records: list[WindowRecord]) -> None:
+        nonlocal signal_channels, sums, squares, counts, window_samples
+        for record in records:
+            values = record.features[:-2].detach().cpu().numpy().T
+            mask = record.features[-2:].detach().cpu().numpy().T > 0.5
+            if window_samples is None:
+                window_samples = int(record.features.shape[1])
+            if signal_channels is None:
+                signal_channels = values.shape[1]
+                sums = np.zeros(signal_channels, dtype=np.float64)
+                squares = np.zeros(signal_channels, dtype=np.float64)
+                counts = np.zeros(signal_channels, dtype=np.int64)
+            if values.shape[1] != signal_channels:
+                raise ValueError("all files must produce the same number of signal channels")
+            if signal_channels % 2:
+                raise ValueError("signal channels must be divisible into ACC/GYRO mask groups")
+            valid = np.column_stack(
+                [mask[:, 0]] * (signal_channels // 2)
+                + [mask[:, 1]] * (signal_channels // 2)
+            )
+            sums += np.where(valid, values, 0.0).sum(axis=0)
+            squares += np.where(valid, values * values, 0.0).sum(axis=0)
+            counts += valid.sum(axis=0)
+
+    for path in paths:
+        participant = participant_from_sensor_path(path)
+        records = load_file(path)
+        if records is None:
+            continue
+        if participant in train_participants:
+            accumulate(records)
+            train_records = [record for record in records if record.loss_mask]
+            train_window_count += len(train_records)
+            train_positive += sum(record.label > 0 for record in train_records)
+            train_negative += sum(record.label == 0 for record in train_records)
+        elif participant in val_participants:
+            val_window_count += sum(record.loss_mask for record in records)
+
+    if signal_channels is None or not train_window_count:
+        save_json(output_dir / "input_issues.json", [{"path": key, "reason": value} for key, value in issues.items()])
+        raise ValueError("no training windows for the requested participants")
+    if train_positive == 0:
+        raise ValueError("training split has no positive windows")
+    if np.any(counts == 0):
+        raise ValueError("a signal channel has no valid training samples")
+    mean = sums / counts
+    std = np.sqrt(np.maximum(squares / counts - mean * mean, 1e-12))
+    stats = Standardizer(mean.astype(np.float32), std.astype(np.float32))
+    pos_weight = train_negative / train_positive
+    device = torch.device(
+        "cuda" if device_name == "auto" and torch.cuda.is_available() else
+        "cpu" if device_name == "auto" else device_name
+    )
+    model = IMUCNN(in_channels=signal_channels + 2).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    best_result = None
+    best_state = None
+    epoch_losses = []
+    started_at = time.perf_counter()
+
+    for epoch in range(1, epochs + 1):
+        losses = []
+        for path in paths:
+            participant = participant_from_sensor_path(path)
+            if participant not in train_participants:
+                continue
+            records = load_file(path)
+            if records is None:
+                continue
+            local_records = [
+                record
+                for record in _apply_standardizer(records, stats)
+                if record.loss_mask
+            ]
+            sampler = ParticipantBatchSampler(WindowDataset(local_records), batch_size=batch_size)
+            for batch in sampler:
+                x = torch.stack([local_records[index].features for index in batch]).to(device)
+                y = torch.tensor([local_records[index].label for index in batch], device=device)
+                if (
+                    config_payload.get("preprocess_variant") == "p2_train_axis_augmentation"
+                    and random.random() < float(config_payload.get("axis_mirror_probability", 0.5))
+                ):
+                    x = mirror_imu_axes(x)
+                losses.append(train_one_batch(model, optimizer, x, y, pos_weight))
+
+        predictions: dict[str, list[tuple[int, int, float]]] = {}
+        for path in paths:
+            participant = participant_from_sensor_path(path)
+            if participant not in val_participants:
+                continue
+            records = load_file(path)
+            if records is None:
+                continue
+            local_records = [
+                record
+                for record in _apply_standardizer(records, stats)
+                if record.loss_mask
+            ]
+            for key, values in _predict_records(model, local_records, device).items():
+                predictions.setdefault(key, []).extend(values)
+        for participant in predictions:
+            predictions[participant].sort(key=lambda item: item[0])
+        validation_participants = sorted(val_participants)
+        decoder = tune_decoder(
+            [[(start, end) for start, end, _ in predictions.get(participant, [])] for participant in validation_participants],
+            [[probability for _, _, probability in predictions.get(participant, [])] for participant in validation_participants],
+            [truth.get(participant, []) for participant in validation_participants],
+            iou_threshold=iou_threshold,
+        )
+        aggregate, participant_metrics, events = evaluate_predictions(
+            predictions,
+            truth,
+            decoder,
+            iou_threshold,
+            participants=val_participants,
+        )
+        f1_values = [float(item["f1"]) for item in participant_metrics.values()]
+        result = {
+            **aggregate.as_dict(),
+            "participant_metrics": participant_metrics,
+            "decoder": decoder,
+            "events": events,
+            "device": str(device),
+            "pos_weight": pos_weight,
+            "participant_f1_mean": float(np.mean(f1_values)) if f1_values else 0.0,
+            "participant_f1_std": float(np.std(f1_values)) if f1_values else 0.0,
+            "participant_f1_worst": min(f1_values) if f1_values else 0.0,
+            "window_count": train_window_count + val_window_count,
+            "train_window_count": train_window_count,
+            "val_window_count": val_window_count,
+            "input_channels": signal_channels + 2,
+            "window_samples": window_samples,
+        }
+        epoch_losses.append(float(np.mean(losses)) if losses else None)
+        if best_result is None or result["f1"] > best_result["f1"]:
+            best_result = result
+            best_state = {
+                "model": copy.deepcopy(model.state_dict()),
+                "optimizer": copy.deepcopy(optimizer.state_dict()),
+                "epoch": epoch,
+            }
+            save_checkpoint(
+                output_dir / "checkpoint.pt",
+                model,
+                optimizer,
+                config_payload,
+                split_manifest,
+                {"mean": stats.mean.tolist(), "std": stats.std.tolist()},
+                epoch,
+                result,
+                seed=seed,
+            )
+
+    if best_result is None or best_state is None:
+        raise RuntimeError("streaming training produced no checkpoint")
+    best_result["training_time_sec"] = float(time.perf_counter() - started_at)
+    model.load_state_dict(best_state["model"])
+    optimizer.load_state_dict(best_state["optimizer"])
+    final_predictions: dict[str, list[tuple[int, int, float]]] = {}
+    for path in paths:
+        participant = participant_from_sensor_path(path)
+        if participant not in val_participants:
+            continue
+        records = load_file(path)
+        if records is None:
+            continue
+        local_records = [
+            record
+            for record in _apply_standardizer(records, stats)
+            if record.loss_mask
+        ]
+        for key, values in _predict_records(model, local_records, device).items():
+            final_predictions.setdefault(key, []).extend(values)
+    rows = []
+    for participant in sorted(final_predictions):
+        for start, end, probability in sorted(final_predictions[participant]):
+            rows.append(
+                {
+                    "participant": participant,
+                    "start_ms": start,
+                    "end_ms": end,
+                    "probability": probability,
+                    "split": "val",
+                }
+            )
+    (output_dir / "window_probabilities.jsonl").write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8"
+    )
+    save_json(output_dir / "input_issues.json", [{"path": key, "reason": value} for key, value in issues.items()])
     save_json(output_dir / "metrics.json", best_result)
     save_json(output_dir / "decoder.json", best_result["decoder"])
     save_json(output_dir / "normalization.json", {"mean": stats.mean.tolist(), "std": stats.std.tolist()})

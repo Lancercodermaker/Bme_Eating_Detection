@@ -85,3 +85,5 @@ git status --short
 - Task 8 的 sample 消融已完成，但当前数值仅来自 2 个显式文件、1 个 epoch，不能替代 full-data 选择。
 - Task 9 M1 暂不启动：M0 尚未完成 full-data 稳定闭环；bounded PPG audit（100,000 行）显示有效 PPG 为 22,005 行（约 22%），其余大部分无效。根据 gate，先保留 IMU-only M0，不把缺失 PPG 当作零信号，也不创建未经数据支持的 M1 结果。
 - Task 10 暂不启动：没有满足 Task 9 的 M1 或 `error_analysis.json` 证据，因此不创建 M2/M3/M4 模型，避免在事件闭环不稳定时堆叠模型。
+- Task 11 full-data 尝试：只枚举到 1,165 个传感器文件（约 93.14 GB），启动了按文件两遍处理的 streaming M0；约 16 分钟后仍在第一遍 CSV 解析、工作集约 957 MB，未产生 checkpoint/epoch。为保护本机资源主动中断，未声称 full-data 指标通过；`artifacts/final/m0/` 中仅保留配置和 manifest。
+- full-data 的安全复现入口仍是无 `--limit-files/--max-rows` 的 `train` 命令；它不会把全部窗口累积到内存，但当前数据解析吞吐需要更长的独立运行窗口。

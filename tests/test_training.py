@@ -7,6 +7,7 @@ from eating_detection.training import (
     compute_pos_weight,
     evaluate_predictions,
     fit_m0,
+    fit_m0_streaming,
     standardize_window_records,
     train_one_batch,
 )
@@ -91,3 +92,59 @@ def test_standardize_window_records_keeps_p1_derived_channels():
     )
     assert records[0].features.shape == (16, 4)
     assert stats.mean.shape == (14,)
+
+
+def test_fit_m0_streaming_reads_one_file_at_a_time(monkeypatch, tmp_path):
+    def make_records(participant, labels):
+        return [
+            WindowRecord(
+                participant,
+                index * 32000,
+                (index + 1) * 32000,
+                torch.cat([torch.randn(8, 32), torch.ones(2, 32)]),
+                label,
+            )
+            for index, label in enumerate(labels)
+        ]
+
+    records_by_path = {
+        "p1.txt": make_records("p1", (0.0, 1.0)),
+        "p2.txt": make_records("p2", (0.0, 1.0)),
+    }
+    calls = []
+
+    def fake_loader(path, **kwargs):
+        calls.append(Path(path).name)
+        return records_by_path[Path(path).name]
+
+    from pathlib import Path
+
+    monkeypatch.setattr("eating_detection.training.build_records_from_sensor_file", fake_loader)
+    paths = [
+        tmp_path / "organized" / "p1" / "p1.txt",
+        tmp_path / "organized" / "p2" / "p2.txt",
+    ]
+    result = fit_m0_streaming(
+        paths=paths,
+        intervals={},
+        resample_hz=25,
+        window_sec=1,
+        step_sec=1,
+        positive_overlap=0.25,
+        boundary_mode="soft",
+        chunksize=32,
+        train_participants={"p1"},
+        val_participants={"p2"},
+        truth={"p2": [(0, 64000)]},
+        output_dir=tmp_path / "run",
+        config_payload={"event_iou_threshold": 0.25},
+        split_manifest={"train": ["p1"], "val": ["p2"]},
+        epochs=1,
+        batch_size=2,
+        seed=7,
+        iou_threshold=0.25,
+        device_name="cpu",
+    )
+    assert result["metrics"]["window_count"] == 4
+    assert calls.count("p1.txt") >= 2
+    assert calls.count("p2.txt") >= 2
