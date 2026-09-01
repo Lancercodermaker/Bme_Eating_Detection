@@ -745,8 +745,9 @@ def test_equal_interval_is_excluded_from_positive_training():
 
 def test_window_label_uses_overlap_and_soft_boundary():
     assert label_window((0, 10), [(5, 15)], positive_overlap=0.25, mode="soft") == 0.5
+    assert label_window((0, 10), [(0, 1)], positive_overlap=0.25, mode="soft") == 0.1
     assert label_window((0, 10), [(20, 30)], positive_overlap=0.25, mode="soft") == 0.0
-    assert label_window((0, 10), [(1, 4)], positive_overlap=0.25, mode="ignore") is None
+    assert label_window((0, 10), [(1, 2)], positive_overlap=0.25, mode="ignore") is None
 ```
 
 ```python
@@ -814,18 +815,16 @@ def label_window(window: tuple[int, int], intervals: list[tuple[int, int]],
     duration = w1 - w0
     overlap = max((min(w1, e) - max(w0, s) for s, e in intervals), default=0)
     ratio = max(0.0, min(1.0, overlap / duration))
+    if mode == "soft":
+        return ratio
     if ratio == 0:
         return 0.0
     if ratio >= positive_overlap:
         return 1.0
-    if mode == "soft":
-        return ratio
-    if mode == "ignore":
-        return None
-    raise ValueError("mode must be soft or ignore")
+    return None
 ```
 
-规则是：缺端点报告并排除；反序交换并报告；相同端点排除；超出覆盖范围裁剪并报告，裁剪后无正长度则排除。默认 `boundary_mode=soft`，BCE target 保持在 `[0,1]`；`ignore` 模式由 dataset 返回 `loss_mask=False`。
+规则是：缺端点报告并排除；反序交换并报告；相同端点排除；超出覆盖范围裁剪并报告，裁剪后无正长度则排除。`soft` 始终返回窗口与区间的连续重叠比例 `overlap_ratio ∈ [0,1]`；`ignore` 在比例为 0 时返回 0、比例低于 `label_positive_overlap` 时返回 `None`、达到阈值时返回 1。`label_positive_overlap` 是训练标签阈值，`event_iou_threshold` 是竞赛事件匹配阈值，两者语义独立，即使当前默认数值相同。默认 `boundary_mode=soft`，BCE target 保持在 `[0,1]`；`ignore` 模式由 dataset 返回 `loss_mask=False`。
 
 - [ ] **Step 4: 实现 participant split 和 manifest**
 

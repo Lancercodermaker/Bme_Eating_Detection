@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .audit import audit_sensor_files
+from .splits import make_manifest_from_directories
 
 
 def _sensor_files(train_dir: Path, limit_files: int | None) -> list[Path]:
@@ -28,6 +29,18 @@ def _run_audit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_make_manifest(args: argparse.Namespace) -> int:
+    split = make_manifest_from_directories(
+        index_dir=Path(args.index_dir),
+        train_dir=Path(args.train_dir),
+        output=Path(args.output),
+        seed=args.seed,
+        val_fraction=args.val_fraction,
+    )
+    print(f"SPLIT_PASS train_groups={len(split.train)} val_groups={len(split.val)}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="eating-detection")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -40,6 +53,14 @@ def build_parser() -> argparse.ArgumentParser:
     audit_parser.add_argument("--chunksize", type=int, default=50_000)
     audit_parser.add_argument("--resample-hz", type=int, default=25)
     audit_parser.set_defaults(handler=_run_audit)
+
+    manifest_parser = subparsers.add_parser("make-manifest")
+    manifest_parser.add_argument("--index-dir", required=True)
+    manifest_parser.add_argument("--train-dir", required=True)
+    manifest_parser.add_argument("--output", required=True)
+    manifest_parser.add_argument("--seed", type=int, default=7)
+    manifest_parser.add_argument("--val-fraction", type=float, default=0.2)
+    manifest_parser.set_defaults(handler=_run_make_manifest)
     return parser
 
 

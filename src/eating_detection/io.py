@@ -22,6 +22,31 @@ def canonical_participant_id(raw: str) -> str:
     return re.sub(r"\s+", "", str(raw).strip().casefold())
 
 
+def discover_participant_aliases(train_dir: Path) -> dict[str, str]:
+    root = Path(train_dir)
+    organized = root / "organized"
+    if organized.is_dir():
+        root = organized
+    if not root.is_dir():
+        raise FileNotFoundError(f"sensor directory does not exist: {root}")
+    aliases = {}
+    for child in sorted(root.iterdir()):
+        if child.is_dir() and child.name.casefold() != "_unmapped_":
+            aliases[child.name] = canonical_participant_id(child.name)
+    return aliases
+
+
+def read_meal_participant_aliases(index_dir: Path) -> dict[str, str]:
+    candidates = sorted(Path(index_dir).glob("*mealinfo*.csv"))
+    if not candidates:
+        raise FileNotFoundError(f"meal metadata CSV not found in {index_dir}")
+    frame = pd.read_csv(candidates[0], usecols=["externalid"], dtype={"externalid": "string"})
+    aliases = {}
+    for raw in frame["externalid"].dropna().astype(str):
+        aliases[raw] = canonical_participant_id(raw)
+    return aliases
+
+
 def iter_sensor_chunks(path: Path, chunksize: int = 50_000) -> Iterator[SensorChunk]:
     ppg_cols = [f"PPG{i}" for i in range(1, 45)]
     usecols = [
