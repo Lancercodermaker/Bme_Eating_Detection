@@ -8,6 +8,8 @@
 
 **Tech Stack:** Windows PowerShell、独立 Conda 环境、Python 3.11、NumPy、pandas、SciPy、PyYAML、PyTorch、pytest、scikit-learn（仅用于需要时的简单工具）。PyTorch CUDA 安装命令按执行当日官方选择结果确定，并把实际版本导出保存。
 
+**2026-09-01 冻结记录（America/New_York，时间戳：2026-09-01T09:51:58-04:00）：** 用户确认以下执行契约，后续新会话必须以此为准，不得恢复为“soft 阈值后返回 1”、 “把 PPG 当普通 IMU 通道”或“每个 epoch 重复解析 93 GB CSV”。M0 仍是 IMU-only；PPG 的固定预处理/缓存与可学习 PPG encoder 分离；M1 使用独立 IMU/PPG encoder 的特征级融合，并在本竞赛事件标签上联合训练。PPG-only 只做诊断对照，不是最终架构；M1 默认从头联合训练，M0 权重仅在结构兼容时作为单独迁移消融；不直接使用外部 PPG 饮食任务权重。M0/M1 的模型计算在 CUDA 可用时使用 RTX 5060，CSV 解析、时间轴恢复、重采样和缓存构建仍由 CPU 完成。
+
 ---
 
 ## 0. 当前事实、矛盾和执行边界
@@ -73,6 +75,17 @@
 | `README.md` | Windows 环境、sample smoke、完整运行、输出解释和复现规则 | 否 |
 
 所有生成物只写入 `artifacts/`、`cache/`、`checkpoints/` 或 `outputs/`。这些目录已经被 `.gitignore` 忽略；若新增日志或锁文件目录，先补 `.gitignore`，再运行生成命令。
+
+### 1.1 冻结的 93 GB 解析与缓存流水线
+
+当前 streaming 版本只解决“不要把全部窗口同时积累到内存”，没有解决每个 epoch 重复解析和预处理的问题。后续 full-data 训练前必须完成以下改造或验证：
+
+- M0 解析快路径只投影 ACC/GYRO 所需列，不读取 44 个 PPG 列；PPG 在 M1 阶段单独读取并写入 PPG cache。
+- 每个原始文件的时间轴恢复、重复 timestamp 合并、插值、重采样和 P0/P1 特征构造原则上只执行一次，并写入带配置指纹的 per-file cache。
+- cache miss 阶段允许 CPU 顺序或有界进程并行；cache hit 阶段训练不得重新扫描原始 CSV。缓存必须支持中断后按文件恢复，临时文件成功完成后再原子改名。
+- 窗口使用连续 feature array 加索引，不为重叠窗口逐个 `.clone()` 保存完整数据；训练 batch 时切片并传输到设备。
+- 必须用小样本做旧路径/缓存路径的数值等价性测试，至少比较时间戳、特征、mask、label 和窗口边界；通过后才能启动无 `--limit-files/--max-rows` 的 93 GB 运行。
+- 解析吞吐和模型训练吞吐分别记录：前者报告 CPU/磁盘 MB/s、峰值内存和 cache 命中率；后者报告实际 `device`、batch size、GPU 显存/利用率和 epoch 时间。不能用 GPU smoke 结果代替 full-data 训练 gate。
 
 ## 2. 阶段一：环境与数据闭环
 
@@ -1505,6 +1518,10 @@ git commit -m "exp: compare sampling and robustness ablations"
 
 启动 gate：M0/P0 已有稳定 sample/full-data 闭环，且 PPG audit 已报告有效比例；如果 PPG 大部分无效，先做 IMU-only 结果，不把缺失模态当作零信号的真实观测。
 
+**M1 冻结契约：** PPG 预处理和 PPG encoder 不合并为一个概念。预处理阶段建立独立 PPG cache，包含统一时间轴、标准化/去趋势/轻度滤波候选和质量 mask；M1 的 PPG encoder 在本竞赛进食事件标签上学习。主实验是独立 IMU encoder + 独立 PPG encoder 的联合特征级融合，不是先训练 PPG-only 最终分类器再拼接概率。PPG-only 只作为诊断对照；M1 默认从头联合训练，M0 权重只有在 IMU encoder 形状完全兼容时才作为可回退的迁移消融；不直接使用外部 PPG 饮食任务权重。
+
+PPG 有效比例较低时，必须将无效输入置零并同时提供 modality/quality mask，并使用 modality dropout 评估缺失模态鲁棒性。所有 PPG 结论必须与 M0 使用同一个 participant split，并同时报告 event F1、Precision、Recall、participant 波动、start/end MAE 以及 IMU-only/PPG-only/双模态缺失场景。
+
 - [ ] **Step 1: 先写 M1 shape 和 modality dropout 失败测试**
 
 ```python
@@ -1706,6 +1723,8 @@ python -m eating_detection evaluate --run-dir "artifacts\final\m0" --split val
 ```
 
 Expected：训练通过所有 participant 流式处理；`metrics.json` 有总计和 participant 级 Precision/Recall/F1/start/end MAE；最佳 threshold 和后处理参数来自 val。未得到用户明确允许前，不运行提交操作；如竞赛要求 test 推理，先冻结 checkpoint/config/decoder，再只运行 test inference，不回头调参。
+
+**2026-09-01 后续执行前置条件：** 在这条 full-data 命令前，必须先完成“93 GB 解析与缓存流水线”冻结项并通过小样本等价性、断点恢复和 cache-hit 训练验证。允许用户专门让出 RTX 5060 运行长任务，但 GPU 只负责模型 batch 的前向/反向；若日志仍显示主要时间在 CSV 解析，先优化 CPU/cache 路径，不以延长运行时间掩盖重复预处理吞吐问题。
 
 - [ ] **Step 5: 验证 Git 状态和数据保护**
 
