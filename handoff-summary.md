@@ -12,6 +12,14 @@
 - PPG 冻结契约：固定预处理和 PPG cache 不等于 PPG 模型；M1 使用独立 IMU/PPG encoder 做特征级融合并在本竞赛事件标签上联合训练；PPG-only 只做诊断对照；M1 默认从头联合训练；M0 权重仅在结构兼容时作为迁移消融；不直接使用外部 PPG 饮食任务权重；无效 PPG 必须配合 quality/modality mask 和 modality dropout。
 - 93 GB 的 CSV 解析、时间轴恢复、插值、重采样和 cache 构建属于 CPU；M0/M1 的 PyTorch batch 前向、反向和损失计算在 CUDA 可用时使用 RTX 5060。缓存命中后训练不得重复扫描原始 CSV。
 
+### 2026-09-01 本轮吞吐续作状态
+
+- 已完成两个代表文件的有界基准，并定位到高重复 timestamp 聚合的逐组布尔筛选和 M0 不必要的 PPG 全列物化；现已改为向量化聚合和明确的 `include_ppg=False` IMU-only 路径。
+- 已实现带源文件 metadata/config/标签指纹的 per-file feature cache：保存统一时间轴、连续 feature array、quality mask、window index、窗口边界和 label；临时文件成功后原子改名，按文件构建可中断恢复。
+- CLI 的 M0 训练现统一从 cache-backed DataLoader batch 读取；cache hit 不读取原始 CSV，CUDA 时使用 pinned memory/non-blocking transfer，验证使用批量 inference，并记录 device、batch size、GPU memory/utilization 和 epoch 时间。
+- 本轮验证：全套测试从 46 增至 56 项并通过；两个真实文件的 cache miss/hit 和两个 bounded RTX 5060 CUDA sample 均通过。sample 指标不代表 full-data 模型结论。
+- 仍未启动无 `--limit-files/--max-rows` 的 93 GB full-data，也未启动 M1。下一步必须先复核 full-data gate（数值等价、cache 断点恢复、cache-hit 不读 CSV、GPU batch、数据保护、participant split/test 排除），再由用户明确授权长任务。
+
 下方较早的 Current Status、Important Files、Known Data Facts 和 Immediate Next Steps 保留为历史接续材料；其中关于“尚未配置环境/尚未写训练代码”、旧提交号和旧文件数量的描述不再代表当前状态。
 
 ## Objective
