@@ -17,6 +17,7 @@ tmp/
 *.ckpt
 
 # Python and local environments
+.worktrees/
 __pycache__/
 *.py[cod]
 .pytest_cache/
