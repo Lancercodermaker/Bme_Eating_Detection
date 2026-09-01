@@ -248,6 +248,15 @@ class CachedWindowDataset(Dataset):
         cache_index, _ = self._references[index]
         return self.caches[cache_index].participant
 
+    def window_metadata(self, index: int) -> tuple[str, int, int]:
+        cache_index, window_index = self._references[index]
+        cache = self.caches[cache_index]
+        return (
+            cache.participant,
+            int(cache.window_starts_ms[window_index]),
+            int(cache.window_ends_ms[window_index]),
+        )
+
     def __getitem__(self, index):
         cache_index, window_index = self._references[index]
         cache = self.caches[cache_index]
