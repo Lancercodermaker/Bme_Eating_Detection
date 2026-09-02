@@ -57,7 +57,7 @@ python -m eating_detection evaluate `
 
 训练命令会打印 `CONFIG_SAVED`、`SPLIT_SAVED`、`CACHE_SUMMARY`、`TRAIN_EPOCH`、`VAL_EVENTS`、`test_not_used=true` 和 `TRAIN_SMOKE_PASS`。第二次使用相同源文件、行数、采样/预处理/标签配置时应显示 `hits>0`；`evaluate` 只读取已冻结的窗口概率、decoder、truth 和配置，不重新调阈值。
 
-缓存命中和吞吐契约：cache key 包含源文件路径/大小/mtime、目标采样率、`max_gap_ms`、预处理变体、窗口/步长、标签配置和实际区间。缓存写入先落临时 `.npz`，成功后原子改名；按文件构建，因此中断后重跑会复用已经完成的文件。缓存内容是统一时间轴、连续 feature array、quality mask 和 window index；重叠窗口不保存独立 `.clone()` Tensor，DataLoader 在 batch 时切片并在 CUDA 可用时使用 pinned memory 和 non-blocking transfer。解析/时间轴/重采样/cache 构建仍计入 CPU pipeline，不能当作 GPU 训练时间。
+缓存命中和吞吐契约：cache key 包含源文件路径/大小/mtime、目标采样率、`max_gap_ms`、预处理变体、窗口/步长、标签配置和实际区间。缓存写入先落临时 `.npz`，成功后原子改名；按文件构建，因此中断后重跑会复用已经完成的文件。缓存内容是统一时间轴、连续 feature array、quality mask 和 window index；重叠窗口不保存独立 `.clone()` Tensor，DataLoader 在 batch 时切片并在 CUDA 可用时使用 pinned memory 和 non-blocking transfer。full-data 训练使用 lazy cache，只保留索引和当前文件的大数组，避免把 93 GB 对应的连续特征全部驻留内存。解析/时间轴/重采样/cache 构建仍计入 CPU pipeline，不能当作 GPU 训练时间。
 
 ## 数据、标签和评估契约
 
@@ -85,9 +85,10 @@ git status --short
 ## Gate 记录
 
 - 2026-09-01 解析/cache gate：两个代表文件各限制到 100,000 行时，旧路径 canonicalization 约 1.50 s/文件；向量化聚合后约 0.007–0.008 s/文件。IMU-only parser 与旧路径的 timestamp、ACC/GYRO、mask 数值一致，并且不含 PPG 列时仍可读取。两个真实文件的 cache miss 约 0.361 s、hit 约 0.022 s；cache-backed M0 sample 已在 RTX 5060 CUDA 上完成 1 epoch，第二遍 hit 不读原始 CSV。
+- 2026-09-02 full M0：全量枚举到 1,155 个 train/val sensor 文件，其中 1,121 个成功写入/命中 IMU-only cache，34 个不可解析文件写入 `artifacts/final_m0/run/input_issues.json`（18 个有效 timestamp 不足、16 个二进制/非 UTF-8 内容），没有修改或伪造这些原始文件。有效 cache 产生 3,578,835 个窗口（train 2,985,246、val 593,589），在 RTX 5060 CUDA 上以 batch 64 完成 20 epochs；cache build 97.38 s，训练约 7,110.82 s，平均 epoch 355.48 s。验证集事件指标为 Precision 0.0199637、Recall 0.647059、F1 0.0387324、start/end MAE 289,466/391,033 ms；这是当前 M0/P0 baseline 结果，不是 M1 结论。`evaluate` 只复用冻结概率/decoder/truth，并保留训练 device、batch、cache 和 epoch 遥测。
 
 - Task 8 的 sample 消融已完成，但当前数值仅来自 2 个显式文件、1 个 epoch，不能替代 full-data 选择。
 - Task 9 M1 暂不启动：M0 尚未完成 full-data 稳定闭环；bounded PPG audit（100,000 行）显示有效 PPG 为 22,005 行（约 22%），其余大部分无效。根据 gate，先保留 IMU-only M0，不把缺失 PPG 当作零信号，也不创建未经数据支持的 M1 结果。
 - Task 10 暂不启动：没有满足 Task 9 的 M1 或 `error_analysis.json` 证据，因此不创建 M2/M3/M4 模型，避免在事件闭环不稳定时堆叠模型。
 - Task 11 full-data 尝试：只枚举到 1,165 个传感器文件（约 93.14 GB），启动了按文件两遍处理的 streaming M0；约 16 分钟后仍在第一遍 CSV 解析、工作集约 957 MB，未产生 checkpoint/epoch。为保护本机资源主动中断，未声称 full-data 指标通过；`artifacts/final/m0/` 中仅保留配置和 manifest。
-- full-data 的安全复现入口仍是无 `--limit-files/--max-rows` 的 `train` 命令；当前 cache pipeline 已通过小样本 miss/hit、断点恢复和 cache-hit GPU 训练 gate，但在启动 93 GB 前仍需完成全套 gate 复核。第一次 full-data 运行应先构建 cache，再在 cache hit 的独立运行中训练；不把首遍 CPU cache 构建时间计入 GPU epoch 时间。
+- full-data 的安全复现入口是无 `--limit-files/--max-rows` 的 `train` 命令；正式运行应先构建 cache，再在 cache hit 的独立运行中训练，并把 `input_issues.json` 作为数据覆盖审计的一部分。不把首遍 CPU cache 构建时间计入 GPU epoch 时间。M0/P0 full-data 已完成；M1、PPG-only 和高级模型仍按冻结 gate 未启动。

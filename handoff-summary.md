@@ -5,10 +5,10 @@
 更新时间：2026-09-01T09:51:58-04:00（America/New_York）。本节覆盖下方早期历史状态；新对话应优先遵守本节，以及设计文档和实施计划中同一时间戳的冻结记录。
 
 - 当前实现位于隔离 worktree：`E:\bme_compitition\.worktrees\smartwatch-baseline`。
-- 当前分支为 `codex/smartwatch-eating-baseline`，本轮权威提交为 `116be4e docs: record cached pipeline continuation status`；不要直接在 `master` 上实现，不要合并或 push，除非用户另行明确授权。
-- 环境、数据审计、时间轴恢复、标签、participant split、M0、事件评估、消融和本轮缓存流水线复现检查已经完成；全套测试为 `56 passed`。
-- RTX 5060 CUDA 已验证可用；bounded M0 实际使用 `device=cuda`。93 GB full-data 尝试尚未通过：此前在第一遍 CPU CSV 解析/预处理阶段主动中断，尚未产生 full-data checkpoint 或指标。
-- 下一步不是直接重复启动无界 full-data 训练，而是先实现并验证 93 GB 的一次性解析/feature cache、cache-hit 训练和断点恢复；M0 使用 IMU-only 解析快路径，PPG 不在 M0 默认读取。
+- 当前分支为 `codex/smartwatch-eating-baseline`，本轮权威提交为 `ad42091 fix: preserve training metadata during evaluation`；不要直接在 `master` 上实现，不要合并或 push，除非用户另行明确授权。
+- 环境、数据审计、时间轴恢复、标签、participant split、M0、事件评估、消融、缓存流水线和 full M0 复现检查已经完成；全套测试为 `59 passed`。
+- RTX 5060 CUDA 已验证可用；full M0 实际使用 `device=cuda`。全量 train/val 枚举 1,155 个 sensor 文件，1,121 个有效 cache 完成 20 epoch；34 个不可解析文件保存在 `input_issues.json`，未修改原始数据。
+- 下一步不是重复 full M0；M0/P0 full-data 已形成可复现 baseline。M1 使用独立 IMU/PPG encoder 的特征级融合，仍需用户明确授权后按冻结 gate 启动；M0 默认不读取 PPG。
 - PPG 冻结契约：固定预处理和 PPG cache 不等于 PPG 模型；M1 使用独立 IMU/PPG encoder 做特征级融合并在本竞赛事件标签上联合训练；PPG-only 只做诊断对照；M1 默认从头联合训练；M0 权重仅在结构兼容时作为迁移消融；不直接使用外部 PPG 饮食任务权重；无效 PPG 必须配合 quality/modality mask 和 modality dropout。
 - 93 GB 的 CSV 解析、时间轴恢复、插值、重采样和 cache 构建属于 CPU；M0/M1 的 PyTorch batch 前向、反向和损失计算在 CUDA 可用时使用 RTX 5060。缓存命中后训练不得重复扫描原始 CSV。
 
@@ -17,8 +17,8 @@
 - 已完成两个代表文件的有界基准，并定位到高重复 timestamp 聚合的逐组布尔筛选和 M0 不必要的 PPG 全列物化；现已改为向量化聚合和明确的 `include_ppg=False` IMU-only 路径。
 - 已实现带源文件 metadata/config/标签指纹的 per-file feature cache：保存统一时间轴、连续 feature array、quality mask、window index、窗口边界和 label；临时文件成功后原子改名，按文件构建可中断恢复。
 - CLI 的 M0 训练现统一从 cache-backed DataLoader batch 读取；cache hit 不读取原始 CSV，CUDA 时使用 pinned memory/non-blocking transfer，验证使用批量 inference，并记录 device、batch size、GPU memory/utilization 和 epoch 时间。
-- 本轮验证：全套测试从 46 增至 56 项并通过；两个真实文件的 cache miss/hit 和两个 bounded RTX 5060 CUDA sample 均通过。sample 指标不代表 full-data 模型结论。
-- 最终复核已通过：56 项 pytest、compileall、diff check、原始数据/生成物 Git 隔离、CUDA smoke，以及同一两文件样本的 miss→hit 可复现训练。仍未启动无 `--limit-files/--max-rows` 的 93 GB full-data，也未启动 M1；下一步必须由用户明确授权长任务。
+- 本轮验证：全套测试从 46 增至 59 项并通过；两个真实文件的 cache miss/hit、断点恢复、lazy cache 内存边界、重复表头兼容和 bounded/full RTX 5060 CUDA sample 均通过。sample 指标不替代 full-data 指标。
+- full M0 结果：1,121 个有效 cache、3,578,835 个窗口、20 epochs、batch 64；验证集 F1=`0.0387324`、Precision=`0.0199637`、Recall=`0.647059`，start/end MAE=`289466/391033 ms`。独立 evaluate 保持训练元数据并输出相同事件指标。M1 仍未启动。
 
 下方较早的 Current Status、Important Files、Known Data Facts 和 Immediate Next Steps 保留为历史接续材料；其中关于“尚未配置环境/尚未写训练代码”、旧提交号和旧文件数量的描述不再代表当前状态。
 
