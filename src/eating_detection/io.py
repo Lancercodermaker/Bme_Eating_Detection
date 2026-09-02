@@ -98,6 +98,10 @@ def iter_sensor_chunks(
         usecols=usecols,
         dtype=numeric,
         chunksize=chunksize,
+        # Some exported files repeat the complete header after a packet split.
+        # Treat those field names as missing values so the numeric dtypes remain
+        # fast and the row is rejected by the existing quality masks.
+        na_values=usecols,
     ):
         acc_time = frame["ACC_TIME"].fillna(0).to_numpy(np.int64)
         gyro_time = frame["GYRO_TIME"].fillna(0).to_numpy(np.int64)

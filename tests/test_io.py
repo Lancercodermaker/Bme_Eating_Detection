@@ -40,6 +40,25 @@ def test_imu_only_path_does_not_require_or_materialize_ppg(tmp_path, toy_sensor_
     assert np.array_equal(old_chunks[0].gyro_valid, fast_chunks[0].gyro_valid)
 
 
+def test_repeated_header_inside_sensor_file_is_masked_not_a_parse_failure(tmp_path):
+    header = "ACC_TIME\tGYRO_TIME\tACC_X\tACC_Y\tACC_Z\tGYRO_X\tGYRO_Y\tGYRO_Z"
+    path = tmp_path / "repeated_header.txt"
+    path.write_text(
+        header
+        + "\n1000\t1000\t1\t2\t3\t4\t5\t6\n"
+        + header
+        + "\n2000\t2000\t2\t3\t4\t5\t6\t7\n",
+        encoding="utf-8",
+    )
+
+    chunks = list(iter_sensor_chunks(path, chunksize=10, include_ppg=False))
+
+    assert len(chunks) == 1
+    assert chunks[0].timestamp_ms[:, 0].tolist() == [1000, 0, 2000]
+    assert chunks[0].acc_valid.tolist() == [True, False, True]
+    assert chunks[0].gyro_valid.tolist() == [True, False, True]
+
+
 def test_meal_intervals_are_canonicalized_and_zero_duration_is_excluded(tmp_path):
     path = tmp_path / "sample_mealinfo.csv"
     path.write_text(
