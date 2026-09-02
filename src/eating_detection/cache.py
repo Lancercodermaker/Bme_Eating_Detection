@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 import json
 import os
@@ -74,6 +74,63 @@ class FeatureCache:
     cache_hit: bool
     timings: dict[str, float]
     metadata: dict[str, object]
+
+    @property
+    def feature_channels(self) -> int:
+        return int(self.features.shape[0])
+
+
+@dataclass
+class LazyFeatureCache:
+    """Metadata and window indexes for a cache whose large arrays load on demand."""
+
+    cache_path: Path
+    cache_key: str
+    source_path: Path
+    participant: str
+    timestamps_ms: np.ndarray | None
+    window_indices: np.ndarray
+    window_starts_ms: np.ndarray
+    window_ends_ms: np.ndarray
+    window_labels: np.ndarray
+    window_loss_mask: np.ndarray
+    cache_hit: bool
+    timings: dict[str, float]
+    metadata: dict[str, object]
+    _features: np.ndarray | None = field(default=None, repr=False)
+    _quality_mask: np.ndarray | None = field(default=None, repr=False)
+
+    @property
+    def features_loaded(self) -> bool:
+        return self._features is not None
+
+    @property
+    def feature_channels(self) -> int:
+        shapes = self.metadata.get("array_shapes", {})
+        return int(shapes["features"][0])
+
+    def ensure_features(self) -> None:
+        if self._features is not None and self._quality_mask is not None:
+            return
+        with np.load(self.cache_path, allow_pickle=False) as data:
+            self._features = np.array(data["features"], copy=True)
+            self._quality_mask = np.array(data["quality_mask"], copy=True)
+
+    @property
+    def features(self) -> np.ndarray:
+        self.ensure_features()
+        assert self._features is not None
+        return self._features
+
+    @property
+    def quality_mask(self) -> np.ndarray:
+        self.ensure_features()
+        assert self._quality_mask is not None
+        return self._quality_mask
+
+    def release_features(self) -> None:
+        self._features = None
+        self._quality_mask = None
 
 
 def _participant_from_path(path: Path) -> str:
@@ -303,6 +360,47 @@ def _load_cache(
     )
 
 
+def _load_lazy_cache(
+    cache_path: Path,
+    expected_key: str,
+    source_path: Path,
+    cache_hit: bool = True,
+    timings: dict[str, float] | None = None,
+) -> LazyFeatureCache:
+    with np.load(cache_path, allow_pickle=False) as data:
+        metadata_raw = data["metadata_json"].item()
+        if isinstance(metadata_raw, bytes):
+            metadata_raw = metadata_raw.decode("utf-8")
+        metadata = json.loads(str(metadata_raw))
+        if metadata.get("cache_key") != expected_key:
+            raise ValueError("cache metadata key does not match requested configuration")
+        arrays = {
+            name: np.array(data[name], copy=True)
+            for name in (
+                "window_indices",
+                "window_starts_ms",
+                "window_ends_ms",
+                "window_labels",
+                "window_loss_mask",
+            )
+        }
+    return LazyFeatureCache(
+        cache_path=cache_path,
+        cache_key=expected_key,
+        source_path=source_path,
+        participant=str(metadata["participant"]),
+        timestamps_ms=None,
+        window_indices=arrays["window_indices"],
+        window_starts_ms=arrays["window_starts_ms"],
+        window_ends_ms=arrays["window_ends_ms"],
+        window_labels=arrays["window_labels"],
+        window_loss_mask=arrays["window_loss_mask"],
+        cache_hit=cache_hit,
+        timings=timings or {},
+        metadata=metadata,
+    )
+
+
 def _write_cache(
     cache_path: Path, metadata: dict[str, object], arrays: dict[str, np.ndarray]
 ) -> None:
@@ -322,6 +420,7 @@ def build_feature_cache(
     intervals: list[tuple[int, int]],
     cache_root: Path,
     config: FeatureCacheConfig,
+    lazy: bool = False,
 ) -> FeatureCache:
     source_path = Path(source_path)
     key_payload = _key_payload(source_path, intervals, config)
@@ -331,6 +430,14 @@ def build_feature_cache(
     participant = _participant_from_path(source_path)
     if cache_path.exists():
         started = time.perf_counter()
+        if lazy:
+            return _load_lazy_cache(
+                cache_path,
+                cache_key,
+                source_path,
+                cache_hit=True,
+                timings={"cache_load_sec": time.perf_counter() - started},
+            )
         cached = _load_cache(cache_path, cache_key, source_path)
         return FeatureCache(
             **{**cached.__dict__, "timings": {"cache_load_sec": time.perf_counter() - started}}
@@ -346,6 +453,15 @@ def build_feature_cache(
         "build_time_sec": time.perf_counter() - started,
     }
     _write_cache(cache_path, metadata, arrays)
+    if lazy:
+        cached = _load_lazy_cache(
+            cache_path,
+            cache_key,
+            source_path,
+            cache_hit=False,
+            timings={"build_sec": time.perf_counter() - started},
+        )
+        return cached
     return _from_arrays(
         cache_path,
         cache_key,
@@ -363,6 +479,7 @@ def build_feature_caches(
     intervals_by_participant: dict[str, list[tuple[int, int]]],
     cache_root: Path,
     config: FeatureCacheConfig,
+    lazy: bool = False,
 ) -> tuple[list[FeatureCache], list[dict[str, str]]]:
     """Build files independently so completed cache files survive a later failure."""
     completed: list[FeatureCache] = []
@@ -376,6 +493,7 @@ def build_feature_caches(
                     intervals_by_participant.get(participant, []),
                     cache_root,
                     config,
+                    lazy=lazy,
                 )
             )
         except (OSError, ValueError) as exc:

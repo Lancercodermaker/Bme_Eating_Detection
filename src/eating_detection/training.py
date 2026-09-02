@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from .cache import FeatureCache
+from .cache import FeatureCache, LazyFeatureCache
 from .dataset import (
     CachedWindowDataset,
     ParticipantBatchSampler,
@@ -151,14 +151,20 @@ def _fit_cached_standardizer(
     squares = np.zeros(signal_channels, dtype=np.float64)
     counts = np.zeros(signal_channels, dtype=np.int64)
     for cache in selected:
-        if cache.features.shape[0] - 2 != signal_channels:
-            raise ValueError("all cached files must have the same signal channel count")
-        for channel in range(signal_channels):
-            valid = cache.quality_mask[0 if channel < signal_channels // 2 else 1]
-            values = cache.features[channel, valid]
-            sums[channel] += values.sum(dtype=np.float64)
-            squares[channel] += np.square(values, dtype=np.float64).sum(dtype=np.float64)
-            counts[channel] += int(valid.sum())
+        if isinstance(cache, LazyFeatureCache):
+            cache.ensure_features()
+        try:
+            if cache.feature_channels - 2 != signal_channels:
+                raise ValueError("all cached files must have the same signal channel count")
+            for channel in range(signal_channels):
+                valid = cache.quality_mask[0 if channel < signal_channels // 2 else 1]
+                values = cache.features[channel, valid]
+                sums[channel] += values.sum(dtype=np.float64)
+                squares[channel] += np.square(values, dtype=np.float64).sum(dtype=np.float64)
+                counts[channel] += int(valid.sum())
+        finally:
+            if isinstance(cache, LazyFeatureCache):
+                cache.release_features()
     if np.any(counts == 0):
         missing = np.flatnonzero(counts == 0).tolist()
         raise ValueError(f"cached signal channels have no valid training samples: {missing}")
@@ -257,7 +263,7 @@ def fit_m0_cached(
     ]
     pos_weight = compute_pos_weight(train_labels)
     device = _resolve_device(device_name)
-    input_channels = int(caches[0].features.shape[0])
+    input_channels = int(caches[0].feature_channels)
     model = IMUCNN(in_channels=input_channels).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     loader = _cached_loader(train_dataset, batch_size, device)
@@ -389,6 +395,8 @@ def fit_m0_cached(
         best_result,
         seed=seed,
     )
+    train_dataset.release_loaded()
+    val_dataset.release_loaded()
     return {"metrics": best_result, "stats": stats, "device": str(device), "cache": cache_stats}
 
 

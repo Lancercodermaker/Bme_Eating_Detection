@@ -182,7 +182,7 @@ def _run_train(args: argparse.Namespace) -> int:
         )
         config_payload["cache_dir"] = str(config.cache_dir)
         caches, issues = build_feature_caches(
-            paths, intervals, config.cache_dir, cache_config
+            paths, intervals, config.cache_dir, cache_config, lazy=True
         )
         save_json(output_dir / "input_issues.json", issues)
         if not caches:

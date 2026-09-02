@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, Sampler
 
+from .cache import LazyFeatureCache
 from .io import iter_sensor_chunks
 from .labels import label_window
 from .preprocess import apply_feature_variant, imu_features, resample_uniform
@@ -232,6 +233,7 @@ class CachedWindowDataset(Dataset):
 
     def __init__(self, caches, participants: set[str] | None = None, include_ignored: bool = False):
         self.caches = list(caches)
+        self._active_cache_index: int | None = None
         allowed = participants
         self._references = []
         for cache_index, cache in enumerate(self.caches):
@@ -257,8 +259,28 @@ class CachedWindowDataset(Dataset):
             int(cache.window_ends_ms[window_index]),
         )
 
+    def _activate_cache(self, cache_index: int):
+        if self._active_cache_index == cache_index:
+            return
+        if self._active_cache_index is not None:
+            previous = self.caches[self._active_cache_index]
+            if isinstance(previous, LazyFeatureCache):
+                previous.release_features()
+        cache = self.caches[cache_index]
+        if isinstance(cache, LazyFeatureCache):
+            cache.ensure_features()
+        self._active_cache_index = cache_index
+
+    def release_loaded(self) -> None:
+        if self._active_cache_index is not None:
+            cache = self.caches[self._active_cache_index]
+            if isinstance(cache, LazyFeatureCache):
+                cache.release_features()
+            self._active_cache_index = None
+
     def __getitem__(self, index):
         cache_index, window_index = self._references[index]
+        self._activate_cache(cache_index)
         cache = self.caches[cache_index]
         start, end = cache.window_indices[window_index]
         features = torch.from_numpy(cache.features[:, int(start):int(end)])

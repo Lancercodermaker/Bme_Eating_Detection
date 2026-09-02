@@ -157,3 +157,24 @@ def test_cache_build_resumes_completed_files_after_one_file_failure(monkeypatch,
     assert [cache.participant for cache in resumed] == ["p1", "p2"]
     assert resumed[0].cache_hit is True
     assert resumed[1].cache_hit is False
+
+
+def test_lazy_cache_releases_previous_feature_array_when_switching_files(tmp_path):
+    first = _write_imu_only_sensor(tmp_path / "organized" / "p1" / "sensor.txt")
+    second = _write_imu_only_sensor(tmp_path / "organized" / "p2" / "sensor.txt")
+    caches, issues = build_feature_caches(
+        [first, second],
+        {},
+        tmp_path / "cache",
+        _config(),
+        lazy=True,
+    )
+    assert issues == []
+    assert all(cache.features_loaded is False for cache in caches)
+
+    dataset = CachedWindowDataset(caches, include_ignored=True)
+    dataset[0]
+    assert caches[0].features_loaded is True
+    dataset[len(dataset) - 1]
+    assert caches[0].features_loaded is False
+    assert caches[1].features_loaded is True
