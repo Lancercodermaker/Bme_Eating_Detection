@@ -260,8 +260,17 @@ def _run_evaluate(args: argparse.Namespace) -> int:
         float(config_payload["event_iou_threshold"]),
         participants=scope,
     )
-    metrics = {**aggregate.as_dict(), "participant_metrics": participant_metrics}
-    save_json(run_dir / "metrics.json", metrics)
+    metrics_path = run_dir / "metrics.json"
+    existing_metrics = {}
+    if metrics_path.exists():
+        existing_metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    metrics = {
+        **existing_metrics,
+        **aggregate.as_dict(),
+        "participant_metrics": participant_metrics,
+        "events": events,
+    }
+    save_json(metrics_path, metrics)
     save_json(run_dir / f"events_{args.split}.json", events)
     print(
         f"EVAL_EVENTS split={args.split} f1={aggregate.f1} precision={aggregate.precision} "
