@@ -326,7 +326,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--model-normalization", choices=("batch", "group"), default="batch"
     )
     train_parser.add_argument(
-        "--model-pooling", choices=("avg", "avgmax"), default="avg"
+        "--model-pooling", choices=("avg", "avgmax", "avg4"), default="avg"
     )
     train_parser.set_defaults(handler=_run_train)
 

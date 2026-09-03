@@ -34,8 +34,8 @@ class IMUCNN(nn.Module):
             raise ValueError("in_channels must be positive")
         if normalization not in {"batch", "group"}:
             raise ValueError("normalization must be batch or group")
-        if pooling not in {"avg", "avgmax"}:
-            raise ValueError("pooling must be avg or avgmax")
+        if pooling not in {"avg", "avgmax", "avg4"}:
+            raise ValueError("pooling must be avg, avgmax, or avg4")
         self.in_channels = in_channels
         self.normalization = normalization
         self.pooling = pooling
@@ -48,10 +48,14 @@ class IMUCNN(nn.Module):
             # Keep the original module layout for checkpoint compatibility.
             self.encoder = nn.Sequential(*blocks, nn.AdaptiveAvgPool1d(1))
             self.head = nn.Linear(96, 1)
-        else:
+        elif pooling == "avgmax":
             self.encoder = nn.Sequential(*blocks)
             self.avg_pool = nn.AdaptiveAvgPool1d(1)
             self.head = nn.Linear(192, 1)
+        else:
+            self.encoder = nn.Sequential(*blocks)
+            self.avg_pool = nn.AdaptiveAvgPool1d(4)
+            self.head = nn.Linear(384, 1)
 
     def forward(self, x):
         if x.ndim != 3 or x.shape[1] != self.in_channels:
@@ -61,7 +65,7 @@ class IMUCNN(nn.Module):
         encoded = self.encoder(x)
         if self.pooling == "avg":
             pooled = encoded.squeeze(-1)
-        else:
+        elif self.pooling == "avgmax":
             pooled = torch.cat(
                 [
                     self.avg_pool(encoded).squeeze(-1),
@@ -69,4 +73,6 @@ class IMUCNN(nn.Module):
                 ],
                 dim=1,
             )
+        else:
+            pooled = self.avg_pool(encoded).flatten(start_dim=1)
         return self.head(pooled).squeeze(-1)

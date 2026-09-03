@@ -44,3 +44,12 @@ def test_m0_avgmax_supports_deterministic_cuda_backward():
         model(torch.randn(2, 10, 125, device="cuda")).sum().backward()
     finally:
         torch.use_deterministic_algorithms(previous)
+
+
+def test_m0_supports_four_bin_temporal_average_pooling():
+    model = IMUCNN(in_channels=10, pooling="avg4")
+
+    logits = model(torch.randn(3, 10, 125))
+
+    assert logits.shape == (3,)
+    assert model.head.in_features == 384
