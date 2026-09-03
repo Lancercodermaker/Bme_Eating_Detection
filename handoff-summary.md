@@ -1,16 +1,24 @@
 # 智能手表进食检测项目：新对话接续摘要
 
-## 2026-09-01 权威更新
+## 2026-09-03 权威更新
 
-更新时间：2026-09-01T09:51:58-04:00（America/New_York）。本节覆盖下方早期历史状态；新对话应优先遵守本节，以及设计文档和实施计划中同一时间戳的冻结记录。
+更新时间：2026-09-03T13:48:19-04:00（America/New_York）。本节覆盖下方早期历史状态；设计文档和实施计划中的冻结时间戳仍为 2026-09-01T09:51:58-04:00。
 
 - 当前实现位于隔离 worktree：`E:\bme_compitition\.worktrees\smartwatch-baseline`。
-- 当前分支为 `codex/smartwatch-eating-baseline`，本轮权威提交为 `9506fb0 feat: add cached m0 error analysis`；不要直接在 `master` 上实现，不要合并或 push，除非用户另行明确授权。
-- 环境、数据审计、时间轴恢复、标签、participant split、M0、事件评估、消融、缓存流水线、full M0 复现检查以及 quality/calibration/participant error analysis 已完成；全套测试为 `61 passed`。
+- 当前分支为 `codex/smartwatch-eating-baseline`；本轮最新代码提交为 `1f2088a fix: keep local pooling deterministic`（文档提交后 HEAD 会更新）。不要直接在 `master` 上实现，不要合并或 push，除非用户另行明确授权。
+- 环境、数据审计、时间轴恢复、标签、participant split、M0、事件评估、消融、缓存流水线、full M0 复现检查以及 quality/calibration/participant error analysis 已完成；当前全套测试为 `72 passed`，文档提交后的最终验证需再次确认。
 - RTX 5060 CUDA 已验证可用；full M0 实际使用 `device=cuda`。全量 train/val 枚举 1,155 个 sensor 文件，1,121 个有效 cache 完成 20 epoch；34 个不可解析文件保存在 `input_issues.json`，未修改原始数据。
-- 下一步不是重复 full M0；M0/P0 full-data 已形成可复现 baseline。M1 使用独立 IMU/PPG encoder 的特征级融合，仍需用户明确授权后按冻结 gate 启动；M0 默认不读取 PPG。
+- M0 当前采用 q50 质量分层 + GroupNorm + 筛选后 `pos_weight` + batch cache fetch；`artifacts/m0_final_q50_group_e3/` 的 full-data 3 epoch F1=`0.1728395`，独立 evaluate 一致，原始 P0 F1=`0.0387324`。M1 使用独立 IMU/PPG encoder 的特征级融合，仍需用户明确授权后按冻结 gate 启动；M0 默认不读取 PPG。
 - PPG 冻结契约：固定预处理和 PPG cache 不等于 PPG 模型；M1 使用独立 IMU/PPG encoder 做特征级融合并在本竞赛事件标签上联合训练；PPG-only 只做诊断对照；M1 默认从头联合训练；M0 权重仅在结构兼容时作为迁移消融；不直接使用外部 PPG 饮食任务权重；无效 PPG 必须配合 quality/modality mask 和 modality dropout。
 - 93 GB 的 CSV 解析、时间轴恢复、插值、重采样和 cache 构建属于 CPU；M0/M1 的 PyTorch batch 前向、反向和损失计算在 CUDA 可用时使用 RTX 5060。缓存命中后训练不得重复扫描原始 CSV。
+
+### 2026-09-03 M0 瓶颈修复结果
+
+- 质量/校准/participant error analysis 已用于选择 q50：full cache-hit 训练窗口为 1,306,197，验证窗口为 271,724，有效 `pos_weight=15.4116`；Brier=`0.157069`、ECE=`0.321964`。
+- 当前最终候选：`device=cuda`、batch 64、GroupNorm、默认 avg pooling、q50 quality gate；Precision=`0.109375`、Recall=`0.411765`、F1=`0.1728395`、start/end MAE=`639946/71945 ms`，TP/FP/FN=`21/171/30`。
+- P1、P2、ignore-boundary、avg4 均为 F1=`0.1728395`；avg+max 为 `0.1504178`；不采纳。当前仍有 171 个 FP，且 `hnu21042` 因无有效 cache 有 6 个不可预测 FN；M0 的低 F1 已显著改善但不是零错误。
+- 训练读取已增加 deterministic participant/per-file batch shuffle、batched continuous-array fetch；full cache-hit 不读取原始 CSV。P1 派生 cache 和 ignore-label cache 均在 Git 忽略目录，未修改原始数据。
+- M1、PPG-only 和任何外部 PPG 权重仍未启动；默认保留当前 M0 分支/worktree，不合并、不 push。
 
 ### 2026-09-01 本轮吞吐续作状态
 

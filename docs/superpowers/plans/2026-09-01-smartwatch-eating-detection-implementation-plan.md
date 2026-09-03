@@ -1488,7 +1488,7 @@ python -m eating_detection train --config configs/experiments/p0_50hz.yaml --dat
 
 Expected: 每个 run 保存配置、participant 级 F1 均值/标准差/最差个体、边界 MAE、窗口数、实际长度和训练时间。选择逻辑是先看事件 F1，再在差异 `<0.01` 时选 participant 波动更小、MAE 更好、频率更低者；短动作漏检时才保留 25/50 Hz。
 
-- [ ] **Step 4: 运行 P1/P2 单因素消融**
+- [x] **Step 4: 运行 P1/P2 单因素消融**
 
 P1 只增加中值/低通/动态分量派生通道；P2 只增加合法轴镜像或有限方向增强；不使用 test 的 `dietaryHand`，仅在训练时使用可信 `wear`（若测试协议明确提供）。每个 run 共享 M0 split、epoch 上限和 decoder tuning。
 
@@ -1498,6 +1498,8 @@ python -m eating_detection train --config configs/experiments/p2_direction.yaml 
 ```
 
 Expected: 只有事件 F1 提升、start/end MAE 不恶化且 participant 间不更不稳定的变体进入下一实验；否则配置和报告保留为淘汰证据。
+
+2026-09-03 实际 gate 结果：在同一 full-data participant split 上，P1 lowpass/dynamic 与 P2 axis mirror 均为 F1=`0.1728395`，未超过 q50 + GroupNorm M0 候选；avg+max 为 `0.1504178`，ignore-boundary 和 avg4 也未改变主事件 TP/FP/FN 格局。因此保留 q50 + GroupNorm + 默认 avg pooling，不启动 M1。
 
 - [ ] **Step 5: 运行测试并提交实验配置**
 
