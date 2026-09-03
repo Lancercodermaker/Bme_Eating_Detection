@@ -1,0 +1,13 @@
+data_root: official_test_dataset/Data
+output_dir: artifacts/m0_ignore
+cache_dir: cache/m0_ignore
+resample_hz: 25
+max_gap_ms: 2000
+preprocess_variant: p0_raw_mask
+window_sec: 15
+step_sec: 3
+seed: 7
+chunksize: 50000
+label_positive_overlap: 0.25
+boundary_mode: ignore
+event_iou_threshold: 0.25
