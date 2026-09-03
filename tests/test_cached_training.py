@@ -1,6 +1,10 @@
 from pathlib import Path
+from dataclasses import replace
+
+import numpy as np
 
 from eating_detection.cache import FeatureCacheConfig, build_feature_caches
+from eating_detection.dataset import CachedWindowDataset
 from eating_detection.training import fit_m0_cached
 
 
@@ -58,3 +62,61 @@ def test_cached_training_does_not_read_source_after_cache_hit(monkeypatch, tmp_p
     assert result["device"] == "cpu"
     assert (tmp_path / "run" / "checkpoint.pt").exists()
     assert (tmp_path / "run" / "metrics.json").exists()
+
+
+def test_cached_training_computes_pos_weight_after_quality_filter(monkeypatch, tmp_path):
+    paths = [
+        _write_sensor(tmp_path / "organized" / "p1" / "sensor.txt", rows=101),
+        _write_sensor(tmp_path / "organized" / "p2" / "sensor.txt", rows=101),
+    ]
+    cache_config = FeatureCacheConfig(
+        resample_hz=25,
+        max_gap_ms=200,
+        window_sec=1,
+        step_sec=1,
+        positive_overlap=0.25,
+        boundary_mode="soft",
+    )
+    caches, issues = build_feature_caches(
+        paths,
+        {"p1": [(1000, 2000)], "p2": []},
+        tmp_path / "cache",
+        cache_config,
+    )
+    assert issues == []
+    train_cache = next(cache for cache in caches if cache.participant == "p1")
+    quality = np.ones_like(train_cache.quality_mask)
+    quality[:, : train_cache.window_indices[1, 1]] = False
+    caches[caches.index(train_cache)] = replace(train_cache, quality_mask=quality)
+
+    captured = {}
+
+    def capture(labels):
+        captured["labels"] = list(labels)
+        return 1.0
+
+    monkeypatch.setattr("eating_detection.training.compute_pos_weight", capture)
+    expected_dataset = CachedWindowDataset(
+        caches, {"p1"}, include_ignored=False, min_quality_fraction=0.75
+    )
+    fit_m0_cached(
+        caches=caches,
+        train_participants={"p1"},
+        val_participants={"p2"},
+        truth={"p2": []},
+        output_dir=tmp_path / "run",
+        config_payload={"event_iou_threshold": 0.25},
+        split_manifest={"train": ["p1"], "val": ["p2"], "excluded_test": []},
+        epochs=1,
+        batch_size=2,
+        seed=7,
+        iou_threshold=0.25,
+        device_name="cpu",
+        min_quality_fraction=0.75,
+    )
+
+    expected = [
+        expected_dataset.label_for_index(index) for index in range(len(expected_dataset))
+    ]
+    assert captured["labels"] == expected
+    assert len(captured["labels"]) < int(train_cache.window_loss_mask.sum())

@@ -280,6 +280,10 @@ class CachedWindowDataset(Dataset):
         cache_index, _ = self._references[index]
         return self.caches[cache_index].participant
 
+    def label_for_index(self, index: int) -> float:
+        cache_index, window_index = self._references[index]
+        return float(self.caches[cache_index].window_labels[window_index])
+
     def batch_group_for_index(self, index: int):
         cache_index, _ = self._references[index]
         return self.caches[cache_index].participant, cache_index

@@ -270,11 +270,7 @@ def fit_m0_cached(
         raise ValueError("no validation windows for the requested participants")
     stats = _fit_cached_standardizer(caches, train_participants)
     train_labels = [
-        float(cache.window_labels[index])
-        for cache in caches
-        if cache.participant in train_participants
-        for index, usable in enumerate(cache.window_loss_mask)
-        if usable
+        train_dataset.label_for_index(index) for index in range(len(train_dataset))
     ]
     pos_weight = compute_pos_weight(train_labels)
     device = _resolve_device(device_name)

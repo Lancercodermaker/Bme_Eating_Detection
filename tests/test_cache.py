@@ -131,6 +131,26 @@ def test_cached_window_dataset_filters_windows_below_quality_threshold(tmp_path)
     assert len(all_windows) > len(quality_windows)
 
 
+def test_cached_window_dataset_label_lookup_matches_quality_filtered_windows(tmp_path):
+    sensor = _write_imu_only_sensor(tmp_path / "organized" / "p1" / "sensor.txt", rows=101)
+    cached = build_feature_cache(
+        sensor,
+        [(1500, 2500)],
+        tmp_path / "cache",
+        _config(),
+    )
+    quality = np.zeros_like(cached.quality_mask)
+    quality[:, : quality.shape[1] // 2] = True
+    degraded = replace(cached, quality_mask=quality)
+    dataset = CachedWindowDataset(
+        [degraded], include_ignored=True, min_quality_fraction=0.75
+    )
+
+    expected = [float(degraded.window_labels[index]) for _, index in dataset._references]
+
+    assert [dataset.label_for_index(index) for index in range(len(dataset))] == expected
+
+
 def test_quality_filter_does_not_load_lazy_feature_array(monkeypatch, tmp_path):
     sensor = _write_imu_only_sensor(tmp_path / "organized" / "p1" / "sensor.txt", rows=101)
     cached = build_feature_cache(
