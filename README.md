@@ -86,9 +86,10 @@ git status --short
 
 - 2026-09-01 解析/cache gate：两个代表文件各限制到 100,000 行时，旧路径 canonicalization 约 1.50 s/文件；向量化聚合后约 0.007–0.008 s/文件。IMU-only parser 与旧路径的 timestamp、ACC/GYRO、mask 数值一致，并且不含 PPG 列时仍可读取。两个真实文件的 cache miss 约 0.361 s、hit 约 0.022 s；cache-backed M0 sample 已在 RTX 5060 CUDA 上完成 1 epoch，第二遍 hit 不读原始 CSV。
 - 2026-09-02 full M0：全量枚举到 1,155 个 train/val sensor 文件，其中 1,121 个成功写入/命中 IMU-only cache，34 个不可解析文件写入 `artifacts/final_m0/run/input_issues.json`（18 个有效 timestamp 不足、16 个二进制/非 UTF-8 内容），没有修改或伪造这些原始文件。有效 cache 产生 3,578,835 个窗口（train 2,985,246、val 593,589），在 RTX 5060 CUDA 上以 batch 64 完成 20 epochs；cache build 97.38 s，训练约 7,110.82 s，平均 epoch 355.48 s。验证集事件指标为 Precision 0.0199637、Recall 0.647059、F1 0.0387324、start/end MAE 289,466/391,033 ms；这是当前 M0/P0 baseline 结果，不是 M1 结论。`evaluate` 只复用冻结概率/decoder/truth，并保留训练 device、batch、cache 和 epoch 遥测。
+- M0 低 F1 复核：问题主要表现为验证窗口概率缺乏正负分离，而不是“完全检不出事件”。训练正窗口比例为 2.764%，`pos_weight=35.1769`；在 soft target 均值 0.0273 下，加权 BCE 的常数预测最优概率约为 0.4968。实际验证负窗口概率均值为 0.4568、正窗口为 0.3951，阈值 0.2 时负窗口 FPR 为 89.35%、正窗口 TPR 为 89.20%，产生 1,653 个预测事件但只有 33 个 TP。冻结候选阈值/merge 参数的离线穷举仍以 `0.2/9000/0` 最好，因此不是单独调高阈值即可解决。验证 participant `hnu21042` 有 6 个真事件但没有有效 cache 文件，直接形成 6 个不可预测 FN；同时 P0 质量 mask 约 45.85% 的验证采样点有效，但 soft 模式仍让所有窗口参与 loss 和解码。该结果应视为 IMU-only P0 的低校准/低泛化 baseline，不能据此否定 IMU-only 解析路径的数值等价性。
 
 - Task 8 的 sample 消融已完成，但当前数值仅来自 2 个显式文件、1 个 epoch，不能替代 full-data 选择。
-- Task 9 M1 暂不启动：M0 尚未完成 full-data 稳定闭环；bounded PPG audit（100,000 行）显示有效 PPG 为 22,005 行（约 22%），其余大部分无效。根据 gate，先保留 IMU-only M0，不把缺失 PPG 当作零信号，也不创建未经数据支持的 M1 结果。
+- Task 9 M1 暂不启动：M0/P0 已完成 full-data 稳定闭环，但当前事件 F1 很低，且 bounded PPG audit（100,000 行）显示有效 PPG 为 22,005 行（约 22%），其余大部分无效。根据冻结 gate，先保留 IMU-only M0，不把缺失 PPG 当作零信号，也不创建未经数据支持的 M1 结果。
 - Task 10 暂不启动：没有满足 Task 9 的 M1 或 `error_analysis.json` 证据，因此不创建 M2/M3/M4 模型，避免在事件闭环不稳定时堆叠模型。
 - Task 11 full-data 尝试：只枚举到 1,165 个传感器文件（约 93.14 GB），启动了按文件两遍处理的 streaming M0；约 16 分钟后仍在第一遍 CSV 解析、工作集约 957 MB，未产生 checkpoint/epoch。为保护本机资源主动中断，未声称 full-data 指标通过；`artifacts/final/m0/` 中仅保留配置和 manifest。
 - full-data 的安全复现入口是无 `--limit-files/--max-rows` 的 `train` 命令；正式运行应先构建 cache，再在 cache hit 的独立运行中训练，并把 `input_issues.json` 作为数据覆盖审计的一部分。不把首遍 CPU cache 构建时间计入 GPU epoch 时间。M0/P0 full-data 已完成；M1、PPG-only 和高级模型仍按冻结 gate 未启动。
