@@ -53,3 +53,15 @@ def test_m0_supports_four_bin_temporal_average_pooling():
 
     assert logits.shape == (3,)
     assert model.head.in_features == 384
+
+
+def test_m0_avg4_supports_deterministic_cuda_backward():
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA is not available")
+    previous = torch.are_deterministic_algorithms_enabled()
+    torch.use_deterministic_algorithms(True)
+    try:
+        model = IMUCNN(in_channels=10, pooling="avg4").cuda()
+        model(torch.randn(2, 10, 125, device="cuda")).sum().backward()
+    finally:
+        torch.use_deterministic_algorithms(previous)

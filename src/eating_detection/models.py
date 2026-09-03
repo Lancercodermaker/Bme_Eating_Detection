@@ -2,6 +2,15 @@ import torch
 from torch import nn
 
 
+def _equal_bin_mean(x: torch.Tensor, bins: int) -> torch.Tensor:
+    if x.shape[-1] < bins:
+        raise ValueError("temporal dimension must contain at least one sample per bin")
+    return torch.cat(
+        [part.mean(dim=-1, keepdim=True) for part in torch.tensor_split(x, bins, dim=-1)],
+        dim=-1,
+    )
+
+
 class ConvBlock(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, normalization: str = "batch"):
         super().__init__()
@@ -50,11 +59,9 @@ class IMUCNN(nn.Module):
             self.head = nn.Linear(96, 1)
         elif pooling == "avgmax":
             self.encoder = nn.Sequential(*blocks)
-            self.avg_pool = nn.AdaptiveAvgPool1d(1)
             self.head = nn.Linear(192, 1)
         else:
             self.encoder = nn.Sequential(*blocks)
-            self.avg_pool = nn.AdaptiveAvgPool1d(4)
             self.head = nn.Linear(384, 1)
 
     def forward(self, x):
@@ -68,11 +75,11 @@ class IMUCNN(nn.Module):
         elif self.pooling == "avgmax":
             pooled = torch.cat(
                 [
-                    self.avg_pool(encoded).squeeze(-1),
+                    encoded.mean(dim=-1),
                     encoded.amax(dim=-1),
                 ],
                 dim=1,
             )
         else:
-            pooled = self.avg_pool(encoded).flatten(start_dim=1)
+            pooled = _equal_bin_mean(encoded, 4).flatten(start_dim=1)
         return self.head(pooled).squeeze(-1)
