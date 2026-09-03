@@ -23,3 +23,12 @@ def test_m0_supports_group_normalization_without_running_statistics():
 
     assert any(isinstance(module, nn.GroupNorm) for module in model.modules())
     assert not any(isinstance(module, nn.BatchNorm1d) for module in model.modules())
+
+
+def test_m0_supports_average_and_max_temporal_pooling():
+    model = IMUCNN(in_channels=10, pooling="avgmax")
+
+    logits = model(torch.randn(3, 10, 125))
+
+    assert logits.shape == (3,)
+    assert model.head.in_features == 192

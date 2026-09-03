@@ -56,6 +56,7 @@ def _config_payload(config: Config, args: argparse.Namespace) -> dict[str, objec
             "sensor_files": args.sensor_files,
             "min_quality_fraction": args.min_quality_fraction,
             "model_normalization": args.model_normalization,
+            "model_pooling": args.model_pooling,
         }
     )
     return payload
@@ -215,6 +216,7 @@ def _run_train(args: argparse.Namespace) -> int:
             cache_issues=issues,
             min_quality_fraction=args.min_quality_fraction,
             model_normalization=args.model_normalization,
+            model_pooling=args.model_pooling,
         )
     except ValueError as exc:
         print(f"TRAIN_BLOCKED reason={exc}")
@@ -322,6 +324,9 @@ def build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument("--min-quality-fraction", type=float, default=0.0)
     train_parser.add_argument(
         "--model-normalization", choices=("batch", "group"), default="batch"
+    )
+    train_parser.add_argument(
+        "--model-pooling", choices=("avg", "avgmax"), default="avg"
     )
     train_parser.set_defaults(handler=_run_train)
 
