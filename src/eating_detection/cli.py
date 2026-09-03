@@ -55,6 +55,7 @@ def _config_payload(config: Config, args: argparse.Namespace) -> dict[str, objec
             "device": args.device,
             "sensor_files": args.sensor_files,
             "min_quality_fraction": args.min_quality_fraction,
+            "model_normalization": args.model_normalization,
         }
     )
     return payload
@@ -213,6 +214,7 @@ def _run_train(args: argparse.Namespace) -> int:
             device_name=args.device,
             cache_issues=issues,
             min_quality_fraction=args.min_quality_fraction,
+            model_normalization=args.model_normalization,
         )
     except ValueError as exc:
         print(f"TRAIN_BLOCKED reason={exc}")
@@ -318,6 +320,9 @@ def build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument("--batch-size", type=int, default=4)
     train_parser.add_argument("--device", default="auto")
     train_parser.add_argument("--min-quality-fraction", type=float, default=0.0)
+    train_parser.add_argument(
+        "--model-normalization", choices=("batch", "group"), default="batch"
+    )
     train_parser.set_defaults(handler=_run_train)
 
     evaluate_parser = subparsers.add_parser("evaluate")

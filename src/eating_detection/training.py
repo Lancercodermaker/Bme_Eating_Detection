@@ -241,6 +241,7 @@ def fit_m0_cached(
     device_name: str = "auto",
     cache_issues: list[dict[str, str]] | None = None,
     min_quality_fraction: float = 0.0,
+    model_normalization: str = "batch",
 ) -> dict[str, object]:
     """Train M0 from per-file caches without reading source sensor files."""
     if not caches:
@@ -269,7 +270,9 @@ def fit_m0_cached(
     pos_weight = compute_pos_weight(train_labels)
     device = _resolve_device(device_name)
     input_channels = int(caches[0].feature_channels)
-    model = IMUCNN(in_channels=input_channels).to(device)
+    model = IMUCNN(
+        in_channels=input_channels, normalization=model_normalization
+    ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     loader = _cached_loader(train_dataset, batch_size, device)
     best_result = None
@@ -323,6 +326,7 @@ def fit_m0_cached(
             "device": str(device),
         "batch_size": batch_size,
         "min_quality_fraction": min_quality_fraction,
+        "model_normalization": model_normalization,
             "pos_weight": pos_weight,
             "participant_f1_mean": float(np.mean(f1_values)) if f1_values else 0.0,
             "participant_f1_std": float(np.std(f1_values)) if f1_values else 0.0,
