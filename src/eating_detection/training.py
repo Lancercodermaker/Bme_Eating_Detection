@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 from .cache import FeatureCache, LazyFeatureCache
 from .dataset import (
     CachedWindowDataset,
+    CachedBatch,
     ParticipantBatchSampler,
     WindowDataset,
     WindowRecord,
@@ -199,7 +200,18 @@ def _cached_loader(
         batch_sampler=sampler,
         num_workers=0,
         pin_memory=device.type == "cuda",
+        collate_fn=_cached_collate,
     )
+
+
+def _cached_collate(batch):
+    if isinstance(batch, CachedBatch):
+        return batch.features, batch.labels, batch.participants
+    if isinstance(batch, list) and len(batch) == 1 and isinstance(batch[0], CachedBatch):
+        cached_batch = batch[0]
+        return cached_batch.features, cached_batch.labels, cached_batch.participants
+    features, labels, participants = zip(*batch)
+    return torch.stack(features), torch.stack(labels), participants
 
 
 def _predict_cached(
@@ -217,6 +229,7 @@ def _predict_cached(
         shuffle=False,
         num_workers=0,
         pin_memory=device.type == "cuda",
+        collate_fn=_cached_collate,
     )
     offset = 0
     with torch.inference_mode():

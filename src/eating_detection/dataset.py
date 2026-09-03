@@ -22,6 +22,13 @@ class WindowRecord:
     loss_mask: bool = True
 
 
+@dataclass(frozen=True)
+class CachedBatch:
+    features: torch.Tensor
+    labels: torch.Tensor
+    participants: tuple[str, ...]
+
+
 def make_window_records(
     participant: str,
     start_ms: int,
@@ -324,6 +331,32 @@ class CachedWindowDataset(Dataset):
         features = torch.from_numpy(cache.features[:, int(start):int(end)])
         label = torch.tensor(cache.window_labels[window_index], dtype=torch.float32)
         return features, label, cache.participant
+
+    def __getitems__(self, indices):
+        indices = [int(index) for index in indices]
+        if not indices:
+            raise IndexError("cannot fetch an empty batch")
+        references = [self._references[index] for index in indices]
+        cache_indices = {cache_index for cache_index, _ in references}
+        if len(cache_indices) != 1:
+            return [self[index] for index in indices]
+        cache_index = references[0][0]
+        self._activate_cache(cache_index)
+        cache = self.caches[cache_index]
+        window_indices = np.asarray([window_index for _, window_index in references])
+        starts = cache.window_indices[window_indices, 0].astype(np.int64, copy=False)
+        ends = cache.window_indices[window_indices, 1].astype(np.int64, copy=False)
+        lengths = ends - starts
+        if np.any(lengths != lengths[0]):
+            return [self[index] for index in indices]
+        offsets = starts[:, None] + np.arange(int(lengths[0]), dtype=np.int64)[None, :]
+        features = np.ascontiguousarray(cache.features[:, offsets].transpose(1, 0, 2))
+        labels = np.asarray(cache.window_labels[window_indices], dtype=np.float32)
+        return CachedBatch(
+            features=torch.from_numpy(features),
+            labels=torch.from_numpy(labels),
+            participants=(cache.participant,) * len(indices),
+        )
 
 
 class ParticipantBatchSampler(Sampler[list[int]]):

@@ -9,7 +9,11 @@ from eating_detection.cache import (
     build_feature_cache,
     build_feature_caches,
 )
-from eating_detection.dataset import CachedWindowDataset, build_records_from_sensor_file
+from eating_detection.dataset import (
+    CachedBatch,
+    CachedWindowDataset,
+    build_records_from_sensor_file,
+)
 
 
 def _write_imu_only_sensor(path: Path, rows: int = 31) -> Path:
@@ -109,6 +113,19 @@ def test_cached_window_dataset_slices_continuous_array(tmp_path):
     assert label.ndim == 0
     assert participant == "p1"
     assert dataset.participant_for_index(0) == "p1"
+
+
+def test_cached_window_dataset_has_batched_fetch_for_same_cache(tmp_path):
+    sensor = _write_imu_only_sensor(tmp_path / "organized" / "p1" / "sensor.txt", rows=101)
+    cached = build_feature_cache(sensor, [], tmp_path / "cache", _config())
+    dataset = CachedWindowDataset([cached], include_ignored=True)
+
+    batch = dataset.__getitems__([0, 1])
+
+    assert isinstance(batch, CachedBatch)
+    assert tuple(batch.features.shape) == (2, 10, 25)
+    assert tuple(batch.labels.shape) == (2,)
+    assert batch.participants == ("p1", "p1")
 
 
 def test_cached_window_dataset_filters_windows_below_quality_threshold(tmp_path):
