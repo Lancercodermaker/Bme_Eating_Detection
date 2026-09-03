@@ -184,8 +184,16 @@ def _standardize_batch(batch: torch.Tensor, stats: Standardizer) -> torch.Tensor
     return torch.cat(((batch[:, :signal_channels] - mean) / std, batch[:, signal_channels:]), dim=1)
 
 
-def _cached_loader(dataset: CachedWindowDataset, batch_size: int, device: torch.device):
-    sampler = ParticipantBatchSampler(dataset, batch_size=batch_size)
+def _cached_loader(
+    dataset: CachedWindowDataset,
+    batch_size: int,
+    device: torch.device,
+    shuffle: bool = False,
+    seed: int = 0,
+):
+    sampler = ParticipantBatchSampler(
+        dataset, batch_size=batch_size, shuffle=shuffle, seed=seed
+    )
     return DataLoader(
         dataset,
         batch_sampler=sampler,
@@ -277,7 +285,7 @@ def fit_m0_cached(
         pooling=model_pooling,
     ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    loader = _cached_loader(train_dataset, batch_size, device)
+    loader = _cached_loader(train_dataset, batch_size, device, shuffle=True, seed=seed)
     best_result = None
     best_state = None
     epoch_losses = []

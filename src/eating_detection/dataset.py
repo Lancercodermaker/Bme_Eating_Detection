@@ -280,6 +280,10 @@ class CachedWindowDataset(Dataset):
         cache_index, _ = self._references[index]
         return self.caches[cache_index].participant
 
+    def batch_group_for_index(self, index: int):
+        cache_index, _ = self._references[index]
+        return self.caches[cache_index].participant, cache_index
+
     def window_metadata(self, index: int) -> tuple[str, int, int]:
         cache_index, window_index = self._references[index]
         cache = self.caches[cache_index]
@@ -319,18 +323,37 @@ class CachedWindowDataset(Dataset):
 
 
 class ParticipantBatchSampler(Sampler[list[int]]):
-    def __init__(self, dataset: WindowDataset, batch_size: int):
+    def __init__(
+        self,
+        dataset: WindowDataset,
+        batch_size: int,
+        shuffle: bool = False,
+        seed: int = 0,
+    ):
         if batch_size <= 0:
             raise ValueError("batch_size must be positive")
+        self.shuffle = shuffle
+        self.seed = seed
+        self._epoch = 0
         self.groups: dict[str, list[int]] = {}
+        group_for_index = getattr(
+            dataset, "batch_group_for_index", dataset.participant_for_index
+        )
         for index in range(len(dataset)):
-            participant = dataset.participant_for_index(index)
-            self.groups.setdefault(participant, []).append(index)
+            group = group_for_index(index)
+            self.groups.setdefault(group, []).append(index)
         self.batch_size = batch_size
 
     def __iter__(self):
-        for participant in sorted(self.groups):
-            indices = self.groups[participant]
+        groups = list(self.groups.items())
+        rng = np.random.default_rng(self.seed + self._epoch)
+        self._epoch += 1
+        if self.shuffle:
+            rng.shuffle(groups)
+        for _, original_indices in groups:
+            indices = list(original_indices)
+            if self.shuffle:
+                rng.shuffle(indices)
             for start in range(0, len(indices), self.batch_size):
                 yield indices[start : start + self.batch_size]
 

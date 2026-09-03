@@ -26,6 +26,27 @@ def test_window_dataset_shape_and_batch_groups():
     assert batches == [[0, 1]]
 
 
+def test_participant_batch_sampler_can_shuffle_deterministically_within_groups():
+    records = [
+        WindowRecord(participant, index, index + 1, torch.zeros(10, 8), 0.0)
+        for participant in ("p1", "p2")
+        for index in range(4)
+    ]
+    dataset = WindowDataset(records)
+    first = ParticipantBatchSampler(dataset, batch_size=2, shuffle=True, seed=7)
+    second = ParticipantBatchSampler(dataset, batch_size=2, shuffle=True, seed=7)
+
+    first_batches = list(first)
+    second_batches = list(second)
+
+    assert first_batches == second_batches
+    assert first_batches != [[0, 1], [2, 3], [4, 5], [6, 7]]
+    assert all(
+        len({dataset.participant_for_index(index) for index in batch}) == 1
+        for batch in first_batches
+    )
+
+
 def test_make_window_records_preserves_soft_labels_and_ignore_mask():
     features = torch.zeros(10, 30)
     records = make_window_records(
