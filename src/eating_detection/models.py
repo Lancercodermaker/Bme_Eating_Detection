@@ -51,7 +51,6 @@ class IMUCNN(nn.Module):
         else:
             self.encoder = nn.Sequential(*blocks)
             self.avg_pool = nn.AdaptiveAvgPool1d(1)
-            self.max_pool = nn.AdaptiveMaxPool1d(1)
             self.head = nn.Linear(192, 1)
 
     def forward(self, x):
@@ -64,7 +63,10 @@ class IMUCNN(nn.Module):
             pooled = encoded.squeeze(-1)
         else:
             pooled = torch.cat(
-                [self.avg_pool(encoded).squeeze(-1), self.max_pool(encoded).squeeze(-1)],
+                [
+                    self.avg_pool(encoded).squeeze(-1),
+                    encoded.amax(dim=-1),
+                ],
                 dim=1,
             )
         return self.head(pooled).squeeze(-1)
