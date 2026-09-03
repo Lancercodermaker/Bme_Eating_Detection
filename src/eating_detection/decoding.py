@@ -48,7 +48,7 @@ def tune_decoder(
         raise ValueError("validation inputs must have equal participant counts")
 
     best = None
-    for threshold in (0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80):
+    for threshold in (0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80):
         for merge_gap_ms in (0, 3000, 6000, 9000):
             for min_duration_ms in (0, 3000, 6000):
                 scores = []

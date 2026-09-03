@@ -110,10 +110,15 @@ class LazyFeatureCache:
         return int(shapes["features"][0])
 
     def ensure_features(self) -> None:
-        if self._features is not None and self._quality_mask is not None:
+        if self._features is not None:
             return
         with np.load(self.cache_path, allow_pickle=False) as data:
             self._features = np.array(data["features"], copy=True)
+
+    def ensure_quality_mask(self) -> None:
+        if self._quality_mask is not None:
+            return
+        with np.load(self.cache_path, allow_pickle=False) as data:
             self._quality_mask = np.array(data["quality_mask"], copy=True)
 
     @property
@@ -124,7 +129,7 @@ class LazyFeatureCache:
 
     @property
     def quality_mask(self) -> np.ndarray:
-        self.ensure_features()
+        self.ensure_quality_mask()
         assert self._quality_mask is not None
         return self._quality_mask
 

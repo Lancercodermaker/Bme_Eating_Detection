@@ -231,7 +231,15 @@ class WindowDataset(Dataset):
 class CachedWindowDataset(Dataset):
     """Index-backed windows over per-file continuous feature arrays."""
 
-    def __init__(self, caches, participants: set[str] | None = None, include_ignored: bool = False):
+    def __init__(
+        self,
+        caches,
+        participants: set[str] | None = None,
+        include_ignored: bool = False,
+        min_quality_fraction: float = 0.0,
+    ):
+        if not 0.0 <= min_quality_fraction <= 1.0:
+            raise ValueError("min_quality_fraction must be in [0, 1]")
         self.caches = list(caches)
         self._active_cache_index: int | None = None
         allowed = participants
@@ -239,8 +247,30 @@ class CachedWindowDataset(Dataset):
         for cache_index, cache in enumerate(self.caches):
             if allowed is not None and cache.participant not in allowed:
                 continue
+            if min_quality_fraction > 0.0:
+                if isinstance(cache, LazyFeatureCache):
+                    cache.ensure_quality_mask()
+                quality_mask = cache.quality_mask
+                indices = np.asarray(cache.window_indices, dtype=np.int64)
+                prefix = np.concatenate(
+                    [
+                        np.zeros((quality_mask.shape[0], 1), dtype=np.int64),
+                        np.cumsum(quality_mask, axis=1, dtype=np.int64),
+                    ],
+                    axis=1,
+                )
+                quality_counts = (
+                    prefix[:, indices[:, 1]] - prefix[:, indices[:, 0]]
+                ).sum(axis=0)
+                durations = np.maximum(indices[:, 1] - indices[:, 0], 1)
+                quality_fractions = quality_counts / (quality_mask.shape[0] * durations)
+                quality_usable = quality_fractions >= min_quality_fraction
+                if isinstance(cache, LazyFeatureCache):
+                    cache.release_features()
+            else:
+                quality_usable = np.ones(len(cache.window_loss_mask), dtype=bool)
             for window_index, usable in enumerate(cache.window_loss_mask):
-                if include_ignored or bool(usable):
+                if (include_ignored or bool(usable)) and quality_usable[window_index]:
                     self._references.append((cache_index, window_index))
 
     def __len__(self):

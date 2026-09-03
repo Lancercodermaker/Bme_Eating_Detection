@@ -240,6 +240,7 @@ def fit_m0_cached(
     iou_threshold: float,
     device_name: str = "auto",
     cache_issues: list[dict[str, str]] | None = None,
+    min_quality_fraction: float = 0.0,
 ) -> dict[str, object]:
     """Train M0 from per-file caches without reading source sensor files."""
     if not caches:
@@ -247,8 +248,12 @@ def fit_m0_cached(
     if epochs <= 0 or batch_size <= 0:
         raise ValueError("epochs and batch_size must be positive")
     set_seed(seed)
-    train_dataset = CachedWindowDataset(caches, train_participants)
-    val_dataset = CachedWindowDataset(caches, val_participants)
+    train_dataset = CachedWindowDataset(
+        caches, train_participants, min_quality_fraction=min_quality_fraction
+    )
+    val_dataset = CachedWindowDataset(
+        caches, val_participants, min_quality_fraction=min_quality_fraction
+    )
     if not len(train_dataset):
         raise ValueError("no training windows for the requested participants")
     if not len(val_dataset):
@@ -316,7 +321,8 @@ def fit_m0_cached(
             "decoder": decoder,
             "events": events,
             "device": str(device),
-            "batch_size": batch_size,
+        "batch_size": batch_size,
+        "min_quality_fraction": min_quality_fraction,
             "pos_weight": pos_weight,
             "participant_f1_mean": float(np.mean(f1_values)) if f1_values else 0.0,
             "participant_f1_std": float(np.std(f1_values)) if f1_values else 0.0,

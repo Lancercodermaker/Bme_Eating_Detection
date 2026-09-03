@@ -1,9 +1,11 @@
 from pathlib import Path
+from dataclasses import replace
 
 import numpy as np
 
 from eating_detection.cache import (
     FeatureCacheConfig,
+    LazyFeatureCache,
     build_feature_cache,
     build_feature_caches,
 )
@@ -107,6 +109,47 @@ def test_cached_window_dataset_slices_continuous_array(tmp_path):
     assert label.ndim == 0
     assert participant == "p1"
     assert dataset.participant_for_index(0) == "p1"
+
+
+def test_cached_window_dataset_filters_windows_below_quality_threshold(tmp_path):
+    sensor = _write_imu_only_sensor(tmp_path / "organized" / "p1" / "sensor.txt", rows=101)
+    cached = build_feature_cache(
+        sensor,
+        [(1500, 2500)],
+        tmp_path / "cache",
+        _config(),
+    )
+    quality = np.zeros_like(cached.quality_mask)
+    quality[:, : quality.shape[1] // 2] = True
+    degraded = replace(cached, quality_mask=quality)
+
+    all_windows = CachedWindowDataset([degraded], include_ignored=True)
+    quality_windows = CachedWindowDataset(
+        [degraded], include_ignored=True, min_quality_fraction=0.75
+    )
+
+    assert len(all_windows) > len(quality_windows)
+
+
+def test_quality_filter_does_not_load_lazy_feature_array(monkeypatch, tmp_path):
+    sensor = _write_imu_only_sensor(tmp_path / "organized" / "p1" / "sensor.txt", rows=101)
+    cached = build_feature_cache(
+        sensor,
+        [],
+        tmp_path / "cache",
+        _config(),
+        lazy=True,
+    )
+
+    def fail_if_features_are_loaded(_cache):
+        raise AssertionError("quality filtering must not load the feature array")
+
+    monkeypatch.setattr(LazyFeatureCache, "ensure_features", fail_if_features_are_loaded)
+    dataset = CachedWindowDataset(
+        [cached], include_ignored=True, min_quality_fraction=0.75
+    )
+
+    assert len(dataset) > 0
 
 
 def test_cache_windows_match_legacy_records(tmp_path):
