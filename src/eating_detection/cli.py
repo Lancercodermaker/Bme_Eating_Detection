@@ -156,6 +156,9 @@ def _run_train(args: argparse.Namespace) -> int:
                 "ppg_flat_policy": str(
                     config_payload.get("ppg_flat_policy", "reject_constant_stream")
                 ),
+                "ppg_max_dense_samples": int(
+                    config_payload.get("ppg_max_dense_samples", 1_000_000)
+                ),
                 "model_mode": str(config_payload.get("model_mode", "fusion")),
                 "m1_embedding_dim": int(config_payload.get("m1_embedding_dim", 64)),
                 "m1_modality_dropout": float(
@@ -246,6 +249,7 @@ def _run_train(args: argparse.Namespace) -> int:
                 chunksize=config.chunksize,
                 max_rows=args.max_rows,
                 flat_policy=str(config_payload["ppg_flat_policy"]),
+                max_dense_samples=int(config_payload["ppg_max_dense_samples"]),
             )
             paired_imu_caches = []
             ppg_caches = []

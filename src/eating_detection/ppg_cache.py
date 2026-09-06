@@ -40,6 +40,7 @@ class PPGCacheConfig:
     quality_channels: int = 1
     schema_version: int = 1
     flat_policy: str = 'reject_constant_stream'
+    max_dense_samples: int = 1_000_000
 
     def __post_init__(self):
         if self.resample_hz <= 0 or self.max_gap_ms < 0:
@@ -56,9 +57,16 @@ class PPGCacheConfig:
             raise ValueError('unknown flat signal policy')
         if self.waveform_channels != 44 or self.quality_channels != 1 or self.schema_version < 1:
             raise ValueError('PPG requires 44 waveform and one quality channel, with positive schema')
+        if self.max_dense_samples <= 0:
+            raise ValueError('max_dense_samples must be positive')
 
     def as_dict(self):
-        return asdict(self)
+        # The limit affects only compact-overflow files; those cache keys add
+        # their explicit storage policy below so ordinary dense cache hits stay
+        # compatible with the already-verified schema.
+        payload = asdict(self)
+        payload.pop('max_dense_samples')
+        return payload
 
 
 def _reference_grid(reference, rate):
@@ -119,6 +127,22 @@ def _quality_at(grid, ts, quality, max_gap):
             & ((ts[right]-ts[left]) <= max_gap))
 
 
+def _window_arrays(reference, intervals, config):
+    length = len(reference)
+    window = max(1,int(round(config.window_sec*config.resample_hz)))
+    step = max(1,int(round(config.step_sec*config.resample_hz)))
+    offsets = np.arange(0,max(0,length-window+1),step,dtype=np.int64)
+    starts = reference[offsets]
+    ends = np.rint(starts+window*1000./config.resample_hz).astype(np.int64)
+    labels = [label_window((int(s),int(e)),intervals,config.positive_overlap,config.boundary_mode) for s,e in zip(starts,ends)]
+    return {
+        'window_indices': np.column_stack([offsets,offsets+window]).astype(np.int64),
+        'window_starts_ms': starts, 'window_ends_ms': ends,
+        'window_labels': np.asarray([0 if x is None else x for x in labels],np.float32),
+        'window_loss_mask': np.asarray([x is not None for x in labels],bool),
+    }
+
+
 def _build_arrays(path, intervals, config, reference):
     ts, values, quality = _canonical_rows(path,config)
     if config.preprocess_variant == 'constant_detrend_mask' and quality.any():
@@ -130,6 +154,18 @@ def _build_arrays(path, intervals, config, reference):
         length = int(np.floor((ts[-1]-ts[0])*config.resample_hz/1000.))+1
         reference = np.rint(ts[0]+np.arange(length)*1000./config.resample_hz).astype(np.int64)
     length = len(reference)
+    if length > config.max_dense_samples:
+        # A sparse source with a pathological multi-day IMU reference would
+        # require several GB of mostly zero PPG arrays. Preserve the exact
+        # M0 grid/window/label contract, but represent PPG conservatively as
+        # explicitly unavailable so batches synthesize only their local zeros.
+        return {
+            'timestamps_ms': np.empty(0,np.int64),
+            'features': np.empty((45,0),np.float32),
+            'quality_mask': np.empty((1,0),bool),
+            '_storage': np.array('all_missing_compact'),
+            **_window_arrays(reference, intervals, config),
+        }
     waveform = np.zeros((length,44),np.float32)
     output_quality = _quality_at(reference, ts, quality, config.max_gap_ms)
     if length and len(ts) and quality.any():
@@ -161,20 +197,11 @@ def _build_arrays(path, intervals, config, reference):
         output_quality[:take] &= filtered_quality[:take]
         output_quality[take:] = False
     waveform[~output_quality] = 0
-    window = max(1,int(round(config.window_sec*config.resample_hz)))
-    step = max(1,int(round(config.step_sec*config.resample_hz)))
-    offsets = np.arange(0,max(0,length-window+1),step,dtype=np.int64)
-    starts = reference[offsets]
-    ends = np.rint(starts+window*1000./config.resample_hz).astype(np.int64)
-    labels = [label_window((int(s),int(e)),intervals,config.positive_overlap,config.boundary_mode) for s,e in zip(starts,ends)]
     return {
         'timestamps_ms': reference.copy(),
         'features': np.ascontiguousarray(np.vstack([waveform.T,output_quality[None,:]]),dtype=np.float32),
         'quality_mask': np.ascontiguousarray(output_quality[None,:]),
-        'window_indices': np.column_stack([offsets,offsets+window]).astype(np.int64),
-        'window_starts_ms': starts, 'window_ends_ms': ends,
-        'window_labels': np.asarray([0 if x is None else x for x in labels],np.float32),
-        'window_loss_mask': np.asarray([x is not None for x in labels],bool),
+        **_window_arrays(reference, intervals, config),
     }
 
 
@@ -196,6 +223,16 @@ def build_ppg_cache(source_path, intervals, cache_root, config,
     payload = {'modality':'ppg','source':_source_metadata(source_path),
                'config':config.as_dict(),'intervals':[list(i) for i in sorted(intervals)],
                'reference':reference_metadata}
+    if reference is None:
+        # Without an explicit M0 grid, the builder derives the dense length
+        # from the source. Keep the limit in the key so changing it cannot
+        # reuse a cache that should switch between dense and compact storage.
+        payload['max_dense_samples'] = config.max_dense_samples
+    elif len(reference) > config.max_dense_samples:
+        payload['storage'] = {
+            'kind': 'all_missing_compact',
+            'max_dense_samples': config.max_dense_samples,
+        }
     key = hashlib.sha256(json.dumps(payload,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     location = Path(cache_root)/'ppg'/key[:2]/f'{key}.npz'
     started = time.perf_counter()
@@ -203,8 +240,10 @@ def build_ppg_cache(source_path, intervals, cache_root, config,
         cached = (_load_lazy_cache if lazy else _load_cache)(location,key,source_path)
         return replace(cached,timings={'cache_load_sec':time.perf_counter()-started})
     arrays = _build_arrays(source_path,intervals,config,reference)
+    storage = str(arrays.pop('_storage',np.array('dense')).item())
     participant = _participant_from_path(source_path)
     metadata = {**payload,'cache_key':key,'participant':participant,
+                'storage':storage,
                 'array_shapes':{n:list(v.shape) for n,v in arrays.items()},
                 'build_time_sec':time.perf_counter()-started}
     _write_cache(location,metadata,arrays)

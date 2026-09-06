@@ -1,4 +1,5 @@
 from dataclasses import replace
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -66,6 +67,107 @@ def test_paired_cache_dataset_retains_missing_ppg_with_an_explicit_modality_mask
 
     assert not ppg_window.any()
     assert modality_mask.tolist() == [1.0, 0.0]
+
+
+def test_paired_dataset_uses_compact_all_missing_ppg_cache_for_an_excessive_reference(tmp_path):
+    source = _write_sensor(tmp_path / "organized" / "p1" / "sensor.txt")
+    imu = build_feature_cache(
+        source,
+        [(1500, 2500)],
+        tmp_path / "cache",
+        FeatureCacheConfig(resample_hz=25, max_gap_ms=200, window_sec=1, step_sec=1),
+    )
+    ppg = build_ppg_cache(
+        source,
+        [(1500, 2500)],
+        tmp_path / "cache",
+        PPGCacheConfig(
+            resample_hz=25,
+            max_gap_ms=200,
+            window_sec=1,
+            step_sec=1,
+            max_dense_samples=10,
+        ),
+        imu.timestamps_ms,
+        lazy=True,
+    )
+
+    dataset = PairedCachedWindowDataset([imu], [ppg], include_ignored=True)
+    _, ppg_window, modality_mask, _, _ = dataset[0]
+
+    assert ppg.metadata["storage"] == "all_missing_compact"
+    assert ppg_window.shape == (45, 25)
+    assert not ppg_window.any()
+    assert modality_mask.tolist() == [1.0, 0.0]
+
+
+def test_compact_ppg_cache_hit_stays_lazy_when_ppg_reader_throws(tmp_path):
+    source = _write_sensor(tmp_path / "organized" / "p1" / "sensor.txt")
+    imu = build_feature_cache(
+        source,
+        [(1500, 2500)],
+        tmp_path / "cache",
+        FeatureCacheConfig(resample_hz=25, max_gap_ms=200, window_sec=1, step_sec=1),
+    )
+    config = PPGCacheConfig(
+        resample_hz=25,
+        max_gap_ms=200,
+        window_sec=1,
+        step_sec=1,
+        max_dense_samples=10,
+    )
+    first = build_ppg_cache(
+        source, [(1500, 2500)], tmp_path / "cache", config, imu.timestamps_ms, lazy=True
+    )
+    assert first.cache_hit is False
+    assert first.features_loaded is False
+
+    with patch(
+        "eating_detection.ppg_cache.iter_ppg_chunks",
+        side_effect=AssertionError("compact cache hit must not read the source CSV"),
+    ):
+        hit = build_ppg_cache(
+            source, [(1500, 2500)], tmp_path / "cache", config, imu.timestamps_ms, lazy=True
+        )
+
+    assert hit.cache_hit is True
+    assert hit.metadata["storage"] == "all_missing_compact"
+    assert hit.features_loaded is False
+
+
+def test_compact_ppg_batch_fetch_synthesizes_only_local_zero_windows(tmp_path):
+    source = _write_sensor(tmp_path / "organized" / "p1" / "sensor.txt")
+    imu = build_feature_cache(
+        source,
+        [(1500, 2500)],
+        tmp_path / "cache",
+        FeatureCacheConfig(resample_hz=25, max_gap_ms=200, window_sec=1, step_sec=1),
+    )
+    ppg = build_ppg_cache(
+        source,
+        [(1500, 2500)],
+        tmp_path / "cache",
+        PPGCacheConfig(
+            resample_hz=25,
+            max_gap_ms=200,
+            window_sec=1,
+            step_sec=1,
+            max_dense_samples=10,
+        ),
+        imu.timestamps_ms,
+        lazy=True,
+    )
+    dataset = PairedCachedWindowDataset([imu], [ppg], include_ignored=True)
+
+    batch = dataset.__getitems__([0, 1])
+
+    assert batch.ppg.shape == (2, 45, 25)
+    assert batch.ppg.dtype == torch.float32
+    assert torch.count_nonzero(batch.ppg) == 0
+    assert batch.modality_mask.shape == (2, 2)
+    assert torch.all(batch.modality_mask[:, 0] == 1)
+    assert torch.all(batch.modality_mask[:, 1] == 0)
+    assert ppg.features_loaded is False
 
 
 def test_paired_cache_dataset_rejects_timestamp_window_or_label_mismatch(tmp_path):

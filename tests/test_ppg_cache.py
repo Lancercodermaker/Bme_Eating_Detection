@@ -115,6 +115,23 @@ def test_key_sensitive_to_config_source_intervals_and_reference(mod, tmp_path):
     assert len(set(keys))==len(keys)
 
 
+def test_compact_threshold_is_keyed_without_an_explicit_reference(mod, tmp_path):
+    path = write_source(tmp_path / 'x')
+    root = tmp_path / 'cache'
+    dense = mod.build_ppg_cache(
+        path, [], root, config(mod, max_dense_samples=10), lazy=True
+    )
+    compact = mod.build_ppg_cache(
+        path, [], root, config(mod, max_dense_samples=2), lazy=True
+    )
+
+    assert dense.cache_hit is False
+    assert compact.cache_hit is False
+    assert compact.cache_key != dense.cache_key
+    assert compact.metadata['storage'] == 'all_missing_compact'
+    assert compact.features_loaded is False
+
+
 @pytest.mark.parametrize('failure', ['save', 'rename', 'interrupt'])
 def test_atomic_failures_leave_no_partial_cache_and_resume(mod,tmp_path,monkeypatch,failure):
     path=write_source(tmp_path/'x'); root=tmp_path/'cache'

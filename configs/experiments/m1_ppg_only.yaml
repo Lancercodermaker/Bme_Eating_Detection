@@ -11,6 +11,7 @@ max_gap_ms: 2000
 preprocess_variant: p0_raw_mask
 ppg_preprocess_variant: raw_mask
 ppg_flat_policy: reject_constant_stream
+ppg_max_dense_samples: 1000000
 window_sec: 15
 step_sec: 3
 seed: 7

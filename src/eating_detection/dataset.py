@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -408,6 +409,10 @@ class PairedCachedWindowDataset(Dataset):
                     self._references.append((pair_index, window_index))
 
     @staticmethod
+    def _is_compact_missing_ppg(cache: FeatureCache | LazyFeatureCache) -> bool:
+        return cache.metadata.get("storage") == "all_missing_compact"
+
+    @staticmethod
     def _timestamps_for_validation(
         cache: FeatureCache | LazyFeatureCache,
     ) -> np.ndarray:
@@ -416,6 +421,27 @@ class PairedCachedWindowDataset(Dataset):
             return np.asarray(cache.timestamps_ms)
         with np.load(cache.cache_path, allow_pickle=False) as data:
             return np.array(data["timestamps_ms"], copy=True)
+
+    @staticmethod
+    def _timestamps_match(
+        imu_cache: FeatureCache | LazyFeatureCache,
+        ppg_cache: FeatureCache | LazyFeatureCache,
+    ) -> bool:
+        imu_timestamps = PairedCachedWindowDataset._timestamps_for_validation(imu_cache)
+        if PairedCachedWindowDataset._is_compact_missing_ppg(ppg_cache):
+            reference = ppg_cache.metadata.get("reference")
+            expected_hash = reference.get("sha256") if isinstance(reference, dict) else None
+            return (
+                isinstance(expected_hash, str)
+                and int(reference.get("length", -1)) == len(imu_timestamps)
+                and reference.get("start_ms") == int(imu_timestamps[0])
+                and expected_hash
+                == hashlib.sha256(imu_timestamps.astype("<i8", copy=False).tobytes()).hexdigest()
+            )
+        return np.array_equal(
+            imu_timestamps,
+            PairedCachedWindowDataset._timestamps_for_validation(ppg_cache),
+        )
 
     @staticmethod
     def _validate_pair(
@@ -436,14 +462,13 @@ class PairedCachedWindowDataset(Dataset):
         for name, imu_values, ppg_values in comparisons:
             if not np.array_equal(imu_values, ppg_values):
                 raise ValueError(f"paired cache {name} must match")
-        if not np.array_equal(
-            PairedCachedWindowDataset._timestamps_for_validation(imu_cache),
-            PairedCachedWindowDataset._timestamps_for_validation(ppg_cache),
-        ):
+        if not PairedCachedWindowDataset._timestamps_match(imu_cache, ppg_cache):
             raise ValueError("paired cache timestamps must match")
 
     @staticmethod
     def _window_quality_fractions(cache: FeatureCache | LazyFeatureCache) -> np.ndarray:
+        if PairedCachedWindowDataset._is_compact_missing_ppg(cache):
+            return np.zeros(len(cache.window_indices), dtype=np.float64)
         if isinstance(cache, LazyFeatureCache):
             cache.ensure_quality_mask()
         try:
@@ -503,7 +528,7 @@ class PairedCachedWindowDataset(Dataset):
         imu_cache, ppg_cache = self.pairs[pair_index]
         if isinstance(imu_cache, LazyFeatureCache):
             imu_cache.ensure_features()
-        if isinstance(ppg_cache, LazyFeatureCache):
+        if isinstance(ppg_cache, LazyFeatureCache) and not self._is_compact_missing_ppg(ppg_cache):
             ppg_cache.ensure_features()
         self._active_pair_index = pair_index
 
@@ -515,6 +540,14 @@ class PairedCachedWindowDataset(Dataset):
                 cache.release_features()
         self._active_pair_index = None
 
+    @staticmethod
+    def _ppg_window(
+        ppg_cache: FeatureCache | LazyFeatureCache, start: int, end: int
+    ) -> np.ndarray:
+        if PairedCachedWindowDataset._is_compact_missing_ppg(ppg_cache):
+            return np.zeros((45, end - start), dtype=np.float32)
+        return ppg_cache.features[:, start:end]
+
     def __getitem__(self, index):
         pair_index, window_index = self._references[index]
         self._activate_pair(pair_index)
@@ -522,7 +555,7 @@ class PairedCachedWindowDataset(Dataset):
         start, end = imu_cache.window_indices[window_index]
         return (
             torch.from_numpy(imu_cache.features[:, int(start):int(end)]),
-            torch.from_numpy(ppg_cache.features[:, int(start):int(end)]),
+            torch.from_numpy(self._ppg_window(ppg_cache, int(start), int(end))),
             torch.from_numpy(self._window_modality_masks[pair_index][window_index]),
             torch.tensor(imu_cache.window_labels[window_index], dtype=torch.float32),
             imu_cache.participant,
@@ -547,7 +580,10 @@ class PairedCachedWindowDataset(Dataset):
             return [self[index] for index in indices]
         offsets = starts[:, None] + np.arange(int(lengths[0]), dtype=np.int64)[None, :]
         imu = np.ascontiguousarray(imu_cache.features[:, offsets].transpose(1, 0, 2))
-        ppg = np.ascontiguousarray(ppg_cache.features[:, offsets].transpose(1, 0, 2))
+        if self._is_compact_missing_ppg(ppg_cache):
+            ppg = np.zeros((len(indices), 45, int(lengths[0])), dtype=np.float32)
+        else:
+            ppg = np.ascontiguousarray(ppg_cache.features[:, offsets].transpose(1, 0, 2))
         masks = self._window_modality_masks[pair_index][window_indices]
         labels = np.asarray(imu_cache.window_labels[window_indices], dtype=np.float32)
         return PairedCachedBatch(

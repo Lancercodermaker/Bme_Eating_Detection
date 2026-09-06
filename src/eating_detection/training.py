@@ -100,6 +100,8 @@ def fit_m1_ppg_standardizer(
     for cache in selected:
         if cache.feature_channels != 45:
             raise ValueError("M1 PPG caches must contain 44 waveform and one quality channel")
+        if cache.metadata.get("storage") == "all_missing_compact":
+            continue
         if isinstance(cache, LazyFeatureCache):
             cache.ensure_features()
         try:
