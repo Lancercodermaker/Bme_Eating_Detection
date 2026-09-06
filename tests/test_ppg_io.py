@@ -64,3 +64,14 @@ def test_ppg_parser_honors_row_limit_and_repeated_header(tmp_path):
     assert len(chunks) == 2
     assert chunks[1].timestamps_ms.tolist() == [0]
     assert not chunks[1].valid.any()
+
+
+@pytest.mark.parametrize("columns,row", [(["ACC_X"], ["unused"]), (["PPG1"], [1])])
+def test_absent_ppg_time_returns_explicit_empty_or_invalid_stream(tmp_path, columns, row):
+    path = write_ppg(tmp_path / "absent.txt", [row], columns)
+    chunks = list(io.iter_ppg_chunks(path))
+    assert chunks
+    for chunk in chunks:
+        assert chunk.values.shape == (len(chunk.timestamps_ms), 44)
+        assert not chunk.valid.any()
+        assert not chunk.timestamps_ms.any()

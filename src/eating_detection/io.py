@@ -38,9 +38,10 @@ def iter_ppg_chunks(
         dtype=numeric, chunksize=chunksize, nrows=max_rows,
         na_values=list(selected),
     ):
-        if "PPG_TIME" not in frame:
-            raise ValueError("PPG_TIME is missing")
-        timestamps = frame["PPG_TIME"].fillna(0).to_numpy(np.int64)
+        timestamps = (
+            frame["PPG_TIME"].fillna(0).to_numpy(np.int64)
+            if "PPG_TIME" in frame else np.zeros(len(frame), dtype=np.int64)
+        )
         values = frame.reindex(columns=columns).to_numpy(np.float32)
         valid = ((timestamps > 0) & np.isfinite(values).all(axis=1)
                  & (np.abs(values).sum(axis=1) > 0))
