@@ -88,6 +88,9 @@ def test_m1_cached_ppg_only_training_uses_cache_and_writes_reproducible_outputs(
     assert result["device"] == "cpu"
     assert result["metrics"]["model_mode"] == "ppg_only"
     assert result["metrics"]["modality_coverage"]["train"]["ppg_available"] > 0
+    assert set(result["metrics"]["calibration"]) == {
+        "binary_window_membership", "soft_overlap_target"
+    }
     assert (tmp_path / "run" / "checkpoint.pt").exists()
     assert (tmp_path / "run" / "normalization.json").exists()
     assert (tmp_path / "run" / "window_probabilities.jsonl").exists()

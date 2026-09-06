@@ -79,9 +79,9 @@ M0 只读复评重新计算 TP/FP/FN=21/171/30，Precision=0.109375，Recall=0.4
 
 风险：训练期重读 CSV、将 validation 统计带入 PPG 标准化、或仅在调用 CLI 时过滤 test 都会造成不可复现或泄漏。单独的 PPG-only 训练若仍留下 IMU mask=true，会不再是诊断性对照。
 
-选择：新增 `fit_m1_cached`，接受已配对 IMU/PPG caches，先拒绝 train/val 外 cache participant 及 split manifest 中 excluded test participant，再构造 participant/file batch。IMU/PPG 统计和 `pos_weight` 均只来自训练 participant。`ppg_only` 只把 IMU modality mask 置零；`fusion` 传递原始 mask。两个模式都复用 batch BCE logits、验证集 decoder、严格 IoU 事件评价、checkpoint/probability 输出，并分别记录 IMU/PPG cache 命中/CPU 时间、GPU 与 epoch 时间、train/val modality coverage。
+选择：新增 `fit_m1_cached`，接受已配对 IMU/PPG caches，先拒绝 train/val 外 cache participant 及 split manifest 中 excluded test participant，再构造 participant/file batch。IMU/PPG 统计和 `pos_weight` 均只来自训练 participant。`ppg_only` 只把 IMU modality mask 置零；`fusion` 传递原始 mask。两个模式都复用 batch BCE logits、验证集 decoder、严格 IoU 事件评价、checkpoint/probability 输出，并分别记录 IMU/PPG cache 命中/CPU 时间、GPU 与 epoch 时间、train/val modality coverage。验证概率按唯一 `(participant,start,end)` 与 cache label 回配，输出二元 membership 与 soft overlap target 的 Brier/ECE/reliability bins。
 
-实验：两项 RED（训练入口不存在）→ GREEN：lazy cache 的 PPG-only end-to-end CPU batch 在 reader 被替换为抛错函数时仍完成，写出 checkpoint、双模态 normalization、概率和事件输出；额外回归确认 train/val 之外的 cache participant 被拒绝。专项 2 passed；全套 126 passed；compileall/diff check 通过。CLI 与真实 bounded sample 尚未运行。
+实验：两项 RED（训练入口不存在）→ GREEN：lazy cache 的 PPG-only end-to-end CPU batch 在 reader 被替换为抛错函数时仍完成，写出 checkpoint、双模态 normalization、概率和事件输出；额外回归确认 train/val 之外的 cache participant 被拒绝。补一项 calibration RED（metrics 缺少该字段）→ GREEN。专项 2 passed；全套 127 passed；compileall/diff check 通过。CLI 与真实 bounded sample 尚未运行。
 
 ## M1 CLI/config（2026-09-06）
 

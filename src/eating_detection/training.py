@@ -1,4 +1,5 @@
 import copy
+from collections import defaultdict, deque
 import json
 import random
 import subprocess
@@ -22,6 +23,7 @@ from .dataset import (
     participant_from_sensor_path,
 )
 from .decoding import decode_windows, tune_decoder
+from .error_analysis import calibration_summary
 from .metrics import EventMetrics, event_metrics
 from .models import IMUCNN, IMUPPGFusion
 from .preprocess import Standardizer, apply_standardizer, fit_standardizer
@@ -434,6 +436,35 @@ def _predict_m1_cached(
     return predictions
 
 
+def _m1_calibration(
+    predictions: dict[str, list[tuple[int, int, float]]],
+    dataset: PairedCachedWindowDataset,
+) -> dict[str, object]:
+    queued_probabilities = defaultdict(deque)
+    for participant, rows in predictions.items():
+        for start_ms, end_ms, probability in rows:
+            queued_probabilities[(participant, start_ms, end_ms)].append(probability)
+    probabilities = []
+    targets = []
+    for index in range(len(dataset)):
+        participant, start_ms, end_ms = dataset.window_metadata(index)
+        key = (participant, start_ms, end_ms)
+        if not queued_probabilities[key]:
+            raise ValueError("M1 predictions do not cover every validation window")
+        probabilities.append(queued_probabilities[key].popleft())
+        targets.append(dataset.label_for_index(index))
+    if any(queue for queue in queued_probabilities.values()):
+        raise ValueError("M1 predictions contain unknown validation windows")
+    targets_array = np.asarray(targets, dtype=np.float64)
+    probabilities_array = np.asarray(probabilities, dtype=np.float64)
+    return {
+        "binary_window_membership": calibration_summary(
+            probabilities_array, (targets_array > 0).astype(np.float64)
+        ),
+        "soft_overlap_target": calibration_summary(probabilities_array, targets_array),
+    }
+
+
 def fit_m1_cached(
     imu_caches: list[FeatureCache | LazyFeatureCache],
     ppg_caches: list[FeatureCache | LazyFeatureCache],
@@ -574,6 +605,7 @@ def fit_m1_cached(
         aggregate, participant_metrics, events = evaluate_predictions(
             predictions, truth, decoder, iou_threshold, participants=val_participants
         )
+        calibration = _m1_calibration(predictions, val_dataset)
         f1_values = [float(item["f1"]) for item in participant_metrics.values()]
         epoch_time = time.perf_counter() - epoch_started
         gpu_stats = _gpu_runtime_stats(device)
@@ -582,6 +614,7 @@ def fit_m1_cached(
             "participant_metrics": participant_metrics,
             "decoder": decoder,
             "events": events,
+            "calibration": calibration,
             "device": str(device),
             "batch_size": batch_size,
             "model_mode": model_mode,
