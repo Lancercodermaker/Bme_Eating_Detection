@@ -18,6 +18,35 @@ class SensorChunk:
     ppg_valid: np.ndarray
 
 
+@dataclass(frozen=True)
+class PPGChunk:
+    timestamps_ms: np.ndarray
+    values: np.ndarray
+    valid: np.ndarray
+
+
+def iter_ppg_chunks(
+    path: Path, chunksize: int = 50_000, max_rows: int | None = None
+) -> Iterator[PPGChunk]:
+    """Project only PPG columns; preserve the established all-channel row mask."""
+    columns = [f"PPG{i}" for i in range(1, 45)]
+    selected = {"PPG_TIME", *columns}
+    numeric = {column: "float32" for column in columns}
+    numeric["PPG_TIME"] = "Int64"
+    for frame in pd.read_csv(
+        path, sep="\t", usecols=lambda column: column in selected,
+        dtype=numeric, chunksize=chunksize, nrows=max_rows,
+        na_values=list(selected),
+    ):
+        if "PPG_TIME" not in frame:
+            raise ValueError("PPG_TIME is missing")
+        timestamps = frame["PPG_TIME"].fillna(0).to_numpy(np.int64)
+        values = frame.reindex(columns=columns).to_numpy(np.float32)
+        valid = ((timestamps > 0) & np.isfinite(values).all(axis=1)
+                 & (np.abs(values).sum(axis=1) > 0))
+        yield PPGChunk(timestamps, values, valid)
+
+
 def canonical_participant_id(raw: str) -> str:
     return re.sub(r"\s+", "", str(raw).strip().casefold())
 
