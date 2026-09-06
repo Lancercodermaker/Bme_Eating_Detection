@@ -93,12 +93,23 @@ M0 只读复评重新计算 TP/FP/FN=21/171/30，Precision=0.109375，Recall=0.4
 
 实验：CLI TDD 先在 M0 路径运行并缺少 `model_mode` 输出（RED），实现后 2 个 toy participant 的 PPG-only CLI 完成独立 PPG cache 与 paired cache training，保存 nested IMU/PPG normalization（GREEN）。专项 1 passed、全套 127 passed；compileall/diff check 通过。真实 bounded PPG-only/fusion CUDA sample 尚未运行。
 
+## Bounded CUDA 与 full-data gate（2026-09-06）
+
+事实：用 frozen manifest 中 hnu21013(train) 和 hnu21024(val) 各最多30,000行、1 epoch/batch64/CUDA 完成真实 PPG-only、feature fusion(dropout=.25) 和 no-dropout fusion；首次 PPG-only 两种 cache 均2 miss，后两次均 IMU/PPG 2/2 hit。三次在此受限范围的事件 F1 都为0.0384615（P=1、R=0.0196078、start/end MAE=34506/259494ms），不能推断全量优劣。PPG-only/fusion/dropout fusion 的 binary Brier/ECE 分别为0.165814/0.407198、0.081846/0.286045、0.085418/0.292211；fusion 在该 tiny sample 的 calibration 较好，但不是选择依据。
+
+风险：若完整 M1 重建 IMU cache，就不再是复用冻结M0 reference；若把 bounded event 结果写作全量结论，会误导下一步模型选择。
+
+选择：检查 `cache/m0_full` 的1121个 cache 元数据后，确认其采样率、max gap、P0、window、label配置都与M1配置完全相同。因此三个 M1 YAML 的 `cache_dir` 均改为该只读 IMU cache；PPG 保持独立 `cache/m1_ppg`。完整运行前复核全套127 passed、compileall、diff check、CUDA2-step smoke、raw零跟踪、artifact/cache忽略，并以原始2378文件的size/mtime基线复核为零变化（基线记录有统一5小时偏移，校正后比较）。
+
+验收：full-data gate 通过；接下来可按既定顺序全量构建/命中 PPG cache，运行 PPG-only，再重用既有 M0 reference，最后运行 fusion。未启动M2/M3/M4。
+
 ## 待完成
 
 - [x] PPG parser 独立审查与缺失模态覆盖。
 - [x] PPG cache 严格 TDD、数值/窗口/label 等价、原子写入和中断恢复验证、阶段提交。
 - [x] 独立 IMU/PPG encoder、显式 mask、安全 modality dropout，严格 TDD 与 CUDA 样例、阶段提交。
-- [ ] 真实 PPG-only/fusion bounded sample、M0 reference/missing-modality 对照与 full-data gate。
+- [x] 真实 PPG-only/fusion bounded sample、M0 reference、dropout 对照与 full-data gate。
+- [ ] 全量 PPG-only 与 fusion、缺失模态评估、完整指标报告。
 - [ ] 同 split train/val 全量 cache、PPG-only 诊断、复用 M0 reference、M1 联合训练与缺失模态实验。
 - [ ] 事件指标、MAE、calibration、coverage 和 CPU/GPU 分开遥测。
 - [ ] 全套最终验证、README/handoff/实施计划更新与提交，保留现有分支/worktree。

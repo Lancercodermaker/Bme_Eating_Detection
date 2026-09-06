@@ -21,7 +21,8 @@
 - **M1 模型核心已提交**：`IMUPPGFusion` 有独立 GroupNorm IMU/PPG encoder、45 channel PPG（含逐点 quality）、显式 `(B,2)` modality mask、训练期安全单模态 dropout、eval 确定性以及 strict M0 compatibility refusal。`train_m1_one_batch` 直接使用 `BCEWithLogitsLoss` logits。专项8 passed、全套118 passed，CUDA forward/backward 和 environment smoke 成功。
 - **paired cache Dataset 与 PPG train-only 标准化已完成待阶段提交**：以 source、participant、全逐点 timestamps、window index/boundary、soft label 和 loss mask 强制逐文件匹配；即使两个 cache 是 lazy，也只读取 timestamps array 来验证 reference grid。窗口质量被显式派生为 IMU/PPG `(2,)` modality mask，PPG 缺失不丢弃窗口。44 个 PPG waveform channel 仅按训练 participant 的有效采样点拟合统计，缩放后无效点重新置零并原样保留 point quality。专项6 passed；全套124 passed。尚未接入 CLI 或执行 M1/PPG-only 训练。
 - **cache-hit M1 batch training 已完成待阶段提交**：`fit_m1_cached` 只接受配对 cache，拒绝 train/val 之外的 cache participant 或任何 excluded test participant；它按 train participant 拟合 IMU/PPG 统计与 `pos_weight`，用参与者/文件分组 batch 做 BCE logits 训练、批量验证、严格 IoU decoder/事件指标、checkpoint 与概率输出。`ppg_only` 诊断仅将 IMU modality mask 置零；`fusion` 保持双分支。其输出记录两个 cache 的命中/CPU 时间、设备/GPU/epoch 时间、train/val modality coverage，以及验证窗口的二元/soft calibration（Brier/ECE/reliability bins）。专项2 passed、全套127 passed。
-- **M1 CLI/config 已完成待阶段提交**：`model: m1_imu_ppg` 保持 M0 默认分支不变，并为每个成功 IMU cache 单独读取 reference timestamps 来构建独立 PPG cache；PPG build failure 单列报告，只有同 source 的 cache pair 会被传到训练。新增 `configs/m1_imu_ppg.yaml`（fusion）和 `configs/experiments/m1_ppg_only.yaml`（诊断）。端到端 CLI TDD 通过：2 个 toy participant 完成 PPG-only 训练、产出 PPG cache 和嵌套 IMU/PPG normalization；全套127 passed。真实 bounded PPG-only/fusion CUDA sample 尚未运行。
+- **M1 CLI/config 已完成待阶段提交**：`model: m1_imu_ppg` 保持 M0 默认分支不变，并为每个成功 IMU cache 单独读取 reference timestamps 来构建独立 PPG cache；PPG build failure 单列报告，只有同 source 的 cache pair 会被传到训练。新增 `configs/m1_imu_ppg.yaml`（fusion）和 `configs/experiments/m1_ppg_only.yaml`（诊断）。端到端 CLI TDD 通过：2 个 toy participant 完成 PPG-only 训练、产出 PPG cache 和嵌套 IMU/PPG normalization；全套127 passed，并已完成真实 bounded PPG-only/fusion CUDA sample。
+- **full-data gate 已通过，完整训练尚未启动**：真实受限样例（hnu21013 train/hnu21024 val、各30,000行、1 epoch）完成 PPG-only、fusion(dropout=.25) 与 fusion(dropout=0) CUDA，均为 cache hit；全套127 passed/compileall/diff check/CUDA smoke 通过；原始 2,378 项 size/mtime 在既有统一5小时记录偏移后零变化，raw零跟踪，cache/artifact忽略确认。将复用 `cache/m0_full` 的1121个 M0 IMU caches（metadata 参数与冻结P0完全一致），不会重建 IMU cache；PPG 独立写 `cache/m1_ppg`。
 
 ### Frozen decisions
 
@@ -46,7 +47,7 @@
 ### Open risks / immediate next steps
 
 1. PPG cache 阶段已完成：现 API 为 `PPGCacheConfig` 与 `build_ppg_cache(source_path, intervals, cache_root, config, reference_timestamps_ms=None, lazy=False)`；45×T float32 feature、1×T bool quality、连续 array+window index、reference grid hash、lazy/atomic/recovery 均已验收。默认 `reject_constant_stream`，显式 `keep` 仅供回退；无效重复包也会通过抗混叠质量支持传播为输出屏障。
-2. paired Dataset/PPG statistics、cache-hit M1 batch loop 与 CLI/config 已完成，下一步将 CLI 阶段提交。随后运行真实 bounded PPG-only→复用 M0 reference→fusion CUDA sample→缺失模态/dropout 对照；所有 gate 完成前不运行完整数据。
+2. full-data gate 已通过。下一步严格顺序启动完整 PPG-only→复用冻结 M0 reference→完整 fusion；PPG cache 单独逐文件恢复，M0 IMU cache 只读命中。随后报告 fusion/PPG-only/M0/dropout 的可比指标与缺失模态结果。
 3. 全量 M1 必须等原附件所有 full-data gate 通过。最终全套 pytest/compileall/diff/Git/忽略/CUDA/缓存 hit/样例复现，更新 README/handoff/原实施计划，原子提交。finishing-a-development-branch 仅报告集成选项，默认保留分支/worktree。
 
 每阶段用中文“事实→风险→候选→验收标准→选择→实验结果”；每个实现阶段RED→GREEN→阶段验证→原子提交。使用 executing-plans、using-git-worktrees、test-driven-development、systematic-debugging、verification-before-completion；需要子代理时遵循已加载的subagent-driven-development。库API用Context7先resolve再query；本轮已查pandas `/websites/pandas_pydata`、PyTorch `/pytorch/pytorch/v2.11.0`，SciPy查到内容较浅，主要复用现有resample_uniform。
