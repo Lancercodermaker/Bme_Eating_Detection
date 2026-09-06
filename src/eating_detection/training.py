@@ -48,6 +48,70 @@ def compute_pos_weight(labels) -> float:
     return negatives / positives
 
 
+_M1_MODALITY_STRATA = ("both", "imu_only", "ppg_only", "neither")
+
+
+def _m1_modality_category(mask: np.ndarray) -> str:
+    imu_available, ppg_available = bool(mask[0]), bool(mask[1])
+    if imu_available and ppg_available:
+        return "both"
+    if imu_available:
+        return "imu_only"
+    if ppg_available:
+        return "ppg_only"
+    return "neither"
+
+
+def compute_m1_stratum_pos_weights(
+    labels, modality_masks, max_pos_weight: float | None = None
+) -> dict[str, float]:
+    """Compute bounded availability-stratum BCE weights from train windows only."""
+    labels_array = np.asarray(labels, dtype=np.float64)
+    masks_array = np.asarray(modality_masks, dtype=np.float32)
+    if labels_array.ndim != 1 or masks_array.shape != (len(labels_array), 2):
+        raise ValueError("labels and modality_masks must have shapes (N,) and (N, 2)")
+    if not np.isfinite(labels_array).all():
+        raise ValueError("labels must be finite")
+    if not np.all((masks_array == 0) | (masks_array == 1)):
+        raise ValueError("modality_masks entries must be binary")
+    if max_pos_weight is not None and (
+        not np.isfinite(max_pos_weight) or max_pos_weight < 0
+    ):
+        raise ValueError("max_pos_weight must be finite and non-negative")
+    weights: dict[str, float] = {}
+    for category in _M1_MODALITY_STRATA:
+        selected = np.asarray(
+            [_m1_modality_category(mask) == category for mask in masks_array],
+            dtype=bool,
+        )
+        positives = int(np.count_nonzero((labels_array > 0) & selected))
+        negatives = int(np.count_nonzero((labels_array == 0) & selected))
+        weight = float(negatives / positives) if positives else 0.0
+        if max_pos_weight is not None:
+            weight = min(weight, float(max_pos_weight))
+        weights[category] = weight
+    return weights
+
+
+def m1_stratum_pos_weight_tensor(
+    modality_masks: torch.Tensor, stratum_weights: dict[str, float]
+) -> torch.Tensor:
+    """Expand train-only stratum weights to the current M1 batch."""
+    if modality_masks.ndim != 2 or modality_masks.shape[1] != 2:
+        raise ValueError("modality_masks must have shape (batch, 2)")
+    if not torch.all((modality_masks == 0) | (modality_masks == 1)):
+        raise ValueError("modality_masks entries must be binary")
+    values = torch.empty(
+        modality_masks.shape[0], dtype=modality_masks.dtype, device=modality_masks.device
+    )
+    for index, mask in enumerate(modality_masks.detach().cpu().numpy()):
+        category = _m1_modality_category(mask)
+        if category not in stratum_weights:
+            raise ValueError(f"missing M1 stratum weight for {category}")
+        values[index] = float(stratum_weights[category])
+    return values
+
+
 def train_one_batch(model, optimizer, x, y, pos_weight: float) -> float:
     if x.ndim != 3 or y.ndim != 1 or len(x) != len(y):
         raise ValueError("x must be (batch, channels, time) and y must be (batch,)")
@@ -69,7 +133,7 @@ def train_m1_one_batch(
     ppg: torch.Tensor,
     modality_mask: torch.Tensor,
     y: torch.Tensor,
-    pos_weight: float,
+    pos_weight: float | torch.Tensor,
 ) -> float:
     """Run one M1 joint-fusion update on logits and labels in [0, 1]."""
     if y.ndim != 1 or imu.ndim != 3 or ppg.ndim != 3 or len(imu) != len(y):
@@ -79,9 +143,12 @@ def train_m1_one_batch(
     model.train()
     optimizer.zero_grad(set_to_none=True)
     logits = model(imu, ppg, modality_mask)
-    loss = torch.nn.BCEWithLogitsLoss(
-        pos_weight=torch.tensor(pos_weight, dtype=logits.dtype, device=logits.device)
-    )(logits, y.to(device=logits.device, dtype=logits.dtype))
+    pos_weight_tensor = torch.as_tensor(
+        pos_weight, dtype=logits.dtype, device=logits.device
+    )
+    loss = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)(
+        logits, y.to(device=logits.device, dtype=logits.dtype)
+    )
     loss.backward()
     optimizer.step()
     return float(loss.detach().cpu())
@@ -147,6 +214,19 @@ def _m1_mask_for_mode(modality_mask: torch.Tensor, model_mode: str) -> torch.Ten
 def _m1_modality_coverage(
     dataset: PairedCachedWindowDataset, model_mode: str
 ) -> dict[str, int]:
+    masks = _m1_dataset_modality_masks(dataset, model_mode)
+    return {
+        "windows": int(len(masks)),
+        "imu_available": int((masks[:, 0] > 0.5).sum()),
+        "ppg_available": int((masks[:, 1] > 0.5).sum()),
+        "both_available": int(((masks[:, 0] > 0.5) & (masks[:, 1] > 0.5)).sum()),
+        "neither_available": int(((masks[:, 0] <= 0.5) & (masks[:, 1] <= 0.5)).sum()),
+    }
+
+
+def _m1_dataset_modality_masks(
+    dataset: PairedCachedWindowDataset, model_mode: str
+) -> np.ndarray:
     masks = np.asarray(
         [
             dataset._window_modality_masks[pair_index][window_index]
@@ -156,13 +236,9 @@ def _m1_modality_coverage(
     )
     if model_mode == "ppg_only":
         masks[:, 0] = 0
-    return {
-        "windows": int(len(masks)),
-        "imu_available": int((masks[:, 0] > 0.5).sum()),
-        "ppg_available": int((masks[:, 1] > 0.5).sum()),
-        "both_available": int(((masks[:, 0] > 0.5) & (masks[:, 1] > 0.5)).sum()),
-        "neither_available": int(((masks[:, 0] <= 0.5) & (masks[:, 1] <= 0.5)).sum()),
-    }
+    elif model_mode != "fusion":
+        raise ValueError("model_mode must be fusion or ppg_only")
+    return masks
 
 
 def mirror_imu_axes(batch):
@@ -521,6 +597,15 @@ def fit_m1_cached(
         train_dataset.label_for_index(index) for index in range(len(train_dataset))
     ]
     pos_weight = compute_pos_weight(train_labels)
+    loss_mode = str(config_payload.get("m1_loss_mode", "global_bce"))
+    if loss_mode not in {"global_bce", "availability_stratified_bce"}:
+        raise ValueError("m1_loss_mode must be global_bce or availability_stratified_bce")
+    availability_pos_weights = None
+    if loss_mode == "availability_stratified_bce":
+        train_modality_masks = _m1_dataset_modality_masks(train_dataset, model_mode)
+        availability_pos_weights = compute_m1_stratum_pos_weights(
+            train_labels, train_modality_masks, max_pos_weight=pos_weight
+        )
     device = _resolve_device(device_name)
     model = IMUPPGFusion(
         imu_channels=10,
@@ -582,9 +667,14 @@ def fit_m1_cached(
                 device, non_blocking=device.type == "cuda"
             )
             targets = targets.to(device, non_blocking=device.type == "cuda")
+            batch_pos_weight = (
+                m1_stratum_pos_weight_tensor(modality_mask, availability_pos_weights)
+                if availability_pos_weights is not None
+                else pos_weight
+            )
             losses.append(
                 train_m1_one_batch(
-                    model, optimizer, imu, ppg, modality_mask, targets, pos_weight
+                    model, optimizer, imu, ppg, modality_mask, targets, batch_pos_weight
                 )
             )
         _synchronize(device)
@@ -623,6 +713,8 @@ def fit_m1_cached(
             "embedding_dim": embedding_dim,
             "modality_dropout": modality_dropout,
             "pos_weight": pos_weight,
+            "loss_mode": loss_mode,
+            "availability_pos_weight": availability_pos_weights,
             "participant_f1_mean": float(np.mean(f1_values)) if f1_values else 0.0,
             "participant_f1_std": float(np.std(f1_values)) if f1_values else 0.0,
             "participant_f1_worst": min(f1_values) if f1_values else 0.0,

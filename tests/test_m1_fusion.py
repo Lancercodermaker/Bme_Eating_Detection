@@ -6,7 +6,11 @@ from eating_detection.models import (
     IMUPPGFusion,
     load_compatible_imu_encoder_from_m0,
 )
-from eating_detection.training import train_m1_one_batch
+from eating_detection.training import (
+    compute_m1_stratum_pos_weights,
+    m1_stratum_pos_weight_tensor,
+    train_m1_one_batch,
+)
 
 
 def _inputs(batch_size: int = 3, time_steps: int = 125):
@@ -100,6 +104,32 @@ def test_m1_batch_uses_logits_bce_and_updates_parameters():
 
     assert loss >= 0.0
     assert any(not torch.equal(old, new.detach()) for old, new in zip(before, model.parameters()))
+
+
+def test_m1_stratum_weights_use_train_labels_without_availability_shortcut():
+    labels = torch.tensor([0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0])
+    modality_mask = torch.tensor([
+        [1.0, 1.0],
+        [1.0, 1.0],
+        [1.0, 1.0],
+        [1.0, 1.0],
+        [1.0, 0.0],
+        [1.0, 0.0],
+        [0.0, 0.0],
+    ])
+
+    weights = compute_m1_stratum_pos_weights(labels, modality_mask)
+
+    assert weights == {"both": 3.0, "imu_only": 1.0, "ppg_only": 0.0, "neither": 0.0}
+    batch_weights = m1_stratum_pos_weight_tensor(modality_mask, weights)
+    torch.testing.assert_close(batch_weights, torch.tensor([3.0, 3.0, 3.0, 3.0, 1.0, 1.0, 0.0]))
+
+    rare_labels = torch.tensor([1.0] + [0.0] * 10)
+    rare_mask = torch.zeros((11, 2))
+    capped = compute_m1_stratum_pos_weights(
+        rare_labels, rare_mask, max_pos_weight=5.0
+    )
+    assert capped["neither"] == 5.0
 
 
 def test_m1_cuda_forward_backward_sample():

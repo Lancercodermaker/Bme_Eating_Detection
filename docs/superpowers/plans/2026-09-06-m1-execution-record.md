@@ -3,6 +3,29 @@
 用户于 2026-09-06 明确授权启动 M1；旧文档的“等待授权”状态由此覆盖。
 仅使用现有 `codex/smartwatch-eating-baseline` worktree，不合并、不 push、不启动 M2/M3/M4。
 
+## M1 remediation 与复验 gate（2026-09-06，当前最新）
+
+### 事实
+
+- 起始 HEAD=`920ca23b91e082c1192968234471553342410030`；仍使用 `E:\bme_compitition\.worktrees\smartwatch-baseline`、分支 `codex/smartwatch-eating-baseline`、项目解释器 `C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe` 和 `artifacts/final_m0/split_manifest.json`。未读取 test、未重训 M0、未重建 `cache/m0_full`。
+- systematic debugging 将问题分为四类并确认：长期连续 FP、高分输出与 modality availability 耦合、校准/threshold 不是唯一根因、以及真实 Recall 不足/不可观测 FN。有限候选中只选 availability-invariant M1 BCE；M2/M3/M4 不并行。
+- TDD 先 RED：新增 capped weight 断言时 `compute_m1_stratum_pos_weights` 不接受 `max_pos_weight`；最小实现后 GREEN。随后增加 legacy config RED→GREEN，确保只有显式 `m1_loss_mode=availability_stratified_bce` 才启用新 loss，旧 M1 config 仍为 `global_bce`。专项 M1 测试=`22 passed`。
+- e1 直接分层权重实验把 `neither` 的 train-only `neg/pos` 比设为 `648.2119`，validation `neither` predicted-positive rate=`1.0`，TP/FP/FN=`11/221/40`，F1=`0.0777385`；作为明确反例淘汰。
+- 选定方向内的 e2 capped 复验使用 `min(stratum_ratio, global_pos_weight)`，只用 train participant 统计；run=`artifacts/m1_fusion_availability_stratified_e2/`，1121/1121 IMU/PPG cache hit，windows=`3,578,835`，3 epoch CUDA training=`3041.14 s`，`test_not_used=true`。
+- e2 frozen validation：TP/FP/FN=`24/335/27`，P/R/F1=`0.0668524/0.4705882/0.1170732`，participant F1 mean/std/worst=`0.0981172/0.0612279/0`，start/end MAE=`817518.5/62955.9 ms`。FP duration median/p90/max=`297000/8387965.2/24687528 ms`，window count median/p90=`92/2769.4`，short FP=`10/335=2.9851%`；`both` predicted-positive rate/FPR=`0.9972938/0.9971748`，`neither` predicted-positive rate=`0`。
+- 对应报告为 `artifacts/experiments/m1_fusion_availability_stratified_e2/error_analysis.json`；其 gate observed Recall=`0.4705882`，short FP fraction=`0.0298507`，context support=`false`，M2=`false`。未创建 `context_model.py`、`m2_context.yaml` 或 M2 输出。
+
+### 风险、候选、验收标准、选择
+
+- 风险：capped loss 修正了 `neither` 的分数塌缩，但 `both` 长 FP 仍占主导，且 F1 低于原 M1 `0.1686747`；不能将 e2 解读为成功，更不能用它强行启动 M2。
+- 候选：只保留该单一 M1 availability-invariant loss 方向的已验证 capped 变体；M2 仍需短 FP≥50%、Recall严格>50%、context evidence 三项全满足，M3/M4 本轮不满足。
+- 选择：`do_not_start_advanced_models`。下一步仅建议在 M1 层面针对 `both` mask/availability prior 做新的独立证据实验，当前不实现、不配置、不训练 M2。
+
+### 交付物
+
+- 代码：`src/eating_detection/training.py`、`tests/test_m1_fusion.py`、`tests/test_m1_cached_training.py`、`configs/experiments/m1_availability_stratified.yaml`。
+- 证据：`artifacts/m1_fusion_availability_stratified_e1/`（反例）、`artifacts/m1_fusion_availability_stratified_e2/`（最终 capped 复验）、`artifacts/experiments/m1_fusion_availability_stratified_e2/error_analysis.json`。
+
 ## M1 validation error analysis 与高级方向 gate（2026-09-06，当前最新）
 
 ### 事实

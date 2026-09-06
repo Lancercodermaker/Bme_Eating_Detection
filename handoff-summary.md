@@ -1,5 +1,31 @@
 # 智能手表进食检测项目：新对话接续摘要
 
+## 2026-09-06 M1 remediation 交接（最新权威状态：capped availability loss 后仍不启动 M2）
+
+本节覆盖下方旧版 M1 error-analysis gate；它是当前关于 remediation 和高级方向选择的唯一权威节。严格只使用 frozen train/validation artifacts，未读取竞赛 test participant/data，未重训 M0、未重建 `cache/m0_full`，未创建或运行 M2。
+
+### 事实
+
+- 起始 HEAD=`920ca23b91e082c1192968234471553342410030`，worktree=`E:\bme_compitition\.worktrees\smartwatch-baseline`，分支=`codex/smartwatch-eating-baseline`；项目解释器固定为 `C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe`。frozen split SHA-256=`18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6`。
+- 根因复核确认：M1 的长期 FP 是高分连续输出，不是 decoder 短抖动；`both`/`imu_only` availability 与分数耦合，`neither` 的稀有正例在直接分层 `neg/pos` 权重下会被夸大；Recall 不足还包含 `hnu21042` 的 6 个不可观测事件。
+- 只选择一个 M1 remediation 方向：availability-invariant BCE。先完成 TDD RED→GREEN，再用 train-only availability 分层 `pos_weight`，并将每个分层权重上限设为原 global `pos_weight`，仍使用 BCE logits、原 decoder 契约、participant split 和 train-only statistics。未叠加 M2/M3/M4。
+- 首次未限幅实验 `artifacts/m1_fusion_availability_stratified_e1/` 的 `neither` 权重=`648.2119`，造成 `neither` 预测正率=`1.0`，validation F1=`0.0777385`；该变体作为反例保留，不作为最终候选。
+- 最终 capped 实验 `artifacts/m1_fusion_availability_stratified_e2/`：train/val windows=`2,985,246/593,589`，IMU/PPG cache=`1121/1121 hit`，训练=`3041.14 s`，3 epoch 均约=`1011.88/1013.40/1014.60 s`，CUDA max allocated=`94.15 MB`。capped weights=`both 15.4561`、`imu_only 14.9599`、`ppg_only 0`、`neither 35.1769`。
+- e2 validation TP/FP/FN=`24/335/27`，Precision/Recall/F1=`0.0668524/0.4705882/0.1170732`，participant F1 mean/std/worst=`0.0981172/0.0612279/0`，start/end MAE=`817518.5/62955.9 ms`。相对原 frozen M1 F1=`0.1686747`，该候选未改善主指标。
+- e2 FP 仍不是短暂噪声：335 个 FP 的 duration median/p90/max=`297000/8387965.2/24687528 ms`，window count median/p90=`92/2769.4`，max-score median=`0.5374218`；按 duration≤`30000 ms` 且 window count≤2，仅 `10/335=2.9851%` 短暂 FP。`both` predicted-positive rate=`0.9972938`、FPR=`0.9971748`；`neither` 已降至概率=`0.0864576`、预测正率=`0`，但双模态长 FP 耦合仍在。
+- 独立报告为 `artifacts/experiments/m1_fusion_availability_stratified_e2/error_analysis.json`，且记录 source/cache、split hash、decoder=`threshold 0.1 / merge_gap 9000 / min_duration 0`、`test_data_read=false`。M2 gate=`false`：short-FP dominance=`false`、Recall>50%=`false`（观察值=`47.0588%`）、probability/validity/interval context support=`false`。
+
+### 风险、候选与验收标准
+
+- 风险：capped loss 修正了 `neither` 的全正 shortcut，却没有解决 `both` 的长时间高分 FP；F1 低于原 M1，不能为了启动 M2 解释为成功。test 仍完全不在选择环路内。
+- 候选只保留一个高级方向决策：M2 仅在短暂 FP≥50%、positive-event Recall 严格>50%、且 error analysis 支持 context 三项同时满足时启动；M3/M4 没有本轮证据。
+- 操作化标准保持不变：短暂 FP 为 duration≤`2×window_sec=30000 ms` 且 window count≤2；gate 三项全部满足才通过。
+
+### 选择与交付
+
+- 选择：`do_not_start_advanced_models`。不创建 `src/eating_detection/context_model.py`、`configs/experiments/m2_context.yaml`、M2 测试或 M2 训练输出。下一步建议是先针对 `both` 的 availability/mask prior 做单一 M1 方向的独立证据实验，再重新 gate；当前不进入 M2。
+- 已完成代码范围：`training.py` 支持显式 `m1_loss_mode=availability_stratified_bce`，旧 M1 config 默认保持 `global_bce`；新增 capped-stratum TDD 覆盖。README、执行记录和本交接节均记录 e1 反例、e2 结果及 no-M2 结论。
+
 ## 2026-09-06 M1 交接（最新权威状态：validation error-analysis gate）
 
 本节覆盖下方旧版“全量结果与最终验证”状态，是当前关于高级方向选择的唯一权威节。已在不读取原始 CSV/test、不重训 M0/M1 的条件下，对 frozen M1 fusion validation 输出完成 error analysis；M2 evidence gate 不满足，因此不创建或运行 M2/M3/M4。
