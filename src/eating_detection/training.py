@@ -83,6 +83,51 @@ def train_m1_one_batch(
     return float(loss.detach().cpu())
 
 
+def fit_m1_ppg_standardizer(
+    caches: list[FeatureCache | LazyFeatureCache], train_participants: set[str]
+) -> Standardizer:
+    """Fit 44 PPG waveform statistics from valid train samples only."""
+    selected = [cache for cache in caches if cache.participant in train_participants]
+    if not selected:
+        raise ValueError("no training PPG cache for the requested participants")
+    sums = np.zeros(44, dtype=np.float64)
+    squares = np.zeros(44, dtype=np.float64)
+    counts = np.zeros(44, dtype=np.int64)
+    for cache in selected:
+        if cache.feature_channels != 45:
+            raise ValueError("M1 PPG caches must contain 44 waveform and one quality channel")
+        if isinstance(cache, LazyFeatureCache):
+            cache.ensure_features()
+        try:
+            valid = np.asarray(cache.quality_mask[0], dtype=bool)
+            values = cache.features[:44, valid]
+            sums += values.sum(axis=1, dtype=np.float64)
+            squares += np.square(values, dtype=np.float64).sum(axis=1)
+            counts += int(valid.sum())
+        finally:
+            if isinstance(cache, LazyFeatureCache):
+                cache.release_features()
+    if np.any(counts == 0):
+        raise ValueError("PPG waveform channels have no valid training samples")
+    mean = sums / counts
+    std = np.sqrt(np.maximum(squares / counts - mean * mean, 1e-12))
+    return Standardizer(mean.astype(np.float32), std.astype(np.float32))
+
+
+def standardize_m1_ppg_batch(batch: torch.Tensor, stats: Standardizer) -> torch.Tensor:
+    """Standardize PPG waveform channels while preserving zeroed invalid points."""
+    if batch.ndim != 3 or batch.shape[1] != 45:
+        raise ValueError("M1 PPG batch must have shape (batch, 45, time)")
+    mean = torch.as_tensor(stats.mean, dtype=batch.dtype, device=batch.device).view(1, 44, 1)
+    std = torch.as_tensor(stats.std, dtype=batch.dtype, device=batch.device).view(1, 44, 1)
+    if mean.shape[1] != 44 or std.shape[1] != 44:
+        raise ValueError("M1 PPG normalization statistics must contain 44 channels")
+    quality = batch[:, 44:45]
+    waveform = (batch[:, :44] - mean) / std
+    waveform = waveform * (quality > 0.5).to(dtype=batch.dtype)
+    return torch.cat((waveform, quality), dim=1)
+
+
 def mirror_imu_axes(batch):
     """Mirror the raw x axes while preserving magnitudes and quality masks."""
     if getattr(batch, "ndim", None) != 3 or batch.shape[1] < 6:

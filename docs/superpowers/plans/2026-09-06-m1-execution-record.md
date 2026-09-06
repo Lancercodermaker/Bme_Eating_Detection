@@ -63,12 +63,22 @@ M0 只读复评重新计算 TP/FP/FN=21/171/30，Precision=0.109375，Recall=0.4
 
 实验：8 项 RED（缺少 fusion/model batch 接口）→ GREEN：独立分支 shape、无效 PPG 的不同数值在 modality mask=false 时输出一致、单/双缺模态 finite、训练期安全 dropout、eval 确定性、M0 不兼容拒绝、CPU logits BCE backward 与 CUDA forward/backward。专项 8 passed；全套 118 passed；compileall/diff check 通过；`verify_environment.py --require-cuda --steps 2` 新鲜通过（PyTorch 2.11.0+cu128、CUDA 12.8、RTX 5060 Laptop）。尚未创建 paired cache Dataset/CLI 或进行 M1/PPG-only 训练。
 
+## M1 配对 cache 与 PPG 标准化（2026-09-06）
+
+事实：IMU 与 PPG cache 即使使用同一文件名，也可能因不同的 reference grid、窗口边界或 soft label 而错位；lazy cache 为节省内存不把 timestamps 常驻。PPG 的 44 个波形 channel 与最后一个 point-quality channel 也不能一并标准化。
+
+风险：按 cache/window 序号盲拼会静默训练到错误标签；只在 non-lazy cache 验证 timestamps 会让真实训练路径绕过 M0 reference grid 约束；把验证 participant 或 invalid PPG 值加入统计会泄漏并把 placeholder 零值变成伪信号。
+
+选择：`PairedCachedWindowDataset` 以解析后的 source path 一一配对并强制 participant、timestamps、window index/start/end、window label、loss mask 相等；lazy 时仅从各 `.npz` 读出 timestamps array 作一次性验证，不加载 feature arrays。每窗根据各 cache point-quality 的非零覆盖派生 `(IMU, PPG)` modality mask，窗口仍保留。`fit_m1_ppg_standardizer` 仅扫描训练 participant 的 44-channel 有效 PPG 点；`standardize_m1_ppg_batch` 保留第45个 quality channel，并在缩放后把所有 invalid waveform 值复位为零。
+
+实验：5 项 RED（缺少 paired Dataset/PPG standardizer 接口）→ GREEN；再以延迟加载 cache 的篡改 timestamps 回归测试确认实际训练路径也拒绝错 reference grid。专项 6 passed；全套 124 passed；compileall/diff check 通过。尚未运行 PPG-only 或融合训练、也尚未接入 CLI。
+
 ## 待完成
 
 - [x] PPG parser 独立审查与缺失模态覆盖。
 - [x] PPG cache 严格 TDD、数值/窗口/label 等价、原子写入和中断恢复验证、阶段提交。
 - [x] 独立 IMU/PPG encoder、显式 mask、安全 modality dropout，严格 TDD 与 CUDA 样例、阶段提交。
-- [ ] cache/train CLI 集成与 test 排除验证，PPG-only sample，full-data gate。
+- [ ] cache-hit M1 train/validation CLI 集成与 test 排除验证，PPG-only sample，full-data gate。
 - [ ] 同 split train/val 全量 cache、PPG-only 诊断、复用 M0 reference、M1 联合训练与缺失模态实验。
 - [ ] 事件指标、MAE、calibration、coverage 和 CPU/GPU 分开遥测。
 - [ ] 全套最终验证、README/handoff/实施计划更新与提交，保留现有分支/worktree。

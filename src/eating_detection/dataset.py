@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, Sampler
 
-from .cache import LazyFeatureCache
+from .cache import FeatureCache, LazyFeatureCache
 from .io import iter_sensor_chunks
 from .labels import label_window
 from .preprocess import apply_feature_variant, imu_features, resample_uniform
@@ -356,6 +356,206 @@ class CachedWindowDataset(Dataset):
             features=torch.from_numpy(features),
             labels=torch.from_numpy(labels),
             participants=(cache.participant,) * len(indices),
+        )
+
+
+@dataclass(frozen=True)
+class PairedCachedBatch:
+    imu: torch.Tensor
+    ppg: torch.Tensor
+    modality_mask: torch.Tensor
+    labels: torch.Tensor
+    participants: tuple[str, ...]
+
+
+class PairedCachedWindowDataset(Dataset):
+    """Index-backed M1 windows paired by source and the frozen M0 reference."""
+
+    def __init__(
+        self,
+        imu_caches: list[FeatureCache | LazyFeatureCache],
+        ppg_caches: list[FeatureCache | LazyFeatureCache],
+        participants: set[str] | None = None,
+        include_ignored: bool = False,
+    ):
+        self.imu_caches = list(imu_caches)
+        ppg_by_source: dict[str, FeatureCache | LazyFeatureCache] = {}
+        for cache in ppg_caches:
+            source = str(cache.source_path.resolve())
+            if source in ppg_by_source:
+                raise ValueError("PPG cache source paths must be unique")
+            ppg_by_source[source] = cache
+        imu_sources = [str(cache.source_path.resolve()) for cache in self.imu_caches]
+        if len(set(imu_sources)) != len(imu_sources):
+            raise ValueError("IMU cache source paths must be unique")
+        if set(imu_sources) != set(ppg_by_source):
+            raise ValueError("IMU and PPG cache source paths must match exactly")
+
+        self.pairs: list[tuple[FeatureCache | LazyFeatureCache, FeatureCache | LazyFeatureCache]] = []
+        self._window_modality_masks: list[np.ndarray] = []
+        self._references: list[tuple[int, int]] = []
+        self._active_pair_index: int | None = None
+        for imu_cache in self.imu_caches:
+            ppg_cache = ppg_by_source[str(imu_cache.source_path.resolve())]
+            self._validate_pair(imu_cache, ppg_cache)
+            pair_index = len(self.pairs)
+            self.pairs.append((imu_cache, ppg_cache))
+            self._window_modality_masks.append(self._window_modality_masks_for_pair(imu_cache, ppg_cache))
+            if participants is not None and imu_cache.participant not in participants:
+                continue
+            for window_index, usable in enumerate(imu_cache.window_loss_mask):
+                if include_ignored or bool(usable):
+                    self._references.append((pair_index, window_index))
+
+    @staticmethod
+    def _timestamps_for_validation(
+        cache: FeatureCache | LazyFeatureCache,
+    ) -> np.ndarray:
+        """Read only the reference grid when a lazy cache omits it from memory."""
+        if cache.timestamps_ms is not None:
+            return np.asarray(cache.timestamps_ms)
+        with np.load(cache.cache_path, allow_pickle=False) as data:
+            return np.array(data["timestamps_ms"], copy=True)
+
+    @staticmethod
+    def _validate_pair(
+        imu_cache: FeatureCache | LazyFeatureCache,
+        ppg_cache: FeatureCache | LazyFeatureCache,
+    ) -> None:
+        if imu_cache.participant != ppg_cache.participant:
+            raise ValueError("paired cache participants must match")
+        if imu_cache.feature_channels != 10 or ppg_cache.feature_channels != 45:
+            raise ValueError("paired caches require 10 IMU and 45 PPG feature channels")
+        comparisons = (
+            ("window indices", imu_cache.window_indices, ppg_cache.window_indices),
+            ("window starts", imu_cache.window_starts_ms, ppg_cache.window_starts_ms),
+            ("window ends", imu_cache.window_ends_ms, ppg_cache.window_ends_ms),
+            ("window labels", imu_cache.window_labels, ppg_cache.window_labels),
+            ("window loss masks", imu_cache.window_loss_mask, ppg_cache.window_loss_mask),
+        )
+        for name, imu_values, ppg_values in comparisons:
+            if not np.array_equal(imu_values, ppg_values):
+                raise ValueError(f"paired cache {name} must match")
+        if not np.array_equal(
+            PairedCachedWindowDataset._timestamps_for_validation(imu_cache),
+            PairedCachedWindowDataset._timestamps_for_validation(ppg_cache),
+        ):
+            raise ValueError("paired cache timestamps must match")
+
+    @staticmethod
+    def _window_quality_fractions(cache: FeatureCache | LazyFeatureCache) -> np.ndarray:
+        if isinstance(cache, LazyFeatureCache):
+            cache.ensure_quality_mask()
+        try:
+            quality = np.asarray(cache.quality_mask, dtype=bool)
+            indices = np.asarray(cache.window_indices, dtype=np.int64)
+            prefix = np.concatenate(
+                [np.zeros((quality.shape[0], 1), dtype=np.int64), np.cumsum(quality, axis=1)],
+                axis=1,
+            )
+            counts = (prefix[:, indices[:, 1]] - prefix[:, indices[:, 0]]).sum(axis=0)
+            durations = np.maximum(indices[:, 1] - indices[:, 0], 1)
+            return counts / (quality.shape[0] * durations)
+        finally:
+            if isinstance(cache, LazyFeatureCache):
+                cache.release_features()
+
+    def _window_modality_masks_for_pair(
+        self,
+        imu_cache: FeatureCache | LazyFeatureCache,
+        ppg_cache: FeatureCache | LazyFeatureCache,
+    ) -> np.ndarray:
+        return np.column_stack(
+            [
+                self._window_quality_fractions(imu_cache) > 0.0,
+                self._window_quality_fractions(ppg_cache) > 0.0,
+            ]
+        ).astype(np.float32)
+
+    def __len__(self):
+        return len(self._references)
+
+    def participant_for_index(self, index: int) -> str:
+        pair_index, _ = self._references[index]
+        return self.pairs[pair_index][0].participant
+
+    def batch_group_for_index(self, index: int):
+        pair_index, _ = self._references[index]
+        return self.pairs[pair_index][0].participant, pair_index
+
+    def label_for_index(self, index: int) -> float:
+        pair_index, window_index = self._references[index]
+        return float(self.pairs[pair_index][0].window_labels[window_index])
+
+    def window_metadata(self, index: int) -> tuple[str, int, int]:
+        pair_index, window_index = self._references[index]
+        cache = self.pairs[pair_index][0]
+        return (
+            cache.participant,
+            int(cache.window_starts_ms[window_index]),
+            int(cache.window_ends_ms[window_index]),
+        )
+
+    def _activate_pair(self, pair_index: int) -> None:
+        if self._active_pair_index == pair_index:
+            return
+        self.release_loaded()
+        imu_cache, ppg_cache = self.pairs[pair_index]
+        if isinstance(imu_cache, LazyFeatureCache):
+            imu_cache.ensure_features()
+        if isinstance(ppg_cache, LazyFeatureCache):
+            ppg_cache.ensure_features()
+        self._active_pair_index = pair_index
+
+    def release_loaded(self) -> None:
+        if self._active_pair_index is None:
+            return
+        for cache in self.pairs[self._active_pair_index]:
+            if isinstance(cache, LazyFeatureCache):
+                cache.release_features()
+        self._active_pair_index = None
+
+    def __getitem__(self, index):
+        pair_index, window_index = self._references[index]
+        self._activate_pair(pair_index)
+        imu_cache, ppg_cache = self.pairs[pair_index]
+        start, end = imu_cache.window_indices[window_index]
+        return (
+            torch.from_numpy(imu_cache.features[:, int(start):int(end)]),
+            torch.from_numpy(ppg_cache.features[:, int(start):int(end)]),
+            torch.from_numpy(self._window_modality_masks[pair_index][window_index]),
+            torch.tensor(imu_cache.window_labels[window_index], dtype=torch.float32),
+            imu_cache.participant,
+        )
+
+    def __getitems__(self, indices):
+        indices = [int(index) for index in indices]
+        if not indices:
+            raise IndexError("cannot fetch an empty batch")
+        references = [self._references[index] for index in indices]
+        pair_indices = {pair_index for pair_index, _ in references}
+        if len(pair_indices) != 1:
+            return [self[index] for index in indices]
+        pair_index = references[0][0]
+        self._activate_pair(pair_index)
+        imu_cache, ppg_cache = self.pairs[pair_index]
+        window_indices = np.asarray([window_index for _, window_index in references])
+        starts = imu_cache.window_indices[window_indices, 0].astype(np.int64, copy=False)
+        ends = imu_cache.window_indices[window_indices, 1].astype(np.int64, copy=False)
+        lengths = ends - starts
+        if np.any(lengths != lengths[0]):
+            return [self[index] for index in indices]
+        offsets = starts[:, None] + np.arange(int(lengths[0]), dtype=np.int64)[None, :]
+        imu = np.ascontiguousarray(imu_cache.features[:, offsets].transpose(1, 0, 2))
+        ppg = np.ascontiguousarray(ppg_cache.features[:, offsets].transpose(1, 0, 2))
+        masks = self._window_modality_masks[pair_index][window_indices]
+        labels = np.asarray(imu_cache.window_labels[window_indices], dtype=np.float32)
+        return PairedCachedBatch(
+            imu=torch.from_numpy(imu),
+            ppg=torch.from_numpy(ppg),
+            modality_mask=torch.from_numpy(masks),
+            labels=torch.from_numpy(labels),
+            participants=(imu_cache.participant,) * len(indices),
         )
 
 

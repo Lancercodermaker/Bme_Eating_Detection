@@ -11,15 +11,15 @@
 ### Current status
 
 - worktree：`E:\bme_compitition\.worktrees\smartwatch-baseline`；分支 `codex/smartwatch-eating-baseline`。
-- HEAD：`d93f9e3`；新增提交 `d05665f feat: add isolated PPG-only chunk parser`、`47f2f41 fix: preserve explicit missing PPG stream semantics` 和 `d93f9e3 feat: add verified isolated PPG cache`。起点是 `7c7d2ee`。
+- HEAD：`3d970f1`；本轮已提交 `d05665f feat: add isolated PPG-only chunk parser`、`47f2f41 fix: preserve explicit missing PPG stream semantics`、`d93f9e3 feat: add verified isolated PPG cache` 和 `3d970f1 feat: add robust M1 fusion model core`。起点是 `7c7d2ee`。
 - 已完整读取旧 handoff、设计文档、实施计划和 README；已完成只读 preflight。
 - PPG parser 已完成 TDD 和独立规格/质量审查：`iter_ppg_chunks` 只投影 PPG_TIME/PPG1–44；M0 原路径未改。行质量仍是正 timestamp、44 通道全 finite、非全零。缺列显式 invalid；缺整条 PPG 返回空无效流，由 cache 的参考时间轴补齐。
 - 两个真实文件各 2,000 行：PPG 新旧时间戳/波形/mask 完全一致，有效行 450/435。
 - **PPG cache 已完成独立规格/质量审查与阶段验收**：`src/eating_detection/ppg_cache.py` 与 `tests/test_ppg_cache.py` 保持独立 `ppg/` namespace，不改 IMU cache。新增回归固定“精确平坦流默认无效（显式 `keep` 可回退）”以及“无效输入经抗混叠影响的输出必须为零/无效”。专项 **27 passed**，全套 **110 passed**，compileall/diff check 成功；这不代表 full-data gate 通过。
 - 两个真实文件各 2,000 行：在 soft/ignore 下 PPG 与 M0 25 Hz reference 的 timestamps、window index/boundary、labels 与 loss mask 完全相等；hnu21013/hnu21024 的 PPG quality coverage 分别为 0.65158/0.31050。cache miss 后将 PPG reader 置为抛错函数的 lazy hit 仍成功，证明确实未读 CSV。
 - PPG cache 阶段已提交；不要丢弃或回退这些修改。
-- **M1 模型核心已完成并待阶段提交**：`IMUPPGFusion` 有独立 GroupNorm IMU/PPG encoder、45 channel PPG（含逐点 quality）、显式 `(B,2)` modality mask、训练期安全单模态 dropout、eval 确定性以及 strict M0 compatibility refusal。`train_m1_one_batch` 直接使用 `BCEWithLogitsLoss` logits。专项8 passed、全套118 passed，CUDA forward/backward 和 environment smoke 成功。
-- **尚未创建 paired cache Dataset/CLI 或 M1 配置；尚未运行 PPG-only sample、同 split IMU reference、M1 融合训练或完整 M1。**
+- **M1 模型核心已提交**：`IMUPPGFusion` 有独立 GroupNorm IMU/PPG encoder、45 channel PPG（含逐点 quality）、显式 `(B,2)` modality mask、训练期安全单模态 dropout、eval 确定性以及 strict M0 compatibility refusal。`train_m1_one_batch` 直接使用 `BCEWithLogitsLoss` logits。专项8 passed、全套118 passed，CUDA forward/backward 和 environment smoke 成功。
+- **paired cache Dataset 与 PPG train-only 标准化已完成待阶段提交**：以 source、participant、全逐点 timestamps、window index/boundary、soft label 和 loss mask 强制逐文件匹配；即使两个 cache 是 lazy，也只读取 timestamps array 来验证 reference grid。窗口质量被显式派生为 IMU/PPG `(2,)` modality mask，PPG 缺失不丢弃窗口。44 个 PPG waveform channel 仅按训练 participant 的有效采样点拟合统计，缩放后无效点重新置零并原样保留 point quality。专项6 passed；全套124 passed。尚未接入 CLI 或执行 M1/PPG-only 训练。
 
 ### Frozen decisions
 
@@ -44,7 +44,7 @@
 ### Open risks / immediate next steps
 
 1. PPG cache 阶段已完成：现 API 为 `PPGCacheConfig` 与 `build_ppg_cache(source_path, intervals, cache_root, config, reference_timestamps_ms=None, lazy=False)`；45×T float32 feature、1×T bool quality、连续 array+window index、reference grid hash、lazy/atomic/recovery 均已验收。默认 `reject_constant_stream`，显式 `keep` 仅供回退；无效重复包也会通过抗混叠质量支持传播为输出屏障。
-2. M1 模型核心已完成并应先阶段提交。接下来严格 TDD 实现 paired IMU/PPG cache Dataset、train-only PPG standardizer 与 M1 cache-hit batch train/validation integration；再按顺序执行 PPG-only 诊断→复用 M0 reference→M1 融合→缺失模态/dropout 对照。
+2. paired Dataset/PPG statistics 已完成，下一步将其阶段提交。随后严格 TDD 实现 cache-hit M1 batch train/validation integration 与 CLI/config；再按顺序执行 PPG-only 诊断→复用 M0 reference→M1 融合→缺失模态/dropout 对照。
 3. 全量 M1 必须等原附件所有 full-data gate 通过。最终全套 pytest/compileall/diff/Git/忽略/CUDA/缓存 hit/样例复现，更新 README/handoff/原实施计划，原子提交。finishing-a-development-branch 仅报告集成选项，默认保留分支/worktree。
 
 每阶段用中文“事实→风险→候选→验收标准→选择→实验结果”；每个实现阶段RED→GREEN→阶段验证→原子提交。使用 executing-plans、using-git-worktrees、test-driven-development、systematic-debugging、verification-before-completion；需要子代理时遵循已加载的subagent-driven-development。库API用Context7先resolve再query；本轮已查pandas `/websites/pandas_pydata`、PyTorch `/pytorch/pytorch/v2.11.0`，SciPy查到内容较浅，主要复用现有resample_uniform。
