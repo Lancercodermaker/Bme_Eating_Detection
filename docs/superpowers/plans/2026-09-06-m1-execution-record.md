@@ -3,6 +3,43 @@
 用户于 2026-09-06 明确授权启动 M1；旧文档的“等待授权”状态由此覆盖。
 仅使用现有 `codex/smartwatch-eating-baseline` worktree，不合并、不 push、不启动 M2/M3/M4。
 
+## M1 validation error analysis 与高级方向 gate（2026-09-06，当前最新）
+
+### 事实
+
+- 使用 `artifacts/m1_fusion_full_e3/` 的 frozen validation 输出，配对读取 `cache/m0_full` 与 `cache/m1_ppg` 的 metadata、window arrays 和 quality mask；未读取原始 CSV、test participant 或 checkpoint 做推理。结果保存于计划要求的 `artifacts/experiments/m1_fusion_full_e3/error_analysis.json`。
+- provenance 已记录 source run-dir、两个 cache 目录、split manifest SHA-256=`18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6`、decoder=`0.15/6000/0`、`event_iou_threshold=0.25`、`label_positive_overlap=0.25` 和 `ppg_max_dense_samples=1000000`；192 个 validation M0/PPG pair 的 reference SHA-256 均匹配，window start/end/label/loss mask 均匹配。
+- fusion validation 总体为 windows=`593589`、TP/FP/FN=`21/177/30`、Precision/Recall/F1=`0.1060606/0.4117647/0.1686747`、participant F1 mean/std/worst=`0.1481688/0.1077214/0`、start/end MAE=`637874.6/79659.7 ms`。独立复算与 frozen `metrics.json` 相等。
+- FP 分布显示持续误报而非短暂误报：duration median/p90/max=`1963878/12265790.4/24915528 ms`，window count median/p90=`644/4071`，max-score median=`0.8851013`，event-mean-score median=`0.7146850`，前后相邻预测事件 gap median 均=`117000 ms`。按 duration≤`30000 ms` 且 window count≤2 的固定短暂定义，仅`6/177`=`3.39%` FP。
+- calibration 为 binary Brier/ECE=`0.2398206/0.3741050`、soft=`0.2398207/0.3744612`。实际 validation modality strata 为 imu-only=`24070`、PPG-only=`0`、both=`248689`、neither=`320830`；threshold=`0.15` 时 imu-only/both 窗口阳性率与窗口 FPR均为1，neither 阳性率为0，显示分数强烈依赖 modality availability。
+- 同 split M0 `artifacts/m0_final_q50_group_e3/` 为 F1=`0.1728395`、P/R=`0.109375/0.4117647`、start/end MAE=`639946.0/71945.5 ms`、participant F1 std=`0.1137248`。M1 fusion delta：F1=`-0.0041648`、Precision=`-0.0033144`、Recall=`0`、start MAE=`-2071.4 ms`、end MAE=`+7714.3 ms`。PPG-only 诊断 F1=`0.1792453` 但 Recall=`0.3725490`，不能替代 fusion 主结果。
+
+### 风险
+
+- M1 full run 仍是 frozen split、3 epoch、单次实验；整体 Recall 仅`41.18%`，且 177 个 FP 主要是高分长连续段。此证据不支持把错误归因于窗口概率的短暂抖动，也不支持直接堆叠更高容量模型。
+- modality coverage 中没有 PPG-only windows；PPG available 全部落在 both，neither 占`320830/593589`。因此不能把 PPG 分支的可用性误写成独立模态已提升泛化。
+
+### 候选
+
+- M2：仅在短暂 FP 主导、正事件 Recall 足够，且 error analysis 支持 probability/validity/interval context 时启动。
+- M3：仅在局部连续性或边界抖动是主问题时启动。
+- M4：仅在 M1 稳定且未被前两类错误解释时启动。
+- 不启动高级模型：M1 信号、coverage 或 Recall 不足，或证据不支持上述归因。
+
+### 验收标准
+
+- 本轮报告采用可复核的保守操作化：短暂 FP 为 duration≤`2×window_sec=30000 ms` 且窗口数≤2；主导要求短暂 FP 占比≥50%；“检出大部分正事件”要求 Recall>50%。三项需同时满足才算 M2 gate passed。M3 需有局部连续性/边界抖动主导证据；否则不启动。
+- 必须维持 strict IoU>`0.25`、participant 级 metrics、宏平均 start/end MAE、binary/soft calibration、modality coverage、同 split M0 对比，且 artifact 明确 source run、split hash 和 decoder。
+
+### 选择
+
+- 选择 `do_not_start_advanced_models`。M2 gate=`false`：short FP dominance=`false`、positive-event recall sufficient=`false`、context support=`false`；M3/M4 亦为 false。只保留 M0/M1，不创建 `context_model.py`、M2 config 或 M2 训练产物。
+
+### 实验结果
+
+- `src/eating_detection/error_analysis.py` 新增 M1 双 cache、FP event duration/window/gap/score、participant metrics、calibration、modality strata、同 split comparison 和 gate 输出；M0 CLI 分支保持兼容。reference hash mismatch 回归也已加入。
+- TDD 已完成 RED→GREEN：合成 cache/error-analysis 专项当前 `2 passed`；真实分析命令输出 `ERROR_ANALYSIS windows=593589 f1=0.168674698795 fp=177 participants=8`。full M1 artifacts、cache 与 raw 均未删除或重建。
+
 ## Preflight
 
 - 起点 HEAD：`7c7d2ee5123cce9173474a1da1fec3eefb6b089a`；工作区干净，已确认 linked worktree。

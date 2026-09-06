@@ -1,5 +1,29 @@
 # 智能手表进食检测项目：新对话接续摘要
 
+## 2026-09-06 M1 交接（最新权威状态：validation error-analysis gate）
+
+本节覆盖下方旧版“全量结果与最终验证”状态，是当前关于高级方向选择的唯一权威节。已在不读取原始 CSV/test、不重训 M0/M1 的条件下，对 frozen M1 fusion validation 输出完成 error analysis；M2 evidence gate 不满足，因此不创建或运行 M2/M3/M4。
+
+### 事实
+
+- 分析来源为 `artifacts/m1_fusion_full_e3/` 的 frozen validation 输出、`cache/m0_full` 与 `cache/m1_ppg` 的窗口/quality/cache metadata；结果写入 `artifacts/experiments/m1_fusion_full_e3/error_analysis.json`。来源 run-dir、两个 cache 目录、decoder=`threshold=0.15, merge_gap_ms=6000, min_duration_ms=0`、`event_iou_threshold=0.25`、`label_positive_overlap=0.25`、split manifest SHA-256=`18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6` 均已记录；reference hash 逐 validation cache 校验通过。
+- M1 fusion validation：windows=`593589`，TP/FP/FN=`21/177/30`，Precision/Recall/F1=`0.1060606/0.4117647/0.1686747`，participant F1 mean/std/worst=`0.1481688/0.1077214/0`，start/end MAE=`637874.6/79659.7 ms`。独立复算与 `artifacts/m1_fusion_full_e3/metrics.json` 逐项相等。
+- FP 不是短暂噪声：177 个 FP 的 duration 中位数=`1963878 ms`（约32.7分钟）、p90=`12265790.4 ms`、max=`24915528 ms`；窗口数中位数=`644`、p90=`4071`；最大分数中位数=`0.8851013`、事件平均分数中位数=`0.7146850`；前/后相邻预测事件间隔中位数均=`117000 ms`。按本报告固定的“短暂”操作定义（duration≤`30000 ms` 且≤`2`个窗口），仅 `6/177`=`3.39%` FP 属于短暂。
+- Calibration：binary Brier/ECE=`0.2398206/0.3741050`，soft overlap Brier/ECE=`0.2398207/0.3744612`。modality 分层为 `imu_only=24070`、`ppg_only=0`、`both=248689`、`neither=320830`；decoder threshold=`0.15` 下 imu-only 与 both 的窗口预测阳性率均为1且窗口 FPR均为1，neither 的预测阳性率为0。PPG-only 诊断为 F1=`0.1792453`、Recall=`0.3725490`，不能替代 fusion 主结果。
+- 同 split M0 `artifacts/m0_final_q50_group_e3/`：F1=`0.1728395`、P/R=`0.109375/0.4117647`、start/end MAE=`639946.0/71945.5 ms`、participant F1 std=`0.1137248`。M1 fusion 相对 M0 的 F1 delta=`-0.0041648`，Recall 无提升，end MAE 增加约`7714.3 ms`；split JSON 三份完全相同。
+
+### 风险、候选与验收标准
+
+- 风险：M1 是同一 frozen participant split、3 epoch、单次 full run；validation 仍有长时间高分 FP、Recall 仅`41.18%`，且 modality availability 与分数强耦合。任何基于 test 的再选择都仍被禁止。
+- 候选：M2（短暂 FP + 足够正事件 Recall）；M3（局部连续性/边界抖动）；M4（M1 稳定后的自监督）；不启动高级模型（信号、coverage 或 Recall 不足）。
+- 验收标准：M2 需同时满足短暂 FP 占主导、正事件 Recall 超过半数，并且 error analysis 明确支持概率/有效性/间隔 context；若主要错误是长时间连续误报或整体 Recall/coverage 不足，则不启动高级模型。报告将短暂 FP 明确操作化为 duration≤`2×window_sec` 且窗口数≤2，dominance≥50%，正事件 Recall>50%。
+
+### 选择与实验结果
+
+- 选择：`do_not_start_advanced_models`。M2 gate=`false`（short FP dominance=`false`、positive-event recall sufficient=`false`、context support=`false`）；M3/M4 也未获证据支持。只保留 M0/M1 frozen artifacts，不创建 `context_model.py`、M2 config 或 M2 训练输出。
+- 工具增强为 `src/eating_detection/error_analysis.py` 的 M1 双 cache validation 分析路径；新增合成 cache TDD 回归为 `tests/test_m1_error_analysis.py`。新增路径只读 cache/JSON/YAML，不触碰源 CSV；原有 M0 error analysis CLI 兼容保留。
+- 本节基于起始 HEAD=`3e5e38e`；最终提交后仍保留当前分支/worktree，不合并、不 push。
+
 ## 2026-09-06 M1 交接（最新权威状态：全量结果与最终验证）
 
 本节覆盖下方旧版“全量运行资源门禁”状态；它是当前唯一权威状态。代码修复已完成并提交，full-data PPG-only 与 fusion 已完成；最终新鲜验证已全绿，当前只需提交本节记录。
