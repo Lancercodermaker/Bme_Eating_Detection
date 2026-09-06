@@ -1,5 +1,53 @@
 # 智能手表进食检测项目：新对话接续摘要
 
+## 2026-09-06 M1 交接（当前权威状态）
+
+本节覆盖下方所有“未授权 M1 / M1 尚未开始”的历史描述。用户已明确授权完整推进 M1；本次在用户要求交接后暂停，不代表 M1 完成。
+
+### Objective
+
+在现有隔离 worktree 完成 M1：独立 PPG cache、独立 IMU/PPG encoder 特征融合、从头联合训练、同 split 的 PPG-only 诊断及缺失模态验证。不要重新搜文献、重训 M0 或启动 M2/M3/M4。
+
+### Current status
+
+- worktree：`E:\bme_compitition\.worktrees\smartwatch-baseline`；分支 `codex/smartwatch-eating-baseline`。
+- HEAD：`47f2f41`；新增提交 `d05665f feat: add isolated PPG-only chunk parser` 和 `47f2f41 fix: preserve explicit missing PPG stream semantics`。起点是 `7c7d2ee`。
+- 已完整读取旧 handoff、设计文档、实施计划和 README；已完成只读 preflight。
+- PPG parser 已完成 TDD 和独立规格/质量审查：`iter_ppg_chunks` 只投影 PPG_TIME/PPG1–44；M0 原路径未改。行质量仍是正 timestamp、44 通道全 finite、非全零。缺列显式 invalid；缺整条 PPG 返回空无效流，由 cache 的参考时间轴补齐。
+- 两个真实文件各 2,000 行：PPG 新旧时间戳/波形/mask 完全一致，有效行 450/435。
+- **PPG cache 已完成独立规格/质量审查与阶段验收**：`src/eating_detection/ppg_cache.py` 与 `tests/test_ppg_cache.py` 保持独立 `ppg/` namespace，不改 IMU cache。新增回归固定“精确平坦流默认无效（显式 `keep` 可回退）”以及“无效输入经抗混叠影响的输出必须为零/无效”。专项 **27 passed**，全套 **110 passed**，compileall/diff check 成功；这不代表 full-data gate 通过。
+- 两个真实文件各 2,000 行：在 soft/ignore 下 PPG 与 M0 25 Hz reference 的 timestamps、window index/boundary、labels 与 loss mask 完全相等；hnu21013/hnu21024 的 PPG quality coverage 分别为 0.65158/0.31050。cache miss 后将 PPG reader 置为抛错函数的 lazy hit 仍成功，证明确实未读 CSV。
+- PPG cache 阶段代码、测试、执行记录、本交接和续作提示将同一原子提交；不要丢弃或回退这些修改。
+- **尚未创建 M1 encoder/fusion、训练集成或 M1 配置；尚未运行 PPG-only sample、M1 CUDA batch 或完整 M1。**
+
+### Frozen decisions
+
+- 原始数据只读、不得加入 Git；不 destructive git、不新建/嵌套 worktree、不合并、不 push。原始/cache/权重/输出忽略已验证。
+- 使用 `artifacts/final_m0/split_manifest.json`；与 `artifacts/m0_final_q50_group_e3/split_manifest.json` 内容完全相同。train 34 participants/954 sensor txt，val 8/201，共 1155；excluded_test=ac3,test（仅清点文件名，0/2 txt）。完整 participant 列表见 manifest/执行记录，不重新划分。
+- 现有 IMU cache 为 train 929 + val 192=1121 文件，3,578,835 windows、268,791,286 时间点；PPG 预计约51GB，交接前磁盘空闲约1.17TB。
+- M1 使用独立 IMU/PPG encoder，embedding 级融合，从头联合训练。PPG-only 仅诊断；外部 PPG 饮食权重禁止；M0 迁移仅结构/state_dict 全兼容时可作单独消融，不静默加载。
+- 固定 preprocessing/cache 与可学习 encoder、train-only 标准化统计分离。输入44 PPG波形+显式质量，modality mask 至少(B,2)，训练安全 modality dropout，缺模态不能仅靠普通零值。
+- soft 返回实际 overlap ratio；ignore：0→0，低于训练阈值→None，达到→1。训练 label_positive_overlap 与评估 event_iou_threshold 不混用；participant 分组；test 不参与训练/阈值/decoder/模型选择。
+- 事件 Precision/Recall/F1、严格 IoU>0.25、start/end MAE 为主报告；同时 calibration/coverage/participant 波动。
+- CPU负责CSV/时间轴/重采样/cache；CUDA负责模型前向/反向/BCEWithLogitsLoss。训练和验证必须batch，不混淆CPU预处理与GPU时间。
+
+### Important files and environment
+
+- 原始完整任务：`E:\Codex\Home\attachments\17106c1a-dc79-42bc-b3e9-33b5b804fb95\pasted-text-1.txt`，新对话必须读取，含逐阶段完整测试与验收要求。
+- 执行记录：`E:\bme_compitition\.worktrees\smartwatch-baseline\docs\superpowers\plans\2026-09-06-m1-execution-record.md`。
+- 设计：同 worktree 的 `docs/superpowers/specs/2026-08-31-smartwatch-eating-detection-baseline-design.md`；原计划：`docs/superpowers/plans/2026-09-01-smartwatch-eating-detection-implementation-plan.md`。
+- 项目解释器：`C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe`，Python3.11.16，PyTorch2.11.0+cu128/CUDA12.8，RTX5060Laptop。默认 PATH 的 Python 是系统3.10，不要用错。`scripts/verify_environment.py --require-cuda --steps 2` 已通过。
+- M0最终artifact：`artifacts/m0_final_q50_group_e3/`。只读复评与原指标相等：TP/FP/FN=21/171/30，P=.109375，R=.4117647058823529，F1=.17283950617283952，start/end MAE=639946.0238095239/71945.45238095238ms；q50/GroupNorm/avg/batch64，pos_weight=15.411571805503204。不重训。
+- 忽略的 preflight证据：`artifacts/m1_preflight/summary.json`、`imu_cache_inventory.json`、`source_metadata_before.json`（2378个原始文件size/mtime基线，最终用来复核未改数据）。
+
+### Open risks / immediate next steps
+
+1. PPG cache 阶段已完成：现 API 为 `PPGCacheConfig` 与 `build_ppg_cache(source_path, intervals, cache_root, config, reference_timestamps_ms=None, lazy=False)`；45×T float32 feature、1×T bool quality、连续 array+window index、reference grid hash、lazy/atomic/recovery 均已验收。默认 `reject_constant_stream`，显式 `keep` 仅供回退；无效重复包也会通过抗混叠质量支持传播为输出屏障。
+2. 现在按原任务第三阶段严格 TDD 实现独立 encoder/fusion/quality+modality mask/dropout、BCEWithLogitsLoss、backward 与 CUDA sample；随后才集成同 split train/val cache 与 batch 训练。保持顺序：PPG-only 诊断→复用 M0 reference→M1 融合→缺失模态/dropout 对照。
+3. 全量 M1 必须等原附件所有 full-data gate 通过。最终全套 pytest/compileall/diff/Git/忽略/CUDA/缓存 hit/样例复现，更新 README/handoff/原实施计划，原子提交。finishing-a-development-branch 仅报告集成选项，默认保留分支/worktree。
+
+每阶段用中文“事实→风险→候选→验收标准→选择→实验结果”；每个实现阶段RED→GREEN→阶段验证→原子提交。使用 executing-plans、using-git-worktrees、test-driven-development、systematic-debugging、verification-before-completion；需要子代理时遵循已加载的subagent-driven-development。库API用Context7先resolve再query；本轮已查pandas `/websites/pandas_pydata`、PyTorch `/pytorch/pytorch/v2.11.0`，SciPy查到内容较浅，主要复用现有resample_uniform。
+
 ## 2026-09-03 权威更新
 
 更新时间：2026-09-03T13:48:19-04:00（America/New_York）。本节覆盖下方早期历史状态；设计文档和实施计划中的冻结时间戳仍为 2026-09-01T09:51:58-04:00。

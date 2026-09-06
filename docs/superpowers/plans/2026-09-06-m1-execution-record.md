@@ -24,7 +24,9 @@
 候选：扩展 M0 parser，或独立 PPG-only parser。
 验收：只读取 PPG，保留旧行 mask 等价性，缺列显式无效，重复表头与 bounded rows 可测试。
 选择：独立 `iter_ppg_chunks`；M0 路径保持原实现。
-实验：9 项 RED（缺少函数）→ 13 项 IO GREEN → 全套 81 passed，compileall/diff check 通过；提交 `d05665f`。独立审查进行中。
+实验：9 项 RED（缺少函数）→ 13 项 IO GREEN → 全套 81 passed，compileall/diff check 通过；提交 `d05665f`。独立审查发现缺少整条 PPG stream 时抛错；追加 2 项 RED 后改为显式空/无效流。全套 83 passed，规格与质量审查通过；提交 `47f2f41`。两个真实文件各 2,000 行与旧 parser 时间戳/波形/mask 完全等价，有效行分别为 450 和 435。
+
+M0 只读复评重新计算 TP/FP/FN=21/171/30，Precision=0.109375，Recall=0.4117647058823529，F1=0.17283950617283952，start/end MAE=639946.0238095239/71945.45238095238 ms；与保存指标逐项相等。原始文件 metadata 基线共 2,378 项，保存于忽略的 `artifacts/m1_preflight/`。M0 cache 清点为 train 929、val 192，合计 3,578,835 windows、268,791,286 time samples。PPG 数组磁盘估计约 51 GB，可用空间约 1.17 TB。
 
 ## PPG cache 契约（待 TDD 实现与验证）
 
@@ -36,11 +38,25 @@
 - 原始波形 cache 与训练集拟合的标准化统计分离；统计只用 train 有效样本，val 复用。
 - key 包括源路径/size/mtime、采样率/max_gap、预处理变体、窗口/标签配置和区间、modality/channel/schema、显式对齐范围；hit 只 stat 源文件，不打开 CSV。
 - 临时文件写入成功后原子改名；逐文件恢复；batch 切片，不保存重叠窗口 clone。
+- `flat_policy` 默认 `reject_constant_stream`：至少两条有效 canonical row 在 44 个通道均精确恒定时，整条流质量为 false；仅显式传入 `keep` 才保留非零常量流。没有推断幅度阈值。
+- 降采样质量同时追踪抗混叠滤波的输入支持；若无效行会改变输出样本，则该样本质量为 false 且 44 个波形通道置零，不能被点位质量检查误标为有效。
+
+## PPG cache 审查与验收（2026-09-06）
+
+事实：独立规格审查确认 `ppg/` 命名空间、45×T float32（44 波形 + 质量）和独立 bool quality array；reference grid hash、源 path/size/mtime、采样率、窗口/标签、schema 与预处理均进入 key。初始实现的非零常量流默认保留，且 100 Hz 的单个无效点在 25 Hz 抗混叠后会改变相邻波形但仍被标为有效。
+
+风险：前者与冻结的“平坦 PPG 必须有质量 mask”不一致；后者会把由无效包污染的输入交给 M1 encoder。候选是保留旧默认，或以无阈值的精确常量规则默认拒绝，并把滤波支持传播进 quality。
+
+验收标准：新回归测试须先失败；默认平坦流无效但显式 `keep` 可回退；所有受无效点影响的降采样输出为零/无效，同时远离该点的输出保留有效。现有 timestamp/window/label/ignore、partial(43列)、key、atomic/recovery、lazy 与 cache-hit 禁止 CSV 测试不得回归。
+
+选择：默认 `reject_constant_stream`，保留显式 `keep`；以 resample 后 availability 对 all-valid support 的数值比较传播滤波影响，不改 IMU cache 或 M0 的 `resample_uniform` 默认行为。
+
+实验：两项新增测试 RED（默认平坦流仍有效；无效点影响的输出仍为有效）→ 最小实现 GREEN。PPG cache 专项 27 passed；全套 110 passed；compileall 与 diff check 通过。两个真实文件各 2,000 行，在 soft/ignore 下都与 M0 25 Hz reference 的 timestamps/window indices/window boundaries/labels/loss mask 完全相等；hnu21013 quality coverage=0.65158、hnu21024=0.31050。每个 cache miss 后，替换 PPG reader 为抛错函数的 lazy hit 仍成功，未打开原始 CSV。M0 冻结概率只读复评保持 TP/FP/FN=21/171/30、F1=0.17283950617283952。
 
 ## 待完成
 
-- [ ] PPG parser 独立审查与缺失模态覆盖。
-- [ ] PPG cache 严格 TDD、数值/窗口/label 等价、原子写入和中断恢复验证、阶段提交。
+- [x] PPG parser 独立审查与缺失模态覆盖。
+- [x] PPG cache 严格 TDD、数值/窗口/label 等价、原子写入和中断恢复验证、阶段提交。
 - [ ] 独立 IMU/PPG encoder、显式 mask、安全 modality dropout，严格 TDD 与 CUDA 样例、阶段提交。
 - [ ] cache/train CLI 集成与 test 排除验证，PPG-only sample，full-data gate。
 - [ ] 同 split train/val 全量 cache、PPG-only 诊断、复用 M0 reference、M1 联合训练与缺失模态实验。
