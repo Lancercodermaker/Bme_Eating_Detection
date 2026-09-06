@@ -17,9 +17,9 @@ Python：C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe
 
 先中文汇报，然后只读检查Git状态/HEAD，保留全部未提交工作。
 已完成：preflight、独立PPG-only parser的TDD及规格/质量审查、两个真实文件2000行新旧等价检查、M0冻结概率只读复评。
-已完成 PPG cache：独立规格/质量审查、两个真实文件 2,000 行 bounded miss/hit、禁止 CSV 的 lazy hit、M0 冻结概率只读回归以及阶段原子提交。默认精确常量 PPG 流为无效（`flat_policy='keep'` 显式回退）；无效输入经抗混叠影响的输出会置零并标无效。专项27 passed；全套110 passed；compileall通过。不要把这些当作full-data gate通过。
+已完成 PPG cache：独立规格/质量审查、两个真实文件 2,000 行 bounded miss/hit、禁止 CSV 的 lazy hit、M0 冻结概率只读回归以及阶段原子提交 `d93f9e3`。默认精确常量 PPG 流为无效（`flat_policy='keep'` 显式回退）；无效输入经抗混叠影响的输出会置零并标无效。已完成 M1 模型核心：独立 GroupNorm encoder、45 channel PPG quality 输入、显式 modality mask、安全 dropout、BCE logits backward、CUDA batch 与严格 M0 transfer refusal。M1专项8 passed；全套118 passed；compileall与CUDA smoke通过。不要把这些当作full-data gate通过。
 
-立即下一步：按原附件第三阶段严格 TDD 实现独立 IMU/PPG encoder 的特征融合、显式 quality/modality mask 和安全 modality dropout；先完成 shape、缺模态、dropout train/eval、loss/backward、CUDA sample 与不兼容 M0 权重拒绝测试，再写最小实现。不要重写已有 parser 或 PPG cache。
+立即下一步：严格 TDD 实现 paired IMU/PPG cache Dataset、train-only PPG standardizer 和 cache-hit M1 batch train/validation integration；先覆盖 timestamp/window/label 配对、quality→modality mask、participant/test 隔离和 train-only statistics。不要重写已有 parser、PPG cache 或 M1 模型核心。
 
 随后按原附件顺序完成：独立IMU/PPG encoder的特征融合、显式quality/modality mask和安全modality dropout、从头联合训练、BCEWithLogitsLoss/CUDA sample、训练集标准化与pos_weight、同split的PPG-only诊断→复用M0 reference→M1融合与缺模态对照，门禁全部通过才完整运行train/val。M1模型和训练集成目前尚未开始，尚无M1实验指标。
 

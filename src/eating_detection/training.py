@@ -58,6 +58,31 @@ def train_one_batch(model, optimizer, x, y, pos_weight: float) -> float:
     return float(loss.detach().cpu())
 
 
+def train_m1_one_batch(
+    model,
+    optimizer,
+    imu: torch.Tensor,
+    ppg: torch.Tensor,
+    modality_mask: torch.Tensor,
+    y: torch.Tensor,
+    pos_weight: float,
+) -> float:
+    """Run one M1 joint-fusion update on logits and labels in [0, 1]."""
+    if y.ndim != 1 or imu.ndim != 3 or ppg.ndim != 3 or len(imu) != len(y):
+        raise ValueError("M1 inputs must be batched and labels must have shape (batch,)")
+    if modality_mask.shape != (len(imu), 2):
+        raise ValueError("modality_mask must have shape (batch, 2)")
+    model.train()
+    optimizer.zero_grad(set_to_none=True)
+    logits = model(imu, ppg, modality_mask)
+    loss = torch.nn.BCEWithLogitsLoss(
+        pos_weight=torch.tensor(pos_weight, dtype=logits.dtype, device=logits.device)
+    )(logits, y.to(device=logits.device, dtype=logits.dtype))
+    loss.backward()
+    optimizer.step()
+    return float(loss.detach().cpu())
+
+
 def mirror_imu_axes(batch):
     """Mirror the raw x axes while preserving magnitudes and quality masks."""
     if getattr(batch, "ndim", None) != 3 or batch.shape[1] < 6:

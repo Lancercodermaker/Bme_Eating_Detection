@@ -53,11 +53,21 @@ M0 只读复评重新计算 TP/FP/FN=21/171/30，Precision=0.109375，Recall=0.4
 
 实验：两项新增测试 RED（默认平坦流仍有效；无效点影响的输出仍为有效）→ 最小实现 GREEN。PPG cache 专项 27 passed；全套 110 passed；compileall 与 diff check 通过。两个真实文件各 2,000 行，在 soft/ignore 下都与 M0 25 Hz reference 的 timestamps/window indices/window boundaries/labels/loss mask 完全相等；hnu21013 quality coverage=0.65158、hnu21024=0.31050。每个 cache miss 后，替换 PPG reader 为抛错函数的 lazy hit 仍成功，未打开原始 CSV。M0 冻结概率只读复评保持 TP/FP/FN=21/171/30、F1=0.17283950617283952。
 
+## M1 模型核心（2026-09-06）
+
+事实：M0 的 `IMUCNN` 与新的独立 M1 temporal encoder 不具有完全相同的 module/state_dict 结构，不能静默迁移。M1 PPG 输入固定为 45 channels（44 波形 + 逐点 quality），但逐点 quality 不能替代窗口级模态可观测性。
+
+风险：仅以零值表示缺失会让 Conv bias/normalization 产生看似有效的 embedding；独立地随机丢弃两个模态会出现双模态都不可用的训练样本；把 sigmoid 放在 loss 前会违背数值稳定的 BCE 契约。
+
+选择：`IMUPPGFusion` 使用独立 GroupNorm temporal encoder，embedding 级 gated fusion，并把 `(B,2)` modality mask 同时用于分支输入、embedding 和分类 head。训练 dropout 只在两个模态都可用时随机屏蔽其中一个；eval 不随机屏蔽。`load_compatible_imu_encoder_from_m0` 仅在完整 key/shape 相等时加载，否则 fail closed；默认不调用它。`train_m1_one_batch` 直接将 logits 和 `[0,1]` target 传给 `BCEWithLogitsLoss`。
+
+实验：8 项 RED（缺少 fusion/model batch 接口）→ GREEN：独立分支 shape、无效 PPG 的不同数值在 modality mask=false 时输出一致、单/双缺模态 finite、训练期安全 dropout、eval 确定性、M0 不兼容拒绝、CPU logits BCE backward 与 CUDA forward/backward。专项 8 passed；全套 118 passed；compileall/diff check 通过；`verify_environment.py --require-cuda --steps 2` 新鲜通过（PyTorch 2.11.0+cu128、CUDA 12.8、RTX 5060 Laptop）。尚未创建 paired cache Dataset/CLI 或进行 M1/PPG-only 训练。
+
 ## 待完成
 
 - [x] PPG parser 独立审查与缺失模态覆盖。
 - [x] PPG cache 严格 TDD、数值/窗口/label 等价、原子写入和中断恢复验证、阶段提交。
-- [ ] 独立 IMU/PPG encoder、显式 mask、安全 modality dropout，严格 TDD 与 CUDA 样例、阶段提交。
+- [x] 独立 IMU/PPG encoder、显式 mask、安全 modality dropout，严格 TDD 与 CUDA 样例、阶段提交。
 - [ ] cache/train CLI 集成与 test 排除验证，PPG-only sample，full-data gate。
 - [ ] 同 split train/val 全量 cache、PPG-only 诊断、复用 M0 reference、M1 联合训练与缺失模态实验。
 - [ ] 事件指标、MAE、calibration、coverage 和 CPU/GPU 分开遥测。

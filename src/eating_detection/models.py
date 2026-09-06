@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from typing import Mapping
 
 
 def _equal_bin_mean(x: torch.Tensor, bins: int) -> torch.Tensor:
@@ -83,3 +84,148 @@ class IMUCNN(nn.Module):
         else:
             pooled = _equal_bin_mean(encoded, 4).flatten(start_dim=1)
         return self.head(pooled).squeeze(-1)
+
+
+class TemporalEncoder(nn.Module):
+    """Independent fixed-length temporal encoder for a single sensor modality."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        embedding_dim: int = 64,
+        normalization: str = "group",
+    ):
+        super().__init__()
+        if in_channels <= 0 or embedding_dim <= 0:
+            raise ValueError("encoder channel counts must be positive")
+        self.in_channels = in_channels
+        self.blocks = nn.Sequential(
+            ConvBlock(in_channels, 32, normalization),
+            ConvBlock(32, 64, normalization),
+            ConvBlock(64, 96, normalization),
+            nn.AdaptiveAvgPool1d(1),
+        )
+        self.projection = nn.Linear(96, embedding_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if x.ndim != 3 or x.shape[1] != self.in_channels:
+            raise ValueError(
+                f"expected (batch, channels, time) with {self.in_channels} channels"
+            )
+        return self.projection(self.blocks(x).squeeze(-1))
+
+
+class IMUPPGFusion(nn.Module):
+    """Feature-level M1 fusion with explicit availability and safe dropout.
+
+    PPG's 45th channel is its pointwise quality signal. ``modality_mask`` is
+    deliberately separate: it specifies whether IMU/PPG is observable for
+    each window, so a missing modality is never represented only by zeros.
+    """
+
+    def __init__(
+        self,
+        imu_channels: int = 10,
+        ppg_channels: int = 45,
+        embedding_dim: int = 64,
+        modality_dropout: float = 0.25,
+        normalization: str = "group",
+    ):
+        super().__init__()
+        if not 0.0 <= modality_dropout <= 1.0:
+            raise ValueError("modality_dropout must be in [0, 1]")
+        self.imu_encoder = TemporalEncoder(imu_channels, embedding_dim, normalization)
+        self.ppg_encoder = TemporalEncoder(ppg_channels, embedding_dim, normalization)
+        self.modality_dropout = float(modality_dropout)
+        self.gate = nn.Sequential(
+            nn.Linear(embedding_dim * 2 + 2, embedding_dim),
+            nn.ReLU(),
+            nn.Linear(embedding_dim, 2),
+            nn.Sigmoid(),
+        )
+        self.head = nn.Linear(embedding_dim * 2 + 2, 1)
+
+    @staticmethod
+    def _validate_inputs(
+        imu: torch.Tensor,
+        ppg: torch.Tensor,
+        modality_mask: torch.Tensor,
+    ) -> None:
+        if imu.ndim != 3 or ppg.ndim != 3:
+            raise ValueError("IMU and PPG inputs must have shape (batch, channels, time)")
+        if imu.shape[0] != ppg.shape[0] or imu.shape[2] != ppg.shape[2]:
+            raise ValueError("IMU and PPG must have matching batch and temporal dimensions")
+        if modality_mask.shape != (imu.shape[0], 2):
+            raise ValueError("modality_mask must have shape (batch, 2)")
+        if imu.device != ppg.device or imu.device != modality_mask.device:
+            raise ValueError("IMU, PPG, and modality_mask must share a device")
+        if not torch.isfinite(imu).all() or not torch.isfinite(ppg).all():
+            raise ValueError("IMU and PPG inputs must be finite")
+        if not torch.all((modality_mask == 0) | (modality_mask == 1)):
+            raise ValueError("modality_mask entries must be binary")
+
+    def apply_modality_dropout(
+        self,
+        imu: torch.Tensor,
+        ppg: torch.Tensor,
+        modality_mask: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Drop at most one available modality per training example."""
+        self._validate_inputs(imu, ppg, modality_mask)
+        available = modality_mask.to(dtype=torch.bool)
+        if not self.training or self.modality_dropout == 0.0:
+            return imu, ppg, available.to(dtype=imu.dtype)
+
+        drop_rows = (available.sum(dim=1) == 2) & (
+            torch.rand(imu.shape[0], device=imu.device) < self.modality_dropout
+        )
+        dropped = available.clone()
+        if drop_rows.any():
+            selected = torch.rand(int(drop_rows.sum()), device=imu.device) < 0.5
+            row_indices = torch.nonzero(drop_rows, as_tuple=False).squeeze(1)
+            dropped[row_indices[selected], 0] = False
+            dropped[row_indices[~selected], 1] = False
+        active = dropped.to(dtype=imu.dtype)
+        return (
+            imu * active[:, 0].view(-1, 1, 1),
+            ppg * active[:, 1].view(-1, 1, 1),
+            active,
+        )
+
+    def forward(
+        self,
+        imu: torch.Tensor,
+        ppg: torch.Tensor,
+        modality_mask: torch.Tensor,
+    ) -> torch.Tensor:
+        imu, ppg, active = self.apply_modality_dropout(imu, ppg, modality_mask)
+        imu_embedding = self.imu_encoder(imu) * active[:, :1]
+        ppg_embedding = self.ppg_encoder(ppg) * active[:, 1:]
+        gates = self.gate(torch.cat((imu_embedding, ppg_embedding, active), dim=1))
+        fused = torch.cat(
+            (
+                imu_embedding * gates[:, :1] * active[:, :1],
+                ppg_embedding * gates[:, 1:] * active[:, 1:],
+                active,
+            ),
+            dim=1,
+        )
+        return self.head(fused).squeeze(-1)
+
+
+def load_compatible_imu_encoder_from_m0(
+    model: IMUPPGFusion, m0_state_dict: Mapping[str, torch.Tensor]
+) -> None:
+    """Load only a completely compatible IMU encoder; otherwise fail closed."""
+    expected = model.imu_encoder.state_dict()
+    supplied = {
+        key.removeprefix("imu_encoder."): value
+        for key, value in m0_state_dict.items()
+        if key.startswith("imu_encoder.")
+    }
+    compatible = set(supplied) == set(expected) and all(
+        supplied[key].shape == expected[key].shape for key in expected
+    )
+    if not compatible:
+        raise ValueError("M0 IMU encoder is not structurally compatible with M1")
+    model.imu_encoder.load_state_dict(supplied, strict=True)
