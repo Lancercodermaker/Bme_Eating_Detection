@@ -13,6 +13,8 @@ from .cache import FeatureCache, LazyFeatureCache
 from .dataset import (
     CachedWindowDataset,
     CachedBatch,
+    PairedCachedBatch,
+    PairedCachedWindowDataset,
     ParticipantBatchSampler,
     WindowDataset,
     WindowRecord,
@@ -21,7 +23,7 @@ from .dataset import (
 )
 from .decoding import decode_windows, tune_decoder
 from .metrics import EventMetrics, event_metrics
-from .models import IMUCNN
+from .models import IMUCNN, IMUPPGFusion
 from .preprocess import Standardizer, apply_standardizer, fit_standardizer
 
 
@@ -126,6 +128,37 @@ def standardize_m1_ppg_batch(batch: torch.Tensor, stats: Standardizer) -> torch.
     waveform = (batch[:, :44] - mean) / std
     waveform = waveform * (quality > 0.5).to(dtype=batch.dtype)
     return torch.cat((waveform, quality), dim=1)
+
+
+def _m1_mask_for_mode(modality_mask: torch.Tensor, model_mode: str) -> torch.Tensor:
+    if model_mode == "fusion":
+        return modality_mask
+    if model_mode == "ppg_only":
+        ppg_only = modality_mask.clone()
+        ppg_only[:, 0] = 0
+        return ppg_only
+    raise ValueError("model_mode must be fusion or ppg_only")
+
+
+def _m1_modality_coverage(
+    dataset: PairedCachedWindowDataset, model_mode: str
+) -> dict[str, int]:
+    masks = np.asarray(
+        [
+            dataset._window_modality_masks[pair_index][window_index]
+            for pair_index, window_index in dataset._references
+        ],
+        dtype=np.float32,
+    )
+    if model_mode == "ppg_only":
+        masks[:, 0] = 0
+    return {
+        "windows": int(len(masks)),
+        "imu_available": int((masks[:, 0] > 0.5).sum()),
+        "ppg_available": int((masks[:, 1] > 0.5).sum()),
+        "both_available": int(((masks[:, 0] > 0.5) & (masks[:, 1] > 0.5)).sum()),
+        "neither_available": int(((masks[:, 0] <= 0.5) & (masks[:, 1] <= 0.5)).sum()),
+    }
 
 
 def mirror_imu_axes(batch):
@@ -315,6 +348,349 @@ def _predict_cached(
     for participant in predictions:
         predictions[participant].sort(key=lambda item: item[0])
     return predictions
+
+
+def _paired_cached_collate(batch):
+    if isinstance(batch, PairedCachedBatch):
+        return batch.imu, batch.ppg, batch.modality_mask, batch.labels, batch.participants
+    if isinstance(batch, list) and len(batch) == 1 and isinstance(batch[0], PairedCachedBatch):
+        paired_batch = batch[0]
+        return (
+            paired_batch.imu,
+            paired_batch.ppg,
+            paired_batch.modality_mask,
+            paired_batch.labels,
+            paired_batch.participants,
+        )
+    imu, ppg, masks, labels, participants = zip(*batch)
+    return (
+        torch.stack(imu),
+        torch.stack(ppg),
+        torch.stack(masks),
+        torch.stack(labels),
+        participants,
+    )
+
+
+def _paired_cached_loader(
+    dataset: PairedCachedWindowDataset,
+    batch_size: int,
+    device: torch.device,
+    shuffle: bool = False,
+    seed: int = 0,
+):
+    sampler = ParticipantBatchSampler(
+        dataset, batch_size=batch_size, shuffle=shuffle, seed=seed
+    )
+    return DataLoader(
+        dataset,
+        batch_sampler=sampler,
+        num_workers=0,
+        pin_memory=device.type == "cuda",
+        collate_fn=_paired_cached_collate,
+    )
+
+
+def _predict_m1_cached(
+    model: IMUPPGFusion,
+    dataset: PairedCachedWindowDataset,
+    imu_stats: Standardizer,
+    ppg_stats: Standardizer,
+    device: torch.device,
+    batch_size: int,
+    model_mode: str,
+) -> dict[str, list[tuple[int, int, float]]]:
+    model.eval()
+    predictions: dict[str, list[tuple[int, int, float]]] = {}
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=device.type == "cuda",
+        collate_fn=_paired_cached_collate,
+    )
+    offset = 0
+    with torch.inference_mode():
+        for imu, ppg, modality_mask, _, _ in loader:
+            imu = _standardize_batch(imu, imu_stats).to(
+                device, non_blocking=device.type == "cuda"
+            )
+            ppg = standardize_m1_ppg_batch(ppg, ppg_stats).to(
+                device, non_blocking=device.type == "cuda"
+            )
+            modality_mask = _m1_mask_for_mode(modality_mask, model_mode).to(
+                device, non_blocking=device.type == "cuda"
+            )
+            probabilities = torch.sigmoid(model(imu, ppg, modality_mask)).detach().cpu().tolist()
+            for probability in probabilities:
+                participant, start_ms, end_ms = dataset.window_metadata(offset)
+                predictions.setdefault(participant, []).append(
+                    (start_ms, end_ms, float(probability))
+                )
+                offset += 1
+    for participant in predictions:
+        predictions[participant].sort(key=lambda item: item[0])
+    return predictions
+
+
+def fit_m1_cached(
+    imu_caches: list[FeatureCache | LazyFeatureCache],
+    ppg_caches: list[FeatureCache | LazyFeatureCache],
+    train_participants: set[str],
+    val_participants: set[str],
+    truth: dict[str, list[tuple[int, int]]],
+    output_dir: Path,
+    config_payload: dict[str, object],
+    split_manifest: dict[str, object],
+    epochs: int,
+    batch_size: int,
+    seed: int,
+    iou_threshold: float,
+    device_name: str = "auto",
+    model_mode: str = "fusion",
+    embedding_dim: int = 64,
+    modality_dropout: float = 0.25,
+    imu_cache_issues: list[dict[str, str]] | None = None,
+    ppg_cache_issues: list[dict[str, str]] | None = None,
+) -> dict[str, object]:
+    """Train an M1 PPG diagnostic or feature-fusion model from cache pairs only."""
+    if not imu_caches or not ppg_caches:
+        raise ValueError("IMU and PPG caches are both required for M1 training")
+    if epochs <= 0 or batch_size <= 0:
+        raise ValueError("epochs and batch_size must be positive")
+    if model_mode not in {"fusion", "ppg_only"}:
+        raise ValueError("model_mode must be fusion or ppg_only")
+    if train_participants & val_participants:
+        raise ValueError("train and validation participants must be disjoint")
+    allowed_participants = train_participants | val_participants
+    cache_participants = {cache.participant for cache in imu_caches}
+    if cache_participants - allowed_participants:
+        raise ValueError("M1 caches contain participants outside train/val")
+    excluded_test = set(split_manifest.get("excluded_test", []))
+    if excluded_test & allowed_participants:
+        raise ValueError("excluded test participants cannot be used for M1 training")
+
+    set_seed(seed)
+    train_dataset = PairedCachedWindowDataset(
+        imu_caches, ppg_caches, participants=train_participants
+    )
+    val_dataset = PairedCachedWindowDataset(
+        imu_caches, ppg_caches, participants=val_participants
+    )
+    if not len(train_dataset):
+        raise ValueError("no training windows for the requested participants")
+    if not len(val_dataset):
+        raise ValueError("no validation windows for the requested participants")
+    imu_stats = _fit_cached_standardizer(imu_caches, train_participants)
+    ppg_stats = fit_m1_ppg_standardizer(ppg_caches, train_participants)
+    train_labels = [
+        train_dataset.label_for_index(index) for index in range(len(train_dataset))
+    ]
+    pos_weight = compute_pos_weight(train_labels)
+    device = _resolve_device(device_name)
+    model = IMUPPGFusion(
+        imu_channels=10,
+        ppg_channels=45,
+        embedding_dim=embedding_dim,
+        modality_dropout=modality_dropout,
+        normalization="group",
+    ).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    loader = _paired_cached_loader(
+        train_dataset, batch_size, device, shuffle=True, seed=seed
+    )
+    best_result = None
+    best_state = None
+    epoch_losses = []
+    epoch_times = []
+    epoch_gpu_stats = []
+    output_dir.mkdir(parents=True, exist_ok=True)
+    started_at = time.perf_counter()
+    cache_stats = {
+        "imu": {
+            "files": len(imu_caches),
+            "hits": sum(cache.cache_hit for cache in imu_caches),
+            "misses": sum(not cache.cache_hit for cache in imu_caches),
+            "build_sec": sum(cache.timings.get("build_sec", 0.0) for cache in imu_caches),
+            "load_sec": sum(cache.timings.get("cache_load_sec", 0.0) for cache in imu_caches),
+            "issues": imu_cache_issues or [],
+        },
+        "ppg": {
+            "files": len(ppg_caches),
+            "hits": sum(cache.cache_hit for cache in ppg_caches),
+            "misses": sum(not cache.cache_hit for cache in ppg_caches),
+            "build_sec": sum(cache.timings.get("build_sec", 0.0) for cache in ppg_caches),
+            "load_sec": sum(cache.timings.get("cache_load_sec", 0.0) for cache in ppg_caches),
+            "issues": ppg_cache_issues or [],
+        },
+    }
+    modality_coverage = {
+        "train": _m1_modality_coverage(train_dataset, model_mode),
+        "val": _m1_modality_coverage(val_dataset, model_mode),
+    }
+
+    for epoch in range(1, epochs + 1):
+        _synchronize(device)
+        epoch_started = time.perf_counter()
+        if device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(device)
+        losses = []
+        for imu, ppg, modality_mask, targets, participants in loader:
+            if len(set(participants)) != 1:
+                raise AssertionError("participant batch sampler mixed participant groups")
+            imu = _standardize_batch(imu, imu_stats).to(
+                device, non_blocking=device.type == "cuda"
+            )
+            ppg = standardize_m1_ppg_batch(ppg, ppg_stats).to(
+                device, non_blocking=device.type == "cuda"
+            )
+            modality_mask = _m1_mask_for_mode(modality_mask, model_mode).to(
+                device, non_blocking=device.type == "cuda"
+            )
+            targets = targets.to(device, non_blocking=device.type == "cuda")
+            losses.append(
+                train_m1_one_batch(
+                    model, optimizer, imu, ppg, modality_mask, targets, pos_weight
+                )
+            )
+        _synchronize(device)
+        predictions = _predict_m1_cached(
+            model, val_dataset, imu_stats, ppg_stats, device, batch_size, model_mode
+        )
+        validation_participants = sorted(val_participants)
+        decoder = tune_decoder(
+            [
+                [(start, end) for start, end, _ in predictions.get(participant, [])]
+                for participant in validation_participants
+            ],
+            [
+                [probability for _, _, probability in predictions.get(participant, [])]
+                for participant in validation_participants
+            ],
+            [truth.get(participant, []) for participant in validation_participants],
+            iou_threshold=iou_threshold,
+        )
+        aggregate, participant_metrics, events = evaluate_predictions(
+            predictions, truth, decoder, iou_threshold, participants=val_participants
+        )
+        f1_values = [float(item["f1"]) for item in participant_metrics.values()]
+        epoch_time = time.perf_counter() - epoch_started
+        gpu_stats = _gpu_runtime_stats(device)
+        result = {
+            **aggregate.as_dict(),
+            "participant_metrics": participant_metrics,
+            "decoder": decoder,
+            "events": events,
+            "device": str(device),
+            "batch_size": batch_size,
+            "model_mode": model_mode,
+            "embedding_dim": embedding_dim,
+            "modality_dropout": modality_dropout,
+            "pos_weight": pos_weight,
+            "participant_f1_mean": float(np.mean(f1_values)) if f1_values else 0.0,
+            "participant_f1_std": float(np.std(f1_values)) if f1_values else 0.0,
+            "participant_f1_worst": min(f1_values) if f1_values else 0.0,
+            "window_count": len(train_dataset) + len(val_dataset),
+            "train_window_count": len(train_dataset),
+            "val_window_count": len(val_dataset),
+            "imu_input_channels": 10,
+            "ppg_input_channels": 45,
+            "window_samples": int(imu_caches[0].window_indices[0, 1] - imu_caches[0].window_indices[0, 0]),
+            "modality_coverage": modality_coverage,
+            "epoch_time_sec": epoch_time,
+            "gpu_stats": gpu_stats,
+            "cache": cache_stats,
+        }
+        epoch_losses.append(float(np.mean(losses)) if losses else None)
+        epoch_times.append(epoch_time)
+        epoch_gpu_stats.append(gpu_stats)
+        if best_result is None or result["f1"] > best_result["f1"]:
+            best_result = result
+            best_state = {
+                "model": copy.deepcopy(model.state_dict()),
+                "optimizer": copy.deepcopy(optimizer.state_dict()),
+                "epoch": epoch,
+            }
+            save_checkpoint(
+                output_dir / "checkpoint.pt",
+                model,
+                optimizer,
+                config_payload,
+                split_manifest,
+                {
+                    "imu": {"mean": imu_stats.mean.tolist(), "std": imu_stats.std.tolist()},
+                    "ppg": {"mean": ppg_stats.mean.tolist(), "std": ppg_stats.std.tolist()},
+                },
+                epoch,
+                result,
+                seed=seed,
+            )
+
+    if best_result is None or best_state is None:
+        raise RuntimeError("M1 cached training produced no checkpoint")
+    best_result["training_time_sec"] = float(time.perf_counter() - started_at)
+    best_result["epoch_times_sec"] = epoch_times
+    best_result["epoch_gpu_stats"] = epoch_gpu_stats
+    model.load_state_dict(best_state["model"])
+    optimizer.load_state_dict(best_state["optimizer"])
+    final_predictions = _predict_m1_cached(
+        model, val_dataset, imu_stats, ppg_stats, device, batch_size, model_mode
+    )
+    rows = []
+    for participant in sorted(final_predictions):
+        for start, end, probability in final_predictions[participant]:
+            rows.append(
+                {
+                    "participant": participant,
+                    "start_ms": start,
+                    "end_ms": end,
+                    "probability": probability,
+                    "split": "val",
+                }
+            )
+    (output_dir / "window_probabilities.jsonl").write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+    save_json(output_dir / "metrics.json", best_result)
+    save_json(output_dir / "decoder.json", best_result["decoder"])
+    normalization = {
+        "imu": {"mean": imu_stats.mean.tolist(), "std": imu_stats.std.tolist()},
+        "ppg": {"mean": ppg_stats.mean.tolist(), "std": ppg_stats.std.tolist()},
+    }
+    save_json(output_dir / "normalization.json", normalization)
+    save_json(output_dir / "events_val.json", best_result["events"])
+    save_json(
+        output_dir / "training_log.json",
+        {
+            "epoch_losses": epoch_losses,
+            "epoch_times_sec": epoch_times,
+            "epoch_gpu_stats": epoch_gpu_stats,
+            "cache": cache_stats,
+            "modality_coverage": modality_coverage,
+        },
+    )
+    save_json(output_dir / "cache_summary.json", cache_stats)
+    save_checkpoint(
+        output_dir / "checkpoint.pt",
+        model,
+        optimizer,
+        config_payload,
+        split_manifest,
+        normalization,
+        best_state["epoch"],
+        best_result,
+        seed=seed,
+    )
+    train_dataset.release_loaded()
+    val_dataset.release_loaded()
+    return {
+        "metrics": best_result,
+        "stats": {"imu": imu_stats, "ppg": ppg_stats},
+        "device": str(device),
+        "cache": cache_stats,
+    }
 
 
 def fit_m0_cached(

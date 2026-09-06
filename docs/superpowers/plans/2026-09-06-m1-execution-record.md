@@ -73,12 +73,22 @@ M0 只读复评重新计算 TP/FP/FN=21/171/30，Precision=0.109375，Recall=0.4
 
 实验：5 项 RED（缺少 paired Dataset/PPG standardizer 接口）→ GREEN；再以延迟加载 cache 的篡改 timestamps 回归测试确认实际训练路径也拒绝错 reference grid。专项 6 passed；全套 124 passed；compileall/diff check 通过。尚未运行 PPG-only 或融合训练、也尚未接入 CLI。
 
+## M1 cache-hit batch training（2026-09-06）
+
+事实：M1 必须在同一 participant split 的配对 cache 上训练；PPG-only 是诊断，不应另造隐式拼接模型，也不得通过遗漏 PPG 窗口改变 label 分布。test cache 若意外传入训练函数会破坏冻结 split。
+
+风险：训练期重读 CSV、将 validation 统计带入 PPG 标准化、或仅在调用 CLI 时过滤 test 都会造成不可复现或泄漏。单独的 PPG-only 训练若仍留下 IMU mask=true，会不再是诊断性对照。
+
+选择：新增 `fit_m1_cached`，接受已配对 IMU/PPG caches，先拒绝 train/val 外 cache participant 及 split manifest 中 excluded test participant，再构造 participant/file batch。IMU/PPG 统计和 `pos_weight` 均只来自训练 participant。`ppg_only` 只把 IMU modality mask 置零；`fusion` 传递原始 mask。两个模式都复用 batch BCE logits、验证集 decoder、严格 IoU 事件评价、checkpoint/probability 输出，并分别记录 IMU/PPG cache 命中/CPU 时间、GPU 与 epoch 时间、train/val modality coverage。
+
+实验：两项 RED（训练入口不存在）→ GREEN：lazy cache 的 PPG-only end-to-end CPU batch 在 reader 被替换为抛错函数时仍完成，写出 checkpoint、双模态 normalization、概率和事件输出；额外回归确认 train/val 之外的 cache participant 被拒绝。专项 2 passed；全套 126 passed；compileall/diff check 通过。CLI 与真实 bounded sample 尚未运行。
+
 ## 待完成
 
 - [x] PPG parser 独立审查与缺失模态覆盖。
 - [x] PPG cache 严格 TDD、数值/窗口/label 等价、原子写入和中断恢复验证、阶段提交。
 - [x] 独立 IMU/PPG encoder、显式 mask、安全 modality dropout，严格 TDD 与 CUDA 样例、阶段提交。
-- [ ] cache-hit M1 train/validation CLI 集成与 test 排除验证，PPG-only sample，full-data gate。
+- [ ] M1 CLI/config 集成与 test 排除验证，PPG-only/fusion bounded sample，full-data gate。
 - [ ] 同 split train/val 全量 cache、PPG-only 诊断、复用 M0 reference、M1 联合训练与缺失模态实验。
 - [ ] 事件指标、MAE、calibration、coverage 和 CPU/GPU 分开遥测。
 - [ ] 全套最终验证、README/handoff/实施计划更新与提交，保留现有分支/worktree。

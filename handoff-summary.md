@@ -20,6 +20,7 @@
 - PPG cache 阶段已提交；不要丢弃或回退这些修改。
 - **M1 模型核心已提交**：`IMUPPGFusion` 有独立 GroupNorm IMU/PPG encoder、45 channel PPG（含逐点 quality）、显式 `(B,2)` modality mask、训练期安全单模态 dropout、eval 确定性以及 strict M0 compatibility refusal。`train_m1_one_batch` 直接使用 `BCEWithLogitsLoss` logits。专项8 passed、全套118 passed，CUDA forward/backward 和 environment smoke 成功。
 - **paired cache Dataset 与 PPG train-only 标准化已完成待阶段提交**：以 source、participant、全逐点 timestamps、window index/boundary、soft label 和 loss mask 强制逐文件匹配；即使两个 cache 是 lazy，也只读取 timestamps array 来验证 reference grid。窗口质量被显式派生为 IMU/PPG `(2,)` modality mask，PPG 缺失不丢弃窗口。44 个 PPG waveform channel 仅按训练 participant 的有效采样点拟合统计，缩放后无效点重新置零并原样保留 point quality。专项6 passed；全套124 passed。尚未接入 CLI 或执行 M1/PPG-only 训练。
+- **cache-hit M1 batch training 已完成待阶段提交**：`fit_m1_cached` 只接受配对 cache，拒绝 train/val 之外的 cache participant 或任何 excluded test participant；它按 train participant 拟合 IMU/PPG 统计与 `pos_weight`，用参与者/文件分组 batch 做 BCE logits 训练、批量验证、严格 IoU decoder/事件指标、checkpoint 与概率输出。`ppg_only` 诊断仅将 IMU modality mask 置零；`fusion` 保持双分支。其输出记录两个 cache 的命中/CPU 时间、设备/GPU/epoch 时间、train/val modality coverage。专项2 passed、全套126 passed；尚未接入 CLI 或运行真实样例。
 
 ### Frozen decisions
 
@@ -44,7 +45,7 @@
 ### Open risks / immediate next steps
 
 1. PPG cache 阶段已完成：现 API 为 `PPGCacheConfig` 与 `build_ppg_cache(source_path, intervals, cache_root, config, reference_timestamps_ms=None, lazy=False)`；45×T float32 feature、1×T bool quality、连续 array+window index、reference grid hash、lazy/atomic/recovery 均已验收。默认 `reject_constant_stream`，显式 `keep` 仅供回退；无效重复包也会通过抗混叠质量支持传播为输出屏障。
-2. paired Dataset/PPG statistics 已完成，下一步将其阶段提交。随后严格 TDD 实现 cache-hit M1 batch train/validation integration 与 CLI/config；再按顺序执行 PPG-only 诊断→复用 M0 reference→M1 融合→缺失模态/dropout 对照。
+2. paired Dataset/PPG statistics 与 cache-hit M1 batch loop 已完成，下一步将训练层阶段提交。随后严格 TDD 实现 CLI/config 和小样本 M1 运行；再按顺序执行 PPG-only 诊断→复用 M0 reference→M1 融合→缺失模态/dropout 对照。
 3. 全量 M1 必须等原附件所有 full-data gate 通过。最终全套 pytest/compileall/diff/Git/忽略/CUDA/缓存 hit/样例复现，更新 README/handoff/原实施计划，原子提交。finishing-a-development-branch 仅报告集成选项，默认保留分支/worktree。
 
 每阶段用中文“事实→风险→候选→验收标准→选择→实验结果”；每个实现阶段RED→GREEN→阶段验证→原子提交。使用 executing-plans、using-git-worktrees、test-driven-development、systematic-debugging、verification-before-completion；需要子代理时遵循已加载的subagent-driven-development。库API用Context7先resolve再query；本轮已查pandas `/websites/pandas_pydata`、PyTorch `/pytorch/pytorch/v2.11.0`，SciPy查到内容较浅，主要复用现有resample_uniform。
