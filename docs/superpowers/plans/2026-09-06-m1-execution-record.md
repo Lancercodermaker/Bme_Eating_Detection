@@ -83,12 +83,22 @@ M0 只读复评重新计算 TP/FP/FN=21/171/30，Precision=0.109375，Recall=0.4
 
 实验：两项 RED（训练入口不存在）→ GREEN：lazy cache 的 PPG-only end-to-end CPU batch 在 reader 被替换为抛错函数时仍完成，写出 checkpoint、双模态 normalization、概率和事件输出；额外回归确认 train/val 之外的 cache participant 被拒绝。专项 2 passed；全套 126 passed；compileall/diff check 通过。CLI 与真实 bounded sample 尚未运行。
 
+## M1 CLI/config（2026-09-06）
+
+事实：M1 需要每个 IMU cache 的 M0 reference timestamps 才能构建 PPG cache，但训练时应保持 cache lazy，且 M0 命令行为不能回归。不同 source 的 PPG build failure 不能让未配对 IMU 悄悄进入训练。
+
+风险：传入 lazy cache 的 `timestamps_ms=None` 会导致 PPG 自建 grid；把 PPG build failures 混进 IMU issues 会掩盖故障；把 M1 默认行为覆盖到 M0 会破坏既有可复现命令。
+
+选择：CLI 仅在 `model: m1_imu_ppg` 时，从每个 lazy IMU `.npz` 单独读取 timestamps array 来调用 `build_ppg_cache(..., reference_timestamps_ms=...)`，并仅传入成功的同-source cache pairs；PPG issues 写入独立 JSON。无 `model` 的 YAML 仍走 M0。提交 `configs/m1_imu_ppg.yaml`（feature fusion）和 `configs/experiments/m1_ppg_only.yaml`（诊断），明确 PPG cache/preprocess/flat policy 与 model parameters。
+
+实验：CLI TDD 先在 M0 路径运行并缺少 `model_mode` 输出（RED），实现后 2 个 toy participant 的 PPG-only CLI 完成独立 PPG cache 与 paired cache training，保存 nested IMU/PPG normalization（GREEN）。专项 1 passed、全套 127 passed；compileall/diff check 通过。真实 bounded PPG-only/fusion CUDA sample 尚未运行。
+
 ## 待完成
 
 - [x] PPG parser 独立审查与缺失模态覆盖。
 - [x] PPG cache 严格 TDD、数值/窗口/label 等价、原子写入和中断恢复验证、阶段提交。
 - [x] 独立 IMU/PPG encoder、显式 mask、安全 modality dropout，严格 TDD 与 CUDA 样例、阶段提交。
-- [ ] M1 CLI/config 集成与 test 排除验证，PPG-only/fusion bounded sample，full-data gate。
+- [ ] 真实 PPG-only/fusion bounded sample、M0 reference/missing-modality 对照与 full-data gate。
 - [ ] 同 split train/val 全量 cache、PPG-only 诊断、复用 M0 reference、M1 联合训练与缺失模态实验。
 - [ ] 事件指标、MAE、calibration、coverage 和 CPU/GPU 分开遥测。
 - [ ] 全套最终验证、README/handoff/实施计划更新与提交，保留现有分支/worktree。

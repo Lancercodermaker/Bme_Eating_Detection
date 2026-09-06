@@ -5,6 +5,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Sequence
 
+import numpy as np
 import yaml
 
 from .audit import audit_sensor_files
@@ -16,7 +17,8 @@ from .io import read_meal_intervals
 from .metrics import event_metrics
 from .splits import load_manifest, make_manifest_from_directories
 from .preprocess import apply_variant
-from .training import evaluate_predictions, fit_m0_cached, save_json
+from .ppg_cache import PPGCacheConfig, build_ppg_cache
+from .training import evaluate_predictions, fit_m0_cached, fit_m1_cached, save_json
 
 
 def _sensor_files(train_dir: Path, limit_files: int | None) -> list[Path]:
@@ -67,6 +69,14 @@ def _write_config(path: Path, payload: dict[str, object]) -> None:
     path.write_text(
         yaml.safe_dump(payload, allow_unicode=True, sort_keys=True), encoding="utf-8"
     )
+
+
+def _cache_timestamps(cache) -> np.ndarray:
+    """Load just one IMU reference grid for a corresponding PPG cache build."""
+    if cache.timestamps_ms is not None:
+        return np.asarray(cache.timestamps_ms)
+    with np.load(cache.cache_path, allow_pickle=False) as data:
+        return np.array(data["timestamps_ms"], copy=True)
 
 
 def run_toy_pipeline(output_dir: Path, seed: int = 7) -> dict[str, object]:
@@ -125,10 +135,34 @@ def _run_train(args: argparse.Namespace) -> int:
     output_dir = config.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
     config_payload = _config_payload(config, args)
+    model_name = str(config_payload.get("model", "m0_imu"))
+    if model_name not in {"m0_imu", "m1_imu_ppg"}:
+        raise ValueError("model must be m0_imu or m1_imu_ppg")
     preprocess_variant = str(config_payload.get("preprocess_variant", "p0_raw_mask"))
     config_payload["variant"] = apply_variant(
         preprocess_variant, raw_imu_channels=6, magnitude_channels=2, mask_channels=2
     )
+    if model_name == "m1_imu_ppg":
+        ppg_cache_dir = Path(
+            config_payload.get("ppg_cache_dir", config.cache_dir.parent / "m1_ppg")
+        )
+        config_payload.update(
+            {
+                "model": model_name,
+                "ppg_cache_dir": str(ppg_cache_dir),
+                "ppg_preprocess_variant": str(
+                    config_payload.get("ppg_preprocess_variant", "raw_mask")
+                ),
+                "ppg_flat_policy": str(
+                    config_payload.get("ppg_flat_policy", "reject_constant_stream")
+                ),
+                "model_mode": str(config_payload.get("model_mode", "fusion")),
+                "m1_embedding_dim": int(config_payload.get("m1_embedding_dim", 64)),
+                "m1_modality_dropout": float(
+                    config_payload.get("m1_modality_dropout", 0.25)
+                ),
+            }
+        )
     _write_config(output_dir / "config.yaml", config_payload)
     print(f"CONFIG_SAVED {output_dir / 'config.yaml'}")
 
@@ -197,27 +231,92 @@ def _run_train(args: argparse.Namespace) -> int:
             f"misses={sum(not cache.cache_hit for cache in caches)} windows={total_windows}"
         )
         print(
-            f"features shape=({total_windows},{caches[0].features.shape[0]},"
+            f"features shape=({total_windows},{caches[0].feature_channels},"
             f"{caches[0].window_indices[0, 1] - caches[0].window_indices[0, 0]})"
         )
-        result = fit_m0_cached(
-            caches=caches,
-            train_participants=train_participants,
-            val_participants=val_participants,
-            truth=truth_tuples,
-            output_dir=output_dir,
-            config_payload=config_payload,
-            split_manifest=manifest,
-            epochs=args.epochs,
-            batch_size=args.batch_size,
-            seed=config.seed,
-            iou_threshold=config.event_iou_threshold,
-            device_name=args.device,
-            cache_issues=issues,
-            min_quality_fraction=args.min_quality_fraction,
-            model_normalization=args.model_normalization,
-            model_pooling=args.model_pooling,
-        )
+        if model_name == "m1_imu_ppg":
+            ppg_config = PPGCacheConfig(
+                resample_hz=config.resample_hz,
+                max_gap_ms=config.max_gap_ms,
+                preprocess_variant=str(config_payload["ppg_preprocess_variant"]),
+                window_sec=config.window_sec,
+                step_sec=config.step_sec,
+                positive_overlap=config.label_positive_overlap,
+                boundary_mode=config.boundary_mode,
+                chunksize=config.chunksize,
+                max_rows=args.max_rows,
+                flat_policy=str(config_payload["ppg_flat_policy"]),
+            )
+            paired_imu_caches = []
+            ppg_caches = []
+            ppg_issues = []
+            for imu_cache in caches:
+                try:
+                    ppg_caches.append(
+                        build_ppg_cache(
+                            imu_cache.source_path,
+                            intervals.get(imu_cache.participant, []),
+                            Path(config_payload["ppg_cache_dir"]),
+                            ppg_config,
+                            reference_timestamps_ms=_cache_timestamps(imu_cache),
+                            lazy=True,
+                        )
+                    )
+                    paired_imu_caches.append(imu_cache)
+                except (OSError, ValueError) as exc:
+                    ppg_issues.append(
+                        {"path": str(imu_cache.source_path), "reason": str(exc)}
+                    )
+            save_json(output_dir / "ppg_input_issues.json", ppg_issues)
+            if not ppg_caches:
+                print("TRAIN_BLOCKED reason=no PPG caches were built")
+                return 2
+            ppg_windows = sum(len(cache.window_indices) for cache in ppg_caches)
+            print(
+                f"PPG_CACHE_SUMMARY files={len(ppg_caches)} "
+                f"hits={sum(cache.cache_hit for cache in ppg_caches)} "
+                f"misses={sum(not cache.cache_hit for cache in ppg_caches)} "
+                f"windows={ppg_windows}"
+            )
+            result = fit_m1_cached(
+                imu_caches=paired_imu_caches,
+                ppg_caches=ppg_caches,
+                train_participants=train_participants,
+                val_participants=val_participants,
+                truth=truth_tuples,
+                output_dir=output_dir,
+                config_payload=config_payload,
+                split_manifest=manifest,
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                seed=config.seed,
+                iou_threshold=config.event_iou_threshold,
+                device_name=args.device,
+                model_mode=str(config_payload["model_mode"]),
+                embedding_dim=int(config_payload["m1_embedding_dim"]),
+                modality_dropout=float(config_payload["m1_modality_dropout"]),
+                imu_cache_issues=issues,
+                ppg_cache_issues=ppg_issues,
+            )
+        else:
+            result = fit_m0_cached(
+                caches=caches,
+                train_participants=train_participants,
+                val_participants=val_participants,
+                truth=truth_tuples,
+                output_dir=output_dir,
+                config_payload=config_payload,
+                split_manifest=manifest,
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                seed=config.seed,
+                iou_threshold=config.event_iou_threshold,
+                device_name=args.device,
+                cache_issues=issues,
+                min_quality_fraction=args.min_quality_fraction,
+                model_normalization=args.model_normalization,
+                model_pooling=args.model_pooling,
+            )
     except ValueError as exc:
         print(f"TRAIN_BLOCKED reason={exc}")
         return 2
