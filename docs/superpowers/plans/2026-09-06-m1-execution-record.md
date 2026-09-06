@@ -109,7 +109,25 @@ M0 只读复评重新计算 TP/FP/FN=21/171/30，Precision=0.109375，Recall=0.4
 - [x] PPG cache 严格 TDD、数值/窗口/label 等价、原子写入和中断恢复验证、阶段提交。
 - [x] 独立 IMU/PPG encoder、显式 mask、安全 modality dropout，严格 TDD 与 CUDA 样例、阶段提交。
 - [x] 真实 PPG-only/fusion bounded sample、M0 reference、dropout 对照与 full-data gate。
-- [ ] 全量 PPG-only 与 fusion、缺失模态评估、完整指标报告。
-- [ ] 同 split train/val 全量 cache、PPG-only 诊断、复用 M0 reference、M1 联合训练与缺失模态实验。
-- [ ] 事件指标、MAE、calibration、coverage 和 CPU/GPU 分开遥测。
-- [ ] 全套最终验证、README/handoff/实施计划更新与提交，保留现有分支/worktree。
+- [x] 全量 PPG-only 与 fusion、缺失模态 coverage、完整指标报告。
+- [x] 同 split train/val 全量 cache、PPG-only 诊断、复用 M0 reference、M1 联合训练与训练期 modality dropout。
+- [x] 事件指标、MAE、calibration、coverage 和 CPU/GPU 分开遥测。
+- [x] 全套最终验证、README/handoff/实施计划更新与提交，保留现有分支/worktree。
+
+## Full-data compact PPG continuation（2026-09-06）
+
+事实：紧凑 PPG cache 修复在严格 TDD 下完成并提交为 `08d571a fix: guard oversized PPG cache allocation`。新增 compact miss、lazy hit reader-throw、batch 局部零数组回归；另修复无显式 M0 reference 时 `max_dense_samples` 未进入 cache key 的边界问题。专项 `48 passed`，全套代码测试 `131 passed`；三份 M1 YAML 均显式记录 `ppg_max_dense_samples: 1000000`。独立审查无 P0/P1。
+
+风险：超长 reference 的 compact 表示是保守的显式缺失 PPG，不是插值或外推；PPG-only 只是诊断；所有结果为同一冻结 split 的 3 epoch 单次 run，不能作为超参选择的稳健证明。
+
+选择：不删除已有 `cache/m1_ppg` 或 `artifacts/m1_ppg_only_full_e3`，在原 cache 上恢复完整 PPG-only，再用全 hit cache 运行 fusion；M0 保持只读，不读取/训练 test，不启动 M2/M3/M4。
+
+实验：
+
+- 目标 HNU21004 reference 长度 `23,645,128`，最终 `.npz` 为 `storage=all_missing_compact`，`timestamps_ms=[0]`、`features=[45,0]`、`quality_mask=[1,0]`、`window_indices=[315264,2]`，保留 reference SHA-256 `108929f8c6534c2afb69d22170dd1380cc58da61ffc52d1ec6106386a5fad1f4`。`cache/m1_ppg` 共 1,136 个文件；本次新增 compact 记录 87 个，旧记录保留。
+- PPG-only artifact `artifacts/m1_ppg_only_full_e3/`：3,578,835 windows（train/val=`2,985,246/593,589`），F1/P/R=`0.1792453/0.1180124/0.3725490`，start/end MAE=`839148.2/74066.6 ms`；binary Brier/ECE=`0.1670272/0.3231965`，soft=`0.1668948/0.3235527`；PPG cache `112 hit/1009 miss`、build/load=`1162.15/0.983 s`，training=`2953.12 s`。
+- Fusion artifact `artifacts/m1_fusion_full_e3/`：`modality_dropout=0.25`，F1/P/R=`0.1686747/0.1060606/0.4117647`，start/end MAE=`637874.6/79659.7 ms`；binary Brier/ECE=`0.2398206/0.3741050`，soft=`0.2398207/0.3744612`；IMU/PPG cache 均 `1121/1121 hit`，training=`3097.80 s`。
+- fusion val coverage：IMU=`272,759`、PPG=`248,689`、both=`248,689`、neither=`320,830` / `593,589` windows；PPG-only intentional IMU-missing val coverage：PPG=`248,689`、neither=`344,900`。M0 frozen reference F1=`0.1728395`，三份 split manifest SHA-256 均 `18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6`。
+- 资源/隔离：两次 full run 使用 CUDA；full fusion 训练 epoch 均值约 `1029.65 s`、峰值已分配显存约 `94.15 MB`；PPG-only epoch 均值约 `982.15 s`、峰值约 `89.07 MB`。原始数据 2,378 条 size/mtime 与 preflight 一致，test 未读取/训练，cache/artifact 保留。
+
+验收：full-data 运行已通过 CLI `TRAIN_SMOKE_PASS`；新鲜全套 `131 passed`、PPG cache/M1 专项 `48 passed`、compileall、diff check、CUDA smoke、lazy cache-hit、split equality、原始 metadata 2,378/2,378 未变、raw 未跟踪与 ignore 检查均通过。README、handoff、resume prompt 与本执行记录已更新，待文档原子提交。

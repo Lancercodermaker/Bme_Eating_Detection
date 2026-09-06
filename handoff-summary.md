@@ -1,5 +1,85 @@
 # 智能手表进食检测项目：新对话接续摘要
 
+## 2026-09-06 M1 交接（最新权威状态：全量结果与最终验证）
+
+本节覆盖下方旧版“全量运行资源门禁”状态；它是当前唯一权威状态。代码修复已完成并提交，full-data PPG-only 与 fusion 已完成；最终新鲜验证已全绿，当前只需提交本节记录。
+
+### 事实
+
+- worktree 为 `E:\bme_compitition\.worktrees\smartwatch-baseline`，分支为 `codex/smartwatch-eating-baseline`；仅使用项目解释器 `C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe`。紧凑 PPG cache 修复与测试/config 修改已原子提交为 `08d571a fix: guard oversized PPG cache allocation`；不合并、不 push。
+- 严格 TDD 已覆盖：compact miss；lazy compact cache-hit 在 PPG reader 抛错时仍不读 CSV；batch 只生成局部 `(45, window_length)` 零 PPG 与 `(IMU,PPG)=(1,0)` mask；未显式 M0 reference 时，`max_dense_samples` 也进入 cache key，避免阈值变化错误命中旧 dense cache。专项最终 `48 passed`，全套最终代码测试 `131 passed`；独立审查未发现 P0/P1。
+- 三份 M1 YAML 已显式记录 `ppg_max_dense_samples: 1000000`。超限 reference 使用 `storage=all_missing_compact`，保留 M0 reference/window/label/hash 对齐，不分配 `45×T` dense 数组。
+- 完整 PPG-only：`artifacts/m1_ppg_only_full_e3/`，3,578,835 windows（train 2,985,246 / val 593,589），F1=`0.1792453`，P=`0.1180124`，R=`0.3725490`，start/end MAE=`839148.2/74066.6 ms`；binary calibration Brier/ECE=`0.1670272/0.3231965`，soft=`0.1668948/0.3235527`。PPG cache 为 112 hit/1009 miss，build=`1162.15 s`，load=`0.983 s`；训练=`2953.12 s`，epoch 均值约=`982.15 s`。
+- 完整 fusion：`artifacts/m1_fusion_full_e3/`，同一 3,578,835 windows，`modality_dropout=0.25`，F1=`0.1686747`，P=`0.1060606`，R=`0.4117647`，start/end MAE=`637874.6/79659.7 ms`；binary calibration Brier/ECE=`0.2398206/0.3741050`，soft=`0.2398207/0.3744612`。IMU/PPG cache 均 1121/1121 hit；训练=`3097.80 s`，epoch 均值约=`1029.65 s`。
+- fusion 验证覆盖为 593,589 windows：IMU available=`272,759`，PPG available=`248,689`，both=`248,689`，neither=`320,830`；PPG-only 诊断显式将 IMU 全部置缺，验证 PPG available=`248,689`、neither=`344,900`。这些是 coverage 与 mask 证据，不是额外的 test 或独立反事实重训。
+- 冻结 M0 参照 `artifacts/m0_final_q50_group_e3/`：F1=`0.1728395`，P=`0.109375`，R=`0.4117647`，start/end MAE=`639946.0/71945.5 ms`。三套 split manifest SHA-256 均为 `18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6` 且 JSON 相等；test 未读取/训练，CLI 输出 `test_not_used=true`。
+- `cache/m1_ppg` 与 `artifacts/m1_ppg_only_full_e3` 未删除。PPG cache 当前共有 1,136 个 `.npz`；本次新 compact 记录 87 个。目标 HNU21004 reference 长度 23,645,128 的记录为 `all_missing_compact`，`features=[45,0]`、window indices=`[315264,2]`；既有旧 cache 记录均保留。
+- 原始数据只读复核：`artifacts/m1_preflight/source_metadata_before.json` 的 2,378 条 size/mtime 全部未变化；没有原始数据路径进入 Git。CUDA full runs 均使用 RTX 5060 Laptop，未启动 M2/M3/M4。
+
+### 风险、选择与验收
+
+- 风险：PPG-only 是诊断且 compact PPG 是显式缺失模态，不是从稀疏点外推；全量结果为冻结 split、3 epoch、单次 run，不能据此宣称 M1 已优于 M0。fusion 的缺失模态报告目前以真实 coverage、显式 mask 和训练 dropout 为主，未另造 test-like 反事实训练。
+- 选择：保留 full fusion 作为 M1 主结果，PPG-only 作为诊断，M0 作为只读参照；不重训 M0、不删除 cache/artifact、不追加 M1 超参搜索。
+- 最终验收已通过：全套 `131 passed`，PPG cache/M1 专项 `48 passed`，compileall、diff check、CUDA smoke、cache-hit/lazy 回归、split equality、原始 metadata、Git raw/ignore 检查均通过。下一步仅提交文档结果，保留本分支/worktree，不合并、不 push。
+
+## 2026-09-06 M1 交接（最新权威状态：全量运行资源门禁）
+
+本节覆盖紧随其后的旧版“2026-09-06 M1 交接”及所有更早历史材料。用户要求交接而非暂停或放弃 M1；新对话须保留以下未提交修改，并从其严格 TDD 验证继续。
+
+### Objective
+
+在既有 worktree 中完成 M1 的全量 PPG-only、冻结 M0 参照和融合训练；先让 PPG cache 在异常超长 IMU reference 上以安全、可验证的紧凑缺失模态表示恢复运行。不要重搜文献、重训 M0、创建 worktree、合并或 push。
+
+### Current Status
+
+- worktree：`E:\bme_compitition\.worktrees\smartwatch-baseline`；分支：`codex/smartwatch-eating-baseline`；HEAD：`174b82c docs: record M1 full-data gate`。当前修改**未提交**：本交接的 `handoff-summary.md` / `resume-prompt.txt`，以及 `src/eating_detection/{ppg_cache,dataset,training,cli}.py` 和 `tests/test_m1_data.py`；必须保留。
+- 已提交的 M1 链条：PPG parser/cache（`d05665f`、`47f2f41`、`d93f9e3`）、M1 core（`3d970f1`）、配对 cache（`b2bfdbc`）、缓存训练（`4d76501`）、CLI（`986e8d4`）、calibration（`5bedd93`）和 gate/documentation（`174b82c`）。此前全套测试 **127 passed**；这是紧凑修复之前的结果。
+- 两个真实 bounded CUDA 样例、M0-cache 参数/原始数据/ignore/CUDA 检查已经通过，但它们未覆盖异常长 reference。因此“输入/隔离门禁通过”不等于“全量 M1 可跑”。完整 PPG-only 首次运行在 PPG cache 构建期被系统终止，尚未产生训练 metrics/checkpoint；没有可报告的全量 M1 结果。
+- 失败文件为 `E:\bme_compitition\official_test_dataset\Data\02_traindataset\organized\HNU21004\sensorData-1784555315601-539a8c024e96427a98597987cd3ca1e6\collect_data0_1783594392_1784540197.txt`。对应 M0 cache `cache/m0_full\bc\bc2d886f22330793a591da026202dad502ec6b47de75c92ed2a3b26394bac65f.npz` 的 reference 长度为 23,645,128（约 262.7 小时）；原始文件仅有 109,380 个有效 PPG 行。既有 PPG builder 为此分配 44×T dense float32 waveform（峰值远超可用内存），进程无 Python traceback 地被终止。
+- 当前未提交的 TDD 修复新增 `PPGCacheConfig.max_dense_samples=1_000_000`：超限 reference 将保存完整 M0 window/label 契约与 reference SHA-256 metadata，但不写多 GB dense PPG；`storage='all_missing_compact'` 表示 PPG 显式不可用，paired dataset 以局部 `(45, window_length)` 零数组和 `(IMU, PPG)=(1,0)` mask 提供 batch。配对验证以 reference hash 而非空 timestamps 保持严格对齐；PPG train-only standardizer 跳过 compact cache；CLI 已传入此配置。
+- 该修复的首个 RED 已记录：新增 `test_paired_dataset_uses_compact_all_missing_ppg_cache_for_an_excessive_reference` 起初因缺少 `max_dense_samples` 失败。实现已写入但**尚未重新运行 GREEN、未独立审查、未提交**。配置 YAML 也尚未显式写入该新阈值（CLI 当前默认值可用）；应在验证后补齐以保证可复现。
+
+### Frozen Decisions
+
+- 原始数据只读且不进 Git；只使用 `artifacts/final_m0/split_manifest.json` 的 34 train / 8 val participant split；test 不参与训练、选择或缓存输入。
+- 复用 `cache/m0_full` 的 1,121 个冻结 IMU cache 和 M0 reference；PPG 仅写 `cache/m1_ppg`。不得重训/重建 M0，也不得修改 M0 parser/cache。
+- M1 为从头训练的独立 IMU/PPG GroupNorm encoder、embedding fusion、45-channel PPG（44 waveform + point quality）、显式 `(B,2)` modality mask 与安全 modality dropout；PPG-only 仅为诊断。保持 BCE logits、train-only statistics、soft/ignore 标签和严格 IoU>0.25 event metrics。
+- 紧凑 cache 是保守缺失模态，不从稀疏 PPG 猜测/外推数据；普通 reference 的既有 dense cache key 必须保持命中兼容。只有经 TDD、专项/全套测试、审查和原子提交后才能当作已验收实现。
+- 不 destructive Git、不新建/嵌套 worktree、不合并、不 push、不启动 M2/M3/M4；保留现有未提交内容。
+
+### Important Files
+
+- `E:\bme_compitition\.worktrees\smartwatch-baseline\resume-prompt.txt`：可粘贴的新对话 prompt。
+- `E:\bme_compitition\.worktrees\smartwatch-baseline\docs\superpowers\plans\2026-09-06-m1-execution-record.md`：已提交阶段和 bounded gate 的详细证据。
+- `E:\Codex\Home\attachments\17106c1a-dc79-42bc-b3e9-33b5b804fb95\pasted-text-1.txt`：原始完整任务和验收门禁。
+- `src/eating_detection/ppg_cache.py`、`dataset.py`、`training.py`、`cli.py`、`tests/test_m1_data.py`：当前未提交紧凑 cache TDD 的唯一工作面。
+- `configs/m1_imu_ppg.yaml`、`configs/experiments/m1_ppg_only.yaml`、`configs/experiments/m1_fusion_no_dropout.yaml`：验证后应显式记录 `ppg_max_dense_samples`。
+
+### Open Risks
+
+- 必须证明 lazy compact cache hit 不会读 CSV、不会加载/分配全量 45×T 数组，并且 reference hash、window/label 与 M0 cache 仍严格匹配；仅有当前 single-item miss 测试还不够。
+- compact files应只影响异常长 reference；普通缓存 key/hit 与既有 127-test 行为不能回归。若所有 train PPG 都 compact，standardizer 必须 fail closed 而不是悄悄拟合 placeholder zeros。
+- 完整运行已在第一个超长文件处终止，修复后必须用原 full 命令恢复现有 `cache/m1_ppg` / `artifacts/m1_ppg_only_full_e3`，先取得真正完整 PPG-only，再运行 fusion；不要删除已生成 cache/artifact 以“重来”。
+
+### Next Step
+
+先只读检查 status/HEAD/diff，然后用项目解释器运行新增 compact 单测；从该 RED→GREEN 链条继续。补一个强制 lazy cache-hit（reader 抛错）和 batch 取数不分配 dense 全轴的回归，再执行 PPG cache/M1 data/训练相关测试、全套 pytest、compileall、diff 检查与 CUDA smoke，审查后原子提交。通过后，恢复下列完整 PPG-only 命令并监控 memory/cache 进度：
+
+```powershell
+$taskPython='C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe'
+$dataRoot='E:\bme_compitition\official_test_dataset\Data'
+& $taskPython -m eating_detection.cli train `
+  --config configs/experiments/m1_ppg_only.yaml `
+  --data-root $dataRoot `
+  --index-dir (Join-Path $dataRoot '01_dataset') `
+  --train-dir (Join-Path $dataRoot '02_traindataset') `
+  --output-dir artifacts/m1_ppg_only_full_e3 `
+  --split-manifest artifacts/final_m0/split_manifest.json `
+  --epochs 3 --batch-size 64 --device cuda
+```
+
+预期交付物是：已提交、可恢复的紧凑 cache 修复；完整 PPG-only 的真实输出；随后 cache-hit fusion 完整输出与同 split M0/PPG-only/fusion 的明确比较。若发现具体矛盾，简述后采用最小安全假设继续，不重新开展广泛探索。
+
 ## 2026-09-06 M1 交接（当前权威状态）
 
 本节覆盖下方所有“未授权 M1 / M1 尚未开始”的历史描述。用户已明确授权完整推进 M1；本次在用户要求交接后暂停，不代表 M1 完成。

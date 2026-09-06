@@ -1,30 +1,17 @@
-Use executing-plans, using-git-worktrees, test-driven-development, systematic-debugging, verification-before-completion. 完成后使用 finishing-a-development-branch。
+Use `executing-plans`, `test-driven-development`, `systematic-debugging`, and `verification-before-completion`.
 
-请继续智能手表进食检测项目当前未完成的 M1。M1 已获明确授权，不需要再次询问是否启动，不重新搜索文献，不重训 M0。
+请继续智能手表进食检测项目的未完成 M1。先完整读取并以 `E:\bme_compitition\.worktrees\smartwatch-baseline\handoff-summary.md` 顶部“2026-09-06 M1 交接（最新权威状态：全量运行资源门禁）”为唯一当前权威状态；再读取：
 
-首先完整读取以下文件，以 handoff-summary.md 顶部“2026-09-06 M1 交接”为当前权威状态：
-1. E:\bme_compitition\.worktrees\smartwatch-baseline\handoff-summary.md
-2. E:\Codex\Home\attachments\17106c1a-dc79-42bc-b3e9-33b5b804fb95\pasted-text-1.txt（本轮原始完整任务和全部门禁）
-3. E:\bme_compitition\.worktrees\smartwatch-baseline\docs\superpowers\plans\2026-09-06-m1-execution-record.md
-4. E:\bme_compitition\.worktrees\smartwatch-baseline\docs\superpowers\specs\2026-08-31-smartwatch-eating-detection-baseline-design.md
-5. E:\bme_compitition\.worktrees\smartwatch-baseline\docs\superpowers\plans\2026-09-01-smartwatch-eating-detection-implementation-plan.md
-6. E:\bme_compitition\.worktrees\smartwatch-baseline\README.md
+1. `E:\Codex\Home\attachments\17106c1a-dc79-42bc-b3e9-33b5b804fb95\pasted-text-1.txt`
+2. `E:\bme_compitition\.worktrees\smartwatch-baseline\docs\superpowers\plans\2026-09-06-m1-execution-record.md`
+3. `E:\bme_compitition\.worktrees\smartwatch-baseline\docs\superpowers\specs\2026-08-31-smartwatch-eating-detection-baseline-design.md`
+4. `E:\bme_compitition\.worktrees\smartwatch-baseline\docs\superpowers\plans\2026-09-01-smartwatch-eating-detection-implementation-plan.md`
+5. `E:\bme_compitition\.worktrees\smartwatch-baseline\README.md`
 
-必须使用现有 worktree：E:\bme_compitition\.worktrees\smartwatch-baseline
-分支：codex/smartwatch-eating-baseline
-交接HEAD：47f2f41（前一提交d05665f，M0起点7c7d2ee）。
-Python：C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe
+仅使用现有 worktree `E:\bme_compitition\.worktrees\smartwatch-baseline`、分支 `codex/smartwatch-eating-baseline`、项目解释器 `C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe`。当前紧凑 PPG cache 修复已提交为 `08d571a`；先只读检查 status/HEAD/diff，保留未提交文档修改。
 
-先中文汇报，然后只读检查Git状态/HEAD，保留全部未提交工作。
-已完成：preflight、独立PPG-only parser的TDD及规格/质量审查、两个真实文件2000行新旧等价检查、M0冻结概率只读复评。
-已完成 PPG cache：独立规格/质量审查、两个真实文件 2,000 行 bounded miss/hit、禁止 CSV 的 lazy hit、M0 冻结概率只读回归以及阶段原子提交 `d93f9e3`。默认精确常量 PPG 流为无效（`flat_policy='keep'` 显式回退）；无效输入经抗混叠影响的输出会置零并标无效。已完成并提交 M1 模型核心 `3d970f1`：独立 GroupNorm encoder、45 channel PPG quality 输入、显式 modality mask、安全 dropout、BCE logits backward、CUDA batch 与严格 M0 transfer refusal。M1专项8 passed；全套118 passed；compileall与CUDA smoke通过。已完成待提交 paired Dataset/PPG standardizer、cache-hit M1 batch loop、calibration 与 CLI/config：source/participant/timestamp/window/label/loss mask 硬配对（lazy仍验证timestamps），quality→`(B,2)` modality mask，train-only IMU/PPG statistics+`pos_weight`，`ppg_only`/fusion，cache/GPU/coverage/calibration/事件报告。真实两文件30,000行 PPG-only、fusion(.25) 和 no-dropout fusion CUDA 均通过，后二者IMU/PPG 2/2 cache hit；全套127 passed。full-data gate 已通过：原始2378文件size/mtime（校正记录的统一5小时偏移）零变化、raw零跟踪、生成物已忽略。M1 YAML 已切至参数完全一致的既有 `cache/m0_full`（1121 file）以复用M0 reference，不重建IMU cache；PPG独立写`cache/m1_ppg`。
+当前目标：完成 full-data M1 的最终验收与文档交接。`HNU21004/.../collect_data0_1783594392_1784540197.txt` 的 23,645,128 点 M0 reference 已安全表示为 `all_missing_compact`；实现保留严格 M0 reference/window/label/hash 对齐，在 batch 中只产生局部零 PPG 与显式 `(IMU,PPG)=(1,0)` modality mask。代码已 GREEN、审查并提交。
 
-立即下一步：按冻结顺序启动完整 PPG-only，复用既有冻结 M0 reference，再完整 fusion；报告缺失模态/dropout对照。不要重建IMU cache、不要重训M0、不要读取test、不要重写已有parser/PPG cache/模型核心。
+已完成 full PPG-only 与 full fusion：PPG-only F1=`0.1792453`，fusion F1=`0.1686747`，M0 F1=`0.1728395`；三者使用同一 split manifest。最终新鲜验证已通过：全套 `131 passed`、专项 `48 passed`、compileall、diff check、CUDA smoke、cache-hit/lazy、split/raw/Git/ignore 检查均通过。仅需提交文档结果；不要删除已有 cache/artifact。
 
-随后按原附件顺序完成：独立IMU/PPG encoder的特征融合、显式quality/modality mask和安全modality dropout、从头联合训练、BCEWithLogitsLoss/CUDA sample、训练集标准化与pos_weight、同split的PPG-only诊断→复用M0 reference→M1融合与缺模态对照，门禁全部通过才完整运行train/val。M1模型和训练集成目前尚未开始，尚无M1实验指标。
-
-冻结约束：复用artifacts/final_m0/split_manifest.json（34 train/8 val，954/201文件）；test不得参与训练或选择；soft返回真实overlap ratio，ignore语义不变，训练标签阈值与事件IoU阈值不混用；事件匹配严格IoU>0.25并报告P/R/F1、start/end MAE、calibration、coverage与participant波动。CPU预处理/cache与CUDA模型时间分开，训练验证batch化。独立PPG cache，不改IMU cache；不加载外部PPG任务权重；M0迁移仅严格结构兼容时单独消融。
-
-每阶段中文汇报“事实→风险→候选方案→验收标准→选择→实验结果”；严格TDD和原子提交。库API必须Context7先resolve再query。原始数据只读，不加入Git；cache/权重/实验输出必须忽略；不新建嵌套worktree、不destructive git、不合并、不push、不启动M2/M3/M4。
-
-最后执行原附件最终验证清单，更新README、handoff和implementation plan。使用finishing-a-development-branch只报告集成选项，默认保留当前分支和worktree。
+冻结约束：不重搜文献、不重训 M0、不重建 `cache/m0_full`、不读取/训练 test、不新建 worktree、不 destructive Git、不合并、不 push、不启动 M2/M3/M4。原始数据只读且不进 Git；使用 `artifacts/final_m0/split_manifest.json`；PPG-only 只是诊断；M1 保持独立 encoder、显式 mask、BCE logits、train-only statistics、soft/ignore 和严格 IoU>0.25。每阶段中文汇报“事实→风险→候选→验收标准→选择→实验结果”。
