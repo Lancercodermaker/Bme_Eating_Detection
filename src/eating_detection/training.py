@@ -48,6 +48,55 @@ def compute_pos_weight(labels) -> float:
     return negatives / positives
 
 
+def resolve_m1_pos_weight(loss_mode: str, global_pos_weight: float) -> float:
+    """Resolve the scalar weight used by M1's non-stratified BCE modes."""
+    if loss_mode not in {
+        "global_bce",
+        "availability_stratified_bce",
+        "unweighted_bce",
+        "focal_bce",
+    }:
+        raise ValueError(
+            "m1_loss_mode must be global_bce, availability_stratified_bce, unweighted_bce, or focal_bce"
+        )
+    if not np.isfinite(global_pos_weight) or global_pos_weight < 0:
+        raise ValueError("global_pos_weight must be finite and non-negative")
+    return 1.0 if loss_mode == "unweighted_bce" else float(global_pos_weight)
+
+
+def m1_bce_loss(
+    logits: torch.Tensor,
+    targets: torch.Tensor,
+    pos_weight: float | torch.Tensor,
+    loss_mode: str = "global_bce",
+    focal_gamma: float = 2.0,
+) -> torch.Tensor:
+    """Compute the M1 BCE-logit loss, optionally focusing hard examples."""
+    if loss_mode not in {
+        "global_bce",
+        "availability_stratified_bce",
+        "unweighted_bce",
+        "focal_bce",
+    }:
+        raise ValueError(f"unsupported M1 loss mode: {loss_mode}")
+    if focal_gamma < 0 or not np.isfinite(focal_gamma):
+        raise ValueError("focal_gamma must be finite and non-negative")
+    targets = targets.to(device=logits.device, dtype=logits.dtype)
+    pos_weight_tensor = torch.as_tensor(
+        pos_weight, dtype=logits.dtype, device=logits.device
+    )
+    unweighted = torch.nn.functional.binary_cross_entropy_with_logits(
+        logits, targets, reduction="none"
+    )
+    weighted = torch.nn.functional.binary_cross_entropy_with_logits(
+        logits, targets, pos_weight=pos_weight_tensor, reduction="none"
+    )
+    if loss_mode != "focal_bce":
+        return weighted.mean()
+    focal_factor = torch.pow(1.0 - torch.exp(-unweighted), focal_gamma)
+    return (focal_factor * weighted).mean()
+
+
 _M1_MODALITY_STRATA = ("both", "imu_only", "ppg_only", "neither")
 
 
@@ -134,6 +183,8 @@ def train_m1_one_batch(
     modality_mask: torch.Tensor,
     y: torch.Tensor,
     pos_weight: float | torch.Tensor,
+    loss_mode: str = "global_bce",
+    focal_gamma: float = 2.0,
 ) -> float:
     """Run one M1 joint-fusion update on logits and labels in [0, 1]."""
     if y.ndim != 1 or imu.ndim != 3 or ppg.ndim != 3 or len(imu) != len(y):
@@ -143,11 +194,12 @@ def train_m1_one_batch(
     model.train()
     optimizer.zero_grad(set_to_none=True)
     logits = model(imu, ppg, modality_mask)
-    pos_weight_tensor = torch.as_tensor(
-        pos_weight, dtype=logits.dtype, device=logits.device
-    )
-    loss = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)(
-        logits, y.to(device=logits.device, dtype=logits.dtype)
+    loss = m1_bce_loss(
+        logits,
+        y,
+        pos_weight=pos_weight,
+        loss_mode=loss_mode,
+        focal_gamma=focal_gamma,
     )
     loss.backward()
     optimizer.step()
@@ -596,15 +648,15 @@ def fit_m1_cached(
     train_labels = [
         train_dataset.label_for_index(index) for index in range(len(train_dataset))
     ]
-    pos_weight = compute_pos_weight(train_labels)
+    global_pos_weight = compute_pos_weight(train_labels)
     loss_mode = str(config_payload.get("m1_loss_mode", "global_bce"))
-    if loss_mode not in {"global_bce", "availability_stratified_bce"}:
-        raise ValueError("m1_loss_mode must be global_bce or availability_stratified_bce")
+    pos_weight = resolve_m1_pos_weight(loss_mode, global_pos_weight)
+    focal_gamma = float(config_payload.get("m1_focal_gamma", 2.0))
     availability_pos_weights = None
     if loss_mode == "availability_stratified_bce":
         train_modality_masks = _m1_dataset_modality_masks(train_dataset, model_mode)
         availability_pos_weights = compute_m1_stratum_pos_weights(
-            train_labels, train_modality_masks, max_pos_weight=pos_weight
+            train_labels, train_modality_masks, max_pos_weight=global_pos_weight
         )
     device = _resolve_device(device_name)
     model = IMUPPGFusion(
@@ -674,7 +726,15 @@ def fit_m1_cached(
             )
             losses.append(
                 train_m1_one_batch(
-                    model, optimizer, imu, ppg, modality_mask, targets, batch_pos_weight
+                    model,
+                    optimizer,
+                    imu,
+                    ppg,
+                    modality_mask,
+                    targets,
+                    batch_pos_weight,
+                    loss_mode=loss_mode,
+                    focal_gamma=focal_gamma,
                 )
             )
         _synchronize(device)
@@ -713,7 +773,9 @@ def fit_m1_cached(
             "embedding_dim": embedding_dim,
             "modality_dropout": modality_dropout,
             "pos_weight": pos_weight,
+            "global_pos_weight": global_pos_weight,
             "loss_mode": loss_mode,
+            "focal_gamma": focal_gamma if loss_mode == "focal_bce" else None,
             "availability_pos_weight": availability_pos_weights,
             "participant_f1_mean": float(np.mean(f1_values)) if f1_values else 0.0,
             "participant_f1_std": float(np.std(f1_values)) if f1_values else 0.0,

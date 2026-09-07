@@ -1,5 +1,77 @@
 # 智能手表进食检测项目：新对话接续摘要
 
+## 2026-09-07 M1 focal-BCE 复验（候选淘汰；M2 gate 仍 false）
+
+本节为当前最新实验状态。严格使用 frozen train/validation split、`cache/m0_full`、`cache/m1_ppg`，未读取 test、未重训 M0、未创建或运行 M2。
+
+### 事实
+
+- 起始 HEAD=`ca25dd8d0d1cd5215511ba9e8177f5e75dc09fa2`；固定 worktree=`E:\bme_compitition\.worktrees\smartwatch-baseline`、branch=`codex/smartwatch-eating-baseline`、interpreter=`C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe`；frozen split SHA-256=`18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6`。
+- 在淘汰 mask-detached 与 unweighted BCE 后，只选择 focal BCE（`gamma=2`）hard-example 方向：恢复原 M1 fusion 结构，保持 global train-only `pos_weight`、BCE-with-logits 和原 decoder，不叠加 mask、unweighted prior 或 M2 context。
+- TDD RED→GREEN 新增 focal loss 回归；专项 M1=`25 passed`，全套=`136 passed`。
+- full frozen run=`artifacts/m1_fusion_focal_bce_e1/`，IMU/PPG cache 均=`1121/1121 hit`，windows=`3,578,835`，3 epoch CUDA，`test_not_used=true`；epoch loss=`0.2606277/0.2493275/0.2484702`，训练 `pos_weight=35.1769069`。
+- independent error analysis=`artifacts/experiments/m1_fusion_focal_bce_e1/error_analysis.json`：TP/FP/FN=`18/449/33`，Precision/Recall/F1=`0.0385439/0.3529412/0.0694981`，participant F1 mean/std/worst=`0.0592277/0.0352845/0`，start/end MAE=`551510.5/909179.6 ms`。
+- FP duration median/p90/max=`1011000/4610400/62364000 ms`，window count median/p90=`332/1532.6`；短暂 FP=`13/449=2.89532%`。modality predicted-positive rate 为 imu-only=`92.2435%`、both=`99.0695%`、neither=`100%`；binary/soft Brier/ECE=`0.1752940/0.3781672`、`0.1751920/0.3785234`。
+
+### 风险、候选与验收标准
+
+- focal BCE 未抑制长 FP，且使 `neither` 回到全正 shortcut；F1 低于 e2=`0.1170732` 和原 M1=`0.1686747`，候选淘汰。
+- M2 gate=`false`：short-FP dominance=`false`（`2.89532% < 50%`）、Recall=`35.2941% < 50%`、context support=`false`。M3/M4 仍无证据支持。
+- 三轮独立 M1 remediation（mask-detached、unweighted BCE、focal BCE）均在同一 frozen validation 上失败；剩余主因仍是 availability-dependent long FP 与不可观测/低质量窗口，不能以解释调整启动 M2。
+
+### 选择与交付
+
+- 选择：淘汰 focal BCE，保留原已验证 M1/M0 artifacts 作为比较基线；不创建 `context_model.py`、`m2_context.yaml`、M2 测试或训练输出。
+- 交付物：`src/eating_detection/training.py`、`tests/test_m1_fusion.py`、`configs/experiments/m1_focal_bce.yaml` 与对应 full/error-analysis artifacts 均保留证据；最终 active M1 方向不宣称为成功。
+
+## 2026-09-06 M1 probability-prior 复验（unweighted BCE 淘汰；仍不启动 M2）
+
+本节为当前最新实验状态。严格使用 frozen train/validation split、`cache/m0_full`、`cache/m1_ppg`，未读取 test、未重训 M0、未创建或运行 M2。
+
+### 事实
+
+- 起始 HEAD=`ca25dd8d0d1cd5215511ba9e8177f5e75dc09fa2`；固定 worktree=`E:\bme_compitition\.worktrees\smartwatch-baseline`、branch=`codex/smartwatch-eating-baseline`、interpreter=`C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe`；frozen split SHA-256=`18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6`。
+- 在 mask-detached 候选淘汰后，恢复原 M1 fusion 结构，只选择 probability-prior 候选 `unweighted_bce`：训练实际 `pos_weight=1.0`，不改变 mask、decoder、cache 或 split。
+- TDD RED→GREEN 新增 `resolve_m1_pos_weight`；专项 M1=`24 passed`，全套=`135 passed`。
+- full frozen run=`artifacts/m1_fusion_unweighted_bce_e1/`，IMU/PPG cache 均=`1121/1121 hit`，windows=`3,578,835`，3 epoch CUDA，`test_not_used=true`；epoch loss=`0.1138238/0.0967036/0.0961197`。
+- independent error analysis=`artifacts/experiments/m1_fusion_unweighted_bce_e1/error_analysis.json`：TP/FP/FN=`8/440/43`，Precision/Recall/F1=`0.0178571/0.1568627/0.0320641`，participant F1 mean/std/worst=`0.0370053/0.0515354/0`，start/end MAE=`122452.4/279976.8 ms`。
+- FP duration median/p90/max=`24000/57300/588000 ms`，window count median/p90=`4/12`；短暂 FP=`168/440=38.1818%`，仍低于 50%。modality predicted-positive rate 为 imu-only=`0.1205%`、both=`1.5642%`、neither=`0%`；binary/soft Brier/ECE=`0.0227145/0.0335808`、`0.0223347/0.0339358`。
+
+### 风险、候选与验收标准
+
+- unweighted BCE 降低了概率先验和 calibration gap，但把 positive-event Recall 降至=`15.6863%`，F1 远低于 e2=`0.1170732` 和原 M1=`0.1686747`；候选淘汰。
+- M2 gate=`false`：short-FP dominance=`false`（`38.1818% < 50%`）、Recall=`15.6863% < 50%`、context support=`false`。M3/M4 仍无证据支持。
+- 下一单一 M1 候选为 focal BCE：保持原 M1 fusion 结构、global train-only `pos_weight`、BCE-with-logits 数值契约和原 decoder，仅以固定 `gamma=2` 聚焦高损失 hard examples，针对长连续 FP；不叠加 mask-detached、unweighted prior、decoder 或 M2 context。
+
+### 选择与交付
+
+- 选择：淘汰 `unweighted_bce`，继续 M1；不创建 `context_model.py`、`m2_context.yaml`、M2 测试或训练输出。
+- 交付物：`src/eating_detection/training.py`、`tests/test_m1_fusion.py`、`configs/experiments/m1_unweighted_bce.yaml` 的 TDD/实验记录保留；下一轮只验证 focal BCE 候选。
+
+## 2026-09-06 M1 remediation 复验（mask-detached 候选淘汰；仍不启动 M2）
+
+本节为当前最新实验状态。严格使用 frozen train/validation split、`cache/m0_full`、`cache/m1_ppg`，未读取 test、未重训 M0、未创建或运行 M2。
+
+### 事实
+
+- 起始 HEAD=`ca25dd8d0d1cd5215511ba9e8177f5e75dc09fa2`，worktree=`E:\bme_compitition\.worktrees\smartwatch-baseline`，分支=`codex/smartwatch-eating-baseline`；解释器固定为 `C:\Users\Fancy\anaconda3\envs\smartwatch-eating\python.exe`。frozen split SHA-256=`18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6`。
+- systematic debugging 已从 e2 checkpoint 确认原始 mask shortcut：e2 classifier 的 raw mask 权重为 `+2.2778/+1.3741`，embedding 权重绝对最大值仅 `0.1401`，gate mask-column norm=`2.4065/0.6539`。因此选择单一 `mask-detached fusion` 候选：mask 只用于屏蔽不可用分支和 modality dropout，不直接进入 gate/head；loss 保持 `global_bce`，不叠加 availability-stratified loss 或 decoder 改动。
+- TDD RED→GREEN：新增 `test_m1_does_not_feed_availability_mask_directly_to_gate_or_head`；专项 M1=`24 passed`，全套=`135 passed`。
+- full frozen run=`artifacts/m1_fusion_mask_detached_e1/`，IMU/PPG cache 均=`1121/1121 hit`，windows=`3,578,835`，3 epoch CUDA，`test_not_used=true`。epoch loss=`1.0912253/1.2472622/1.2804524`，训练与验证流程完成。
+- independent error analysis=`artifacts/experiments/m1_fusion_mask_detached_e1/error_analysis.json`：TP/FP/FN=`32/710/19`，Precision/Recall/F1=`0.0431267/0.6274510/0.0807062`，participant F1 mean/std/worst=`0.0685150/0.0372385/0`，start/end MAE=`462503.5/126226.8 ms`。
+- 710 个 FP 仍为长连续误报：duration median/p90/max=`289500/2795702.9/13966995 ms`，window count median/p90=`88/919`，按≤30 s 且≤2窗口仅=`26/710=3.66197%`。modality strata 仍显示 both predicted-positive rate=`92.3583%`、neither=`0%`；binary/soft calibration Brier/ECE=`0.1628703/0.3486755`、`0.1627916/0.3490317`。
+
+### 风险、候选与验收标准
+
+- mask-detached 取消了直接 mask 特征，但未消除 availability-dependent probability prior，且 F1 比 e2=`0.1170732` 更低；该候选明确淘汰，不作为 active M1 方向。
+- M2 gate=`false`：short-FP dominance=`false`（`3.66197% < 50%`），positive-event Recall=`62.7451%` 已满足，但 context support=`false`；M3/M4 仍无证据支持。不能以 Recall 单项满足强行启动 M2。
+- 下一单一 M1 候选为概率先验方向：回到原 M1 fusion 结构，仅将训练 loss 的 class-prior weighting 设为 unweighted BCE（`pos_weight=1`），以检验高 weighted-BCE prior 是否为剩余长 FP 的可分离根因。不得同时保留 mask-detached 结构作为该候选的修复变量。
+
+### 选择与交付
+
+- 选择：淘汰 `mask-detached fusion`，继续 M1；不创建 `context_model.py`、`m2_context.yaml`、M2 测试或训练输出。
+- 交付物：`src/eating_detection/models.py` 与 `tests/test_m1_fusion.py` 的 RED→GREEN 记录保留在当前工作面；full run 和 error analysis artifact 均保留。下一轮将以 TDD 实现并验证单一 unweighted-BCE 候选。
+
 ## 2026-09-06 M1 remediation 交接（最新权威状态：capped availability loss 后仍不启动 M2）
 
 本节覆盖下方旧版 M1 error-analysis gate；它是当前关于 remediation 和高级方向选择的唯一权威节。严格只使用 frozen train/validation artifacts，未读取竞赛 test participant/data，未重训 M0、未重建 `cache/m0_full`，未创建或运行 M2。

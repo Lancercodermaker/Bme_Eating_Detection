@@ -8,7 +8,9 @@ from eating_detection.models import (
 )
 from eating_detection.training import (
     compute_m1_stratum_pos_weights,
+    m1_bce_loss,
     m1_stratum_pos_weight_tensor,
+    resolve_m1_pos_weight,
     train_m1_one_batch,
 )
 
@@ -130,6 +132,23 @@ def test_m1_stratum_weights_use_train_labels_without_availability_shortcut():
         rare_labels, rare_mask, max_pos_weight=5.0
     )
     assert capped["neither"] == 5.0
+
+
+def test_m1_unweighted_bce_removes_global_class_prior_from_training_weight():
+    assert resolve_m1_pos_weight("unweighted_bce", 35.17690685668581) == 1.0
+    assert resolve_m1_pos_weight("global_bce", 35.17690685668581) == 35.17690685668581
+
+
+def test_m1_focal_bce_downweights_confident_examples():
+    logits = torch.tensor([6.0, -6.0])
+    targets = torch.tensor([1.0, 0.0])
+
+    bce = m1_bce_loss(logits, targets, pos_weight=35.1769, loss_mode="global_bce")
+    focal = m1_bce_loss(
+        logits, targets, pos_weight=35.1769, loss_mode="focal_bce", focal_gamma=2.0
+    )
+
+    assert focal < bce
 
 
 def test_m1_cuda_forward_backward_sample():

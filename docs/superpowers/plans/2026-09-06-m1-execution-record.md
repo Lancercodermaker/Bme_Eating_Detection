@@ -1,5 +1,61 @@
 # M1 执行与门禁记录
 
+## M1 focal-BCE remediation 复验（2026-09-07，候选淘汰）
+
+### 事实
+
+- 起始 HEAD=`ca25dd8d0d1cd5215511ba9e8177f5e75dc09fa2`；固定 worktree/branch/interpreter/split 与前轮一致，未读取 test、未重训 M0、未创建或运行 M2。
+- 只选择 focal BCE（`gamma=2`）hard-example 方向：原 M1 fusion 结构、global train-only `pos_weight`、BCE logits、原 decoder 均保持不变。
+- TDD RED→GREEN 后专项 M1=`25 passed`、全套=`136 passed`。full run=`artifacts/m1_fusion_focal_bce_e1/`，IMU/PPG cache=`1121/1121 hit`，3 epoch CUDA，`test_not_used=true`。
+- error analysis=`artifacts/experiments/m1_fusion_focal_bce_e1/error_analysis.json`：TP/FP/FN=`18/449/33`，P/R/F1=`0.0385439/0.3529412/0.0694981`，participant mean/std/worst=`0.0592277/0.0352845/0`，start/end MAE=`551510.5/909179.6 ms`；short FP=`13/449=2.89532%`。
+
+### 风险、候选、验收标准、选择
+
+- focal BCE 未解决 long FP，并使 `neither` predicted-positive rate=`1.0`；候选淘汰。
+- M2 gate=`false`：short dominance=`false`、Recall=`35.2941%`、context=`false`；M3/M4=`false`。
+- mask-detached、unweighted BCE、focal BCE 三轮 M1 remediation 均未通过 gate；不再以失败候选强行创建 M2，保留 evidence 并回到用户可审阅的 no-M2 状态。
+
+### 实验结果
+
+- focal artifact 作为失败证据保留；最终验证完成后原子提交一次，不合并、不 push。
+
+## M1 probability-prior remediation 复验（2026-09-06，unweighted BCE 淘汰）
+
+### 事实
+
+- 起始 HEAD=`ca25dd8d0d1cd5215511ba9e8177f5e75dc09fa2`；固定 worktree/branch/interpreter/split 与前轮一致，未读取 test、未重训 M0、未创建或运行 M2。
+- 恢复原 M1 fusion 结构，只选择 `unweighted_bce` 概率先验候选；实际训练 `pos_weight=1.0`，保留 frozen cache、BCE logits、原 decoder。
+- TDD RED→GREEN 后专项 M1=`24 passed`、全套=`135 passed`。full run=`artifacts/m1_fusion_unweighted_bce_e1/`，IMU/PPG cache=`1121/1121 hit`，3 epoch CUDA，`test_not_used=true`。
+- error analysis=`artifacts/experiments/m1_fusion_unweighted_bce_e1/error_analysis.json`：TP/FP/FN=`8/440/43`，P/R/F1=`0.0178571/0.1568627/0.0320641`，participant mean/std/worst=`0.0370053/0.0515354/0`，start/end MAE=`122452.4/279976.8 ms`；short FP=`168/440=38.1818%`。
+
+### 风险、候选、验收标准、选择
+
+- unweighted BCE 的 calibration 改善不能弥补 Recall 崩溃；候选淘汰，M2 gate=`false`（short dominance=`false`、Recall=`false`、context=`false`）。
+- 下一轮只选择 focal BCE（固定 `gamma=2`，保留 global train-only `pos_weight` 和原 M1 fusion/decoder），针对长连续 FP 的 hard-example 证据；不叠加 mask、unweighted prior 或 M2。
+
+### 实验结果
+
+- unweighted artifact 作为失败证据保留；仍不创建或配置 M2。
+
+## M1 mask-detached remediation 复验（2026-09-06，候选淘汰）
+
+### 事实
+
+- 起始 HEAD=`ca25dd8d0d1cd5215511ba9e8177f5e75dc09fa2`；固定 worktree/branch/interpreter/split 与上一轮一致，未读取 test、未重训 M0、未创建或运行 M2。
+- systematic debugging 从 e2 checkpoint 追踪到 raw availability mask 直接进入 `IMUPPGFusion.gate` 与 `head`：e2 head mask weights=`+2.2778/+1.3741`，embedding weight max abs=`0.1401`；因此只选择 mask-detached 这一 M1 方向，保持 global BCE、原 decoder 和 frozen cache 不变。
+- TDD RED→GREEN 后专项 M1=`24 passed`、全套=`135 passed`。full run=`artifacts/m1_fusion_mask_detached_e1/`，IMU/PPG cache=`1121/1121 hit`，3 epoch CUDA，`test_not_used=true`。
+- independent error analysis=`artifacts/experiments/m1_fusion_mask_detached_e1/error_analysis.json`：TP/FP/FN=`32/710/19`，P/R/F1=`0.0431267/0.6274510/0.0807062`，participant mean/std/worst=`0.0685150/0.0372385/0`，start/end MAE=`462503.5/126226.8 ms`；FP duration median/p90/max=`289500/2795702.9/13966995 ms`，window median/p90=`88/919`，short FP=`26/710=3.66197%`。
+
+### 风险、候选、验收标准、选择
+
+- mask-detached 后 both predicted-positive rate 仍=`92.3583%`、neither=`0%`，且 F1 低于 e2=`0.1170732`；说明仅移除 raw mask 输入不足，候选淘汰。
+- M2 gate=`false`：short-FP dominance=`false`，Recall=`62.7451%` 虽超过 50%，context support=`false`；M3/M4=`false`。
+- 下一轮只选择 unweighted BCE probability-prior 候选（恢复原 M1 fusion 结构，`pos_weight=1`），不与 mask-detached、availability-stratified loss 或 decoder 改动叠加。
+
+### 实验结果
+
+- 新增代码/测试在下一轮前不视为验收；本候选 artifact 作为失败证据保留。仍不创建或配置 M2。
+
 用户于 2026-09-06 明确授权启动 M1；旧文档的“等待授权”状态由此覆盖。
 仅使用现有 `codex/smartwatch-eating-baseline` worktree，不合并、不 push、不启动 M2/M3/M4。
 
