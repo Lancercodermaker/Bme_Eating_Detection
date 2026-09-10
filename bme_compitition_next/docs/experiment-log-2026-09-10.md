@@ -47,5 +47,6 @@
 - 同一 local cache 提高 candidate/verifier 预算到 100 iter 后最终 F1 降为 `0`，虽然 candidate coverage 仍为 `0.50`；verifier 过滤掉了低预算下的唯一 TP。这是 participant-frozen 过拟合/校准 failure mode，当前不继续提高 HGB 迭代次数。
 - 同一 local cache 改用 40% participant-frozen split（4 valid participants）时，120 s fuse 在 threshold 0.20/0.35 下产生 0 个正 train candidate，verifier 无法训练；record-level 诊断显示 600 s fuse 才产生正候选。600 s fuse 下 candidate coverage recall=`0.75`、candidate event F1=`0.30`、最终 F1=`0.40`（TP/FP/FN=`1/0/3`），但 start/end MAE 约 1101/1129 s，说明长 fuse 带来边界风险。
 - 该 40% split 的 verifier threshold 0.10/0.25/0.50 结果相同，训练正候选只有 1 个；因此当前瓶颈是正候选数量和 participant shift，不是 decoder threshold。
+- 扩展到 20 participant、每人最多 2 session 的 local target-only 实验（15 train/5 valid）后，600 s fuse、candidate threshold 0.20 产生 5 个正 train candidate；candidate coverage recall=`1.0`、candidate event F1=`0.375`、最终 event F1=`0.3333`（TP/FP/FN=`1/2/2`）。5 个 valid participant 中 4 个有真餐段，3 个 candidate coverage=1 但 verifier 只保留 1 个 TP；verifier threshold 0.10/0.25/0.50 无差异。结论仍是 verifier 正样本不足，下一轮扩大 participant/session 覆盖。
 - 该 local 结果是当前最有希望的 target-only 方向，但 valid 只有 2 个 participant，不能视作排行榜上限；下一步提高训练预算并扩大 participant-frozen 验证覆盖。
 - 诊断新增：candidate coverage recall、start/end MAE、长 FP fraction、participant 级指标。后续路线必须先改善 candidate coverage，再比较 verifier/TCN。
