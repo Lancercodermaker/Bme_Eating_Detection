@@ -51,6 +51,7 @@
 - 20 participant、每人最多 4 session 的 local 实验在 40% valid split 上得到 6 个正 train candidate；candidate coverage=`0.857`，candidate event F1=`0.1935`。candidate fuse gap sweep：300 s 得最终 event F1=`0.7273`（TP/FP/FN=`4/0/3`、long FP=`0`），600 s=`0.50`，900 s=`0.29`；300 s 是当前最优后处理尺度。final decode fuse 300/600/900 s 结果相同。
 - 在该 best split 加入 candidate 起止时间的日周期 sin/cos 特征后，F1、TP/FP/FN 和 MAE 均无变化；该 prior 暂保留，等待更大训练集验证，不把它宣称为增益。
 - event verifier positive sample weight 在 `{1, 3, 5, 10}` 上结果完全相同（F1=`0.7273`、TP/FP/FN=`4/0/3`），说明当前过滤差异不是简单 class-weight 问题。CLI 已保留该参数供后续完整训练对照。
+- TCN candidate-only 对照：同一 20×4、40% valid local cache，5 epochs、CUDA、15 s/7.5 s dense sequence、fuse 300 s，得到 F1=`0.2778`（TP/FP/FN=`5/24/2`，Recall=`0.7143`）。它略高于 HGB candidate-only F1≈`0.19`，但 coverage 更低、FP 很多，且明显低于 HGB candidate+event-verifier F1=`0.7273`；按 kill criterion 暂停 TCN 深化，不将其接入最终 verifier。
 - 该 local 结果是当前最有希望的 target-only 方向，但 valid 只有 2 个 participant，不能视作排行榜上限；下一步提高训练预算并扩大 participant-frozen 验证覆盖。
 - 诊断新增：candidate coverage recall、start/end MAE、长 FP fraction、participant 级指标。后续路线必须先改善 candidate coverage，再比较 verifier/TCN。
 - 全 participant first-session broad audit（local、600 s fuse、threshold 0.20）覆盖 32 train/11 valid 或 26 train/17 valid，但 valid 餐段都只有 2 个，candidate recall 约 `0.50`、最终 F1=`0`。这不是模型上限，而是 session-selection bias；后续不能只取 participant 的首 session。
