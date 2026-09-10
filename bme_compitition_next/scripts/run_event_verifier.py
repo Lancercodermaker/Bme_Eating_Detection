@@ -236,7 +236,7 @@ def main() -> None:
             "f1": candidate_metric.f1,
             "start_mae_ms": candidate_metric.start_mae_ms,
             "end_mae_ms": candidate_metric.end_mae_ms,
-            "coverage_recall": _event_coverage_recall(validation_candidate_intervals[participant], truths),
+            "candidate_event_coverage_recall": _event_coverage_recall(validation_candidate_intervals[participant], truths),
             "long_fp_fraction": _long_false_positive_fraction(candidate_events, truths),
         }
     candidate_metrics = evaluate_events(candidate_predictions, candidate_truths)
@@ -284,7 +284,10 @@ def main() -> None:
             "f1": candidate_metrics.f1,
             "start_mae_ms": candidate_metrics.start_mae_ms,
             "end_mae_ms": candidate_metrics.end_mae_ms,
-            "coverage_recall": _event_coverage_recall(candidate_predictions, candidate_truths),
+            "candidate_event_coverage_recall": _event_coverage_recall(
+                [interval for participant in valid_participants for interval in validation_candidate_intervals[participant]],
+                candidate_truths,
+            ),
             "long_fp_fraction": _long_false_positive_fraction(candidate_predictions, candidate_truths),
         },
         "oof_fallback_participants": list(oof_fallback_participants),

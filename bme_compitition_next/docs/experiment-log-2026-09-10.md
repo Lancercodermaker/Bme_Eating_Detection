@@ -43,4 +43,7 @@
 - OOF 分数只用于训练 event verifier；candidate threshold 的分位数改为从 full-train model 的 train score 计算，避免 OOF 与 full-train 概率尺度错位。
 - 240 s/15 s、4 participant 小 split、低预算 OOF：candidate coverage recall 仍为 0.25，最终 event F1 为 0；15 s 小 split 最终 F1 也为 0。该结果不足以否定 local-tree，但否定了继续在该小 split 上调参的价值。
 - 扩大 target-only 240 s 实验：10 participant、每人最多 2 session，8 train/2 valid，3 个 malformed session 被跳过并保留 provenance。candidate coverage recall=`0.50`、candidate event F1=`0.2222`、最终 event F1=`0`；HNU21011 candidate recall=1、HNU21037=0，显示 participant shift 仍是主要风险。
+- 同一 10 participant split 的 15 s/7.5 s local-tree：固定阈值 0.35 时最终 event F1=`0.3333`；降低 candidate threshold 到 0.20 后为 `TP/FP/FN=1/0/1`、event F1=`0.6667`，start MAE=`122.9 s`、end MAE=`60.9 s`、long FP fraction=`0`。raw candidate coverage recall=`0.50`，HNU21011 被 verifier 正确保留，HNU21037 仍漏检。
+- 同一 local cache 提高 candidate/verifier 预算到 100 iter 后最终 F1 降为 `0`，虽然 candidate coverage 仍为 `0.50`；verifier 过滤掉了低预算下的唯一 TP。这是 participant-frozen 过拟合/校准 failure mode，当前不继续提高 HGB 迭代次数。
+- 该 local 结果是当前最有希望的 target-only 方向，但 valid 只有 2 个 participant，不能视作排行榜上限；下一步提高训练预算并扩大 participant-frozen 验证覆盖。
 - 诊断新增：candidate coverage recall、start/end MAE、长 FP fraction、participant 级指标。后续路线必须先改善 candidate coverage，再比较 verifier/TCN。
