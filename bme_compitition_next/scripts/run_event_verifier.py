@@ -76,10 +76,13 @@ def main() -> None:
     parser.add_argument("--verifier-threshold", type=float, default=0.5)
     parser.add_argument("--candidate-max-iter", type=int, default=100)
     parser.add_argument("--verifier-max-iter", type=int, default=100)
+    parser.add_argument("--verifier-positive-weight", type=float, default=3.0)
     parser.add_argument("--oof-folds", type=int, default=5)
     parser.add_argument("--window-seconds", type=float, default=None)
     parser.add_argument("--step-seconds", type=float, default=None)
     args = parser.parse_args()
+    if args.verifier_positive_weight <= 0:
+        raise ValueError("--verifier-positive-weight must be positive")
 
     config = load_config(args.config)
     if args.window_seconds is not None or args.step_seconds is not None:
@@ -216,6 +219,7 @@ def main() -> None:
         verifier_x,
         verifier_y,
         random_state=args.split_seed,
+        positive_weight=args.verifier_positive_weight,
         max_iter=args.verifier_max_iter,
     )
 
@@ -279,6 +283,7 @@ def main() -> None:
         "candidate_fuse_gap_ms": args.candidate_fuse_gap_ms,
         "decode_fuse_gap_ms": args.decode_fuse_gap_ms,
         "verifier_threshold": args.verifier_threshold,
+        "verifier_positive_weight": args.verifier_positive_weight,
         "candidate_counts": candidate_counts,
         "candidate_metrics": {
             "tp": candidate_metrics.tp,
