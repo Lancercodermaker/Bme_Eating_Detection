@@ -14,11 +14,13 @@ class ProjectConfig:
     repository_root: Path
     raw_data_root: Path
     metadata_root: Path
-    window_seconds: int = 240
-    step_seconds: int = 15
+    window_seconds: float = 240.0
+    step_seconds: float = 15.0
     min_coverage: float = 0.8
     imu_grid_hz: int = 10
     max_gap_seconds: float = 2.0
+    local_window_seconds: float = 15.0
+    local_step_seconds: float = 7.5
 
 
 def _path_value(values: Mapping[str, Any], key: str) -> Path:
@@ -67,13 +69,17 @@ def load_config(path: str | Path) -> ProjectConfig:
     if raw_data_root.is_relative_to(repository_root):
         raise ValueError("raw_data_root is inside repository")
 
-    window_seconds = _positive_int(values, "window_seconds", 240)
-    step_seconds = _positive_int(values, "step_seconds", 15)
+    window_seconds = _positive_float(values, "window_seconds", 240.0)
+    step_seconds = _positive_float(values, "step_seconds", 15.0)
     if step_seconds > window_seconds:
         raise ValueError("step_seconds cannot exceed window_seconds")
     min_coverage = _positive_float(values, "min_coverage", 0.8)
     if min_coverage > 1.0:
         raise ValueError("min_coverage cannot exceed 1")
+    local_window_seconds = _positive_float(values, "local_window_seconds", 15.0)
+    local_step_seconds = _positive_float(values, "local_step_seconds", 7.5)
+    if local_step_seconds > local_window_seconds:
+        raise ValueError("local_step_seconds cannot exceed local_window_seconds")
 
     return ProjectConfig(
         repository_root=repository_root,
@@ -84,5 +90,6 @@ def load_config(path: str | Path) -> ProjectConfig:
         min_coverage=min_coverage,
         imu_grid_hz=_positive_int(values, "imu_grid_hz", 10),
         max_gap_seconds=_positive_float(values, "max_gap_seconds", 2.0),
+        local_window_seconds=local_window_seconds,
+        local_step_seconds=local_step_seconds,
     )
-

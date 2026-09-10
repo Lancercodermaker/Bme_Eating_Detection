@@ -38,6 +38,8 @@ def test_load_config_preserves_paths_and_numeric_contract(tmp_path: Path) -> Non
     assert config.min_coverage == pytest.approx(0.8)
     assert config.imu_grid_hz == 10
     assert config.max_gap_seconds == pytest.approx(2.0)
+    assert config.local_window_seconds == pytest.approx(15.0)
+    assert config.local_step_seconds == pytest.approx(7.5)
 
 
 def test_load_config_rejects_missing_raw_root(tmp_path: Path) -> None:
@@ -81,4 +83,3 @@ def test_load_config_rejects_raw_root_inside_repository(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="inside repository"):
         load_config(config_path)
-

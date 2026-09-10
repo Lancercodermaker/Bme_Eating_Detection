@@ -12,6 +12,7 @@ dependencies = [
   "pandas>=2.0",
   "PyYAML>=6.0",
   "scipy>=1.10",
+  "scikit-learn>=1.7",
 ]
 
 [project.optional-dependencies]
@@ -25,4 +26,3 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-

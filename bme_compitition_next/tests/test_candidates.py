@@ -1,0 +1,114 @@
+import numpy as np
+import pytest
+
+from eating_event.candidates import (
+    build_candidate_table,
+    eventize_windows,
+    fit_candidate_model,
+    split_participants,
+)
+from eating_event.data.timebase import aggregate_timestamp_rows, regularize_series
+from eating_event.data.windows import generate_dense_windows
+from eating_event.features import extract_imu_features
+from eating_event.metrics import EventInterval
+
+
+def test_features_are_invariant_to_duplicate_packets_after_timebase_reconstruction() -> None:
+    unique_timestamps = np.array([1000, 2000, 3000], dtype=np.int64)
+    unique_values = np.array(
+        [[1.0, 0.0, 0.0, 0.1, 0.0, 0.0], [2.0, 0.0, 0.0, 0.2, 0.0, 0.0], [3.0, 0.0, 0.0, 0.3, 0.0, 0.0]]
+    )
+    duplicated_timestamps = np.array([1000, 1000, 2000, 3000], dtype=np.int64)
+    duplicated_values = np.vstack([unique_values[0], unique_values[0], unique_values[1:]])
+
+    direct = regularize_series(
+        aggregate_timestamp_rows(unique_timestamps, unique_values),
+        grid_hz=1,
+        max_gap_seconds=2.0,
+    )
+    reconstructed = regularize_series(
+        aggregate_timestamp_rows(duplicated_timestamps, duplicated_values),
+        grid_hz=1,
+        max_gap_seconds=2.0,
+    )
+
+    direct_features = extract_imu_features(direct.values, direct.valid_mask)
+    reconstructed_features = extract_imu_features(reconstructed.values, reconstructed.valid_mask)
+
+    np.testing.assert_array_equal(direct_features.names, reconstructed_features.names)
+    np.testing.assert_allclose(direct_features.values, reconstructed_features.values)
+
+
+def test_candidate_table_keeps_ignore_labels_out_of_binary_training_rows() -> None:
+    timestamps = np.arange(0, 20_000, 1000, dtype=np.int64)
+    values = np.tile(np.arange(6, dtype=np.float64), (timestamps.size, 1))
+    series = regularize_series(
+        aggregate_timestamp_rows(timestamps + 1, values),
+        grid_hz=1,
+        max_gap_seconds=2.0,
+    )
+    windows = generate_dense_windows(
+        series.timestamps_ms,
+        series.valid_mask,
+        grid_hz=1,
+        window_seconds=4,
+        step_seconds=2,
+        min_coverage=0.8,
+        max_gap_seconds=2.0,
+        truths=[EventInterval(5001, 7001)],
+        positive_overlap=0.5,
+        negative_distance_ms=3000,
+    )
+
+    table = build_candidate_table(series, windows, participant_id="P1")
+
+    assert table.features.shape[0] == len(windows)
+    assert set(table.labels.tolist()).issubset({-1, 0, 1})
+    assert table.participant_ids.tolist() == ["P1"] * len(windows)
+
+
+def test_hist_gradient_boosting_candidate_model_returns_probabilities() -> None:
+    pytest.importorskip("sklearn")
+    features = np.array([[0.0, 0.0], [0.1, 0.0], [1.0, 1.0], [1.1, 0.9]])
+    labels = np.array([0, 0, 1, 1])
+
+    model = fit_candidate_model(features, labels, random_state=7)
+    scores = model.predict_scores(features)
+
+    assert scores.shape == (4,)
+    assert np.all((scores >= 0) & (scores <= 1))
+    assert scores[3] > scores[0]
+
+
+def test_eventizer_merges_selected_windows_into_one_event() -> None:
+    timestamps = np.arange(0, 8_000, 1000, dtype=np.int64)
+    values = np.tile(np.arange(6, dtype=np.float64), (timestamps.size, 1))
+    series = regularize_series(
+        aggregate_timestamp_rows(timestamps + 1, values),
+        grid_hz=1,
+        max_gap_seconds=2.0,
+    )
+    windows = generate_dense_windows(
+        series.timestamps_ms,
+        series.valid_mask,
+        grid_hz=1,
+        window_seconds=2,
+        step_seconds=1,
+        min_coverage=0.8,
+        max_gap_seconds=2.0,
+    )
+
+    events = eventize_windows(windows, np.ones(len(windows)), threshold=0.5, min_duration_ms=3000)
+
+    assert events == [(1, 8001)]
+
+
+def test_participant_split_is_deterministic_and_disjoint() -> None:
+    participants = ["P3", "P1", "P2", "P4", "P5"]
+
+    train_a, valid_a = split_participants(participants, valid_fraction=0.4, seed=7)
+    train_b, valid_b = split_participants(participants, valid_fraction=0.4, seed=7)
+
+    assert (train_a, valid_a) == (train_b, valid_b)
+    assert set(train_a).isdisjoint(valid_a)
+    assert sorted(train_a + valid_a) == sorted(set(participants))

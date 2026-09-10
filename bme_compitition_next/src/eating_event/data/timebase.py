@@ -103,6 +103,8 @@ def regularize_series(
     *,
     grid_hz: int,
     max_gap_seconds: float,
+    grid_start_ms: int | None = None,
+    grid_end_ms: int | None = None,
 ) -> RegularizedSeries:
     """Put a series on a regular grid without filling across large gaps."""
 
@@ -118,9 +120,13 @@ def regularize_series(
         )
 
     period_ms = 1000.0 / grid_hz
+    start_ms = int(series.timestamps_ms[0] if grid_start_ms is None else grid_start_ms)
+    end_ms = int(series.timestamps_ms[-1] if grid_end_ms is None else grid_end_ms)
+    if end_ms < start_ms:
+        raise ValueError("grid_end_ms must not precede grid_start_ms")
     raw_grid = np.arange(
-        float(series.timestamps_ms[0]),
-        float(series.timestamps_ms[-1]) + period_ms * 0.5,
+        float(start_ms),
+        float(end_ms) + period_ms * 0.5,
         period_ms,
         dtype=np.float64,
     )
@@ -129,31 +135,37 @@ def regularize_series(
     valid_mask = np.zeros(grid.size, dtype=bool)
     max_gap_ms = max_gap_seconds * 1000.0
 
-    for timestamp, row in zip(series.timestamps_ms, series.values):
-        index = _nearest_grid_index(grid, int(timestamp))
-        if abs(int(grid[index]) - int(timestamp)) <= period_ms / 2:
-            values[index] = row
-            if np.isfinite(row).any():
-                valid_mask[index] = True
-
-    for left_index in range(series.timestamps_ms.size - 1):
-        left_time = int(series.timestamps_ms[left_index])
-        right_time = int(series.timestamps_ms[left_index + 1])
-        if right_time - left_time > max_gap_ms:
-            continue
-        grid_slice = (grid >= left_time) & (grid <= right_time)
-        if not grid_slice.any():
-            continue
-        left_row = series.values[left_index]
-        right_row = series.values[left_index + 1]
-        for channel in range(series.values.shape[1]):
-            if np.isfinite(left_row[channel]) and np.isfinite(right_row[channel]):
-                values[grid_slice, channel] = np.interp(
-                    grid[grid_slice],
-                    [left_time, right_time],
-                    [left_row[channel], right_row[channel]],
-                )
-        valid_mask[grid_slice] = np.isfinite(values[grid_slice]).any(axis=1)
+    if series.timestamps_ms.size == 1:
+        index = _nearest_grid_index(grid, int(series.timestamps_ms[0]))
+        if abs(int(grid[index]) - int(series.timestamps_ms[0])) <= period_ms / 2:
+            values[index] = series.values[0]
+            valid_mask[index] = np.isfinite(series.values[0]).any()
+    else:
+        long_gap_indices = np.flatnonzero(np.diff(series.timestamps_ms) > max_gap_ms)
+        segment_starts = np.concatenate(([0], long_gap_indices + 1))
+        segment_ends = np.concatenate((long_gap_indices, [series.timestamps_ms.size - 1]))
+        for segment_start, segment_end in zip(segment_starts, segment_ends):
+            left_time = int(series.timestamps_ms[segment_start])
+            right_time = int(series.timestamps_ms[segment_end])
+            grid_slice = (grid >= left_time) & (grid <= right_time)
+            if not grid_slice.any():
+                continue
+            segment_times = series.timestamps_ms[segment_start : segment_end + 1]
+            segment_values = series.values[segment_start : segment_end + 1]
+            for channel in range(series.values.shape[1]):
+                finite = np.isfinite(segment_values[:, channel])
+                if not finite.any():
+                    continue
+                finite_times = segment_times[finite]
+                finite_values = segment_values[finite, channel]
+                if finite_times.size == 1:
+                    index = _nearest_grid_index(grid, int(finite_times[0]))
+                    if abs(int(grid[index]) - int(finite_times[0])) <= period_ms / 2:
+                        values[index, channel] = finite_values[0]
+                else:
+                    values[grid_slice, channel] = np.interp(
+                        grid[grid_slice], finite_times, finite_values
+                    )
+            valid_mask[grid_slice] = np.isfinite(values[grid_slice]).any(axis=1)
 
     return RegularizedSeries(timestamps_ms=grid, values=values, valid_mask=valid_mask)
-

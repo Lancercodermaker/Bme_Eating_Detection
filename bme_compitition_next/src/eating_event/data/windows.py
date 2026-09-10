@@ -50,8 +50,8 @@ def generate_dense_windows(
     valid_mask: Sequence[bool] | np.ndarray,
     *,
     grid_hz: int,
-    window_seconds: int,
-    step_seconds: int,
+    window_seconds: float,
+    step_seconds: float,
     min_coverage: float,
     max_gap_seconds: float,
     truths: Sequence[EventInterval] = (),
@@ -111,4 +111,3 @@ def generate_dense_windows(
             )
         )
     return records
-

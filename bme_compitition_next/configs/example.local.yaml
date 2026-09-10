@@ -7,4 +7,5 @@ step_seconds: 15
 min_coverage: 0.8
 imu_grid_hz: 10
 max_gap_seconds: 2.0
-
+local_window_seconds: 15.0
+local_step_seconds: 7.5

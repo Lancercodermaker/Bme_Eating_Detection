@@ -88,8 +88,8 @@
 
 1. Test feature extraction on a synthetic regular IMU signal and ensure it is invariant to duplicate packet rows after timebase reconstruction.
 2. Run the focused test and observe the expected failure.
-3. Implement IMU-only features and a high-recall candidate baseline with participant-group splits. Keep all windows dense and valid; do not use GT-neighbor sampling.
-4. Run the baseline on the frozen development split and write candidate Recall, event-level metrics after a transparent eventizer, long-FP ratio, and participant distribution.
+3. Implement IMU-only features and compare the default 240 s/15 s candidate grid with the controlled 15 s/7.5 s local grid. Keep all windows dense and valid; do not use GT-neighbor sampling.
+4. Run both grids on the frozen development split and write candidate Recall, event-level metrics after a transparent eventizer, long-FP ratio, and participant distribution.
 5. Kill this route if candidate Recall is below `0.90` or if the eventizer only works when GT-adjacent windows are used.
 
 ## Task 7: Add event-level verifier before neural architecture search
@@ -142,4 +142,3 @@
 3. Implement one-command evaluation that emits the complete metric bundle, split IDs, software versions, and data audit hash.
 4. Run the full suite, a clean-room smoke run on synthetic data, and the final train-only audit.
 5. Before any official submission, verify no test labels, GT-adjacent sampling, forbidden external data, or untracked large artifacts enter the package.
-
