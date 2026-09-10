@@ -113,6 +113,7 @@ def fit_event_verifier(
     *,
     random_state: int = 20260910,
     positive_weight: float = 3.0,
+    max_iter: int = 250,
 ) -> EventVerifier:
     from sklearn.ensemble import HistGradientBoostingClassifier
 
@@ -120,6 +121,8 @@ def fit_event_verifier(
     y = np.asarray(labels, dtype=np.int8)
     if x.ndim != 2 or y.ndim != 1 or x.shape[0] != y.size:
         raise ValueError("features and labels must have aligned shapes")
+    if max_iter <= 0:
+        raise ValueError("max_iter must be positive")
     keep = y >= 0
     if keep.sum() == 0 or np.unique(y[keep]).size != 2:
         raise ValueError("event verifier training needs both positive and negative labels")
@@ -127,7 +130,7 @@ def fit_event_verifier(
     weights[y[keep] == 1] = positive_weight
     estimator = HistGradientBoostingClassifier(
         learning_rate=0.05,
-        max_iter=250,
+        max_iter=max_iter,
         min_samples_leaf=1,
         max_leaf_nodes=15,
         l2_regularization=1e-3,
@@ -152,4 +155,3 @@ def decode_event_candidates(
         for candidate, score in zip(candidates, values)
         if score >= threshold and candidate.interval.end_ms - candidate.interval.start_ms >= min_duration_ms
     ]
-

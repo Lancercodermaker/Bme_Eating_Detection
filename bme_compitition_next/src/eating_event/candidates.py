@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 
@@ -133,6 +134,7 @@ def fit_candidate_model(
     *,
     random_state: int = 20260910,
     positive_weight: float = 3.0,
+    max_iter: int = 300,
 ) -> CandidateModel:
     """Fit a deterministic high-recall candidate classifier on 0/1 rows."""
 
@@ -142,6 +144,8 @@ def fit_candidate_model(
     y = np.asarray(labels, dtype=np.int8)
     if x.ndim != 2 or y.ndim != 1 or x.shape[0] != y.size:
         raise ValueError("features and labels must have aligned shapes")
+    if max_iter <= 0:
+        raise ValueError("max_iter must be positive")
     keep = y >= 0
     if keep.sum() == 0 or np.unique(y[keep]).size != 2:
         raise ValueError("candidate training needs both positive and negative labels")
@@ -149,7 +153,7 @@ def fit_candidate_model(
     weights[y[keep] == 1] = positive_weight
     estimator = HistGradientBoostingClassifier(
         learning_rate=0.05,
-        max_iter=300,
+        max_iter=max_iter,
         min_samples_leaf=1,
         max_leaf_nodes=31,
         l2_regularization=1e-3,
@@ -157,3 +161,66 @@ def fit_candidate_model(
     )
     estimator.fit(x[keep], y[keep], sample_weight=weights)
     return CandidateModel(estimator)
+
+
+def participant_oof_candidate_scores(
+    tables_by_participant: Mapping[str, Sequence[CandidateTable]],
+    *,
+    random_state: int = 20260910,
+    n_folds: int = 5,
+    max_iter: int = 300,
+) -> tuple[dict[str, tuple[np.ndarray, ...]], tuple[str, ...]]:
+    """Score each participant with a model that did not train on that participant.
+
+    Participants, rather than windows, are assigned to deterministic folds.  This
+    prevents a participant's recording-specific feature distribution from leaking
+    into the event-verifier training scores.  If a fold's remaining participants
+    do not contain both binary labels, the all-participant model is used for that
+    fold and the affected participants are returned as an explicit fallback list.
+    """
+
+    participants = tuple(sorted(str(participant) for participant in tables_by_participant))
+    if len(participants) < 2:
+        raise ValueError("participant OOF scoring needs at least two participants")
+    if n_folds < 2:
+        raise ValueError("n_folds must be at least 2")
+    if max_iter <= 0:
+        raise ValueError("max_iter must be positive")
+
+    def concatenate(participant_subset: Sequence[str]) -> tuple[np.ndarray, np.ndarray]:
+        tables = [table for participant in participant_subset for table in tables_by_participant[participant]]
+        if not tables:
+            raise ValueError("participant OOF scoring received no candidate tables")
+        return np.vstack([table.features for table in tables]), np.concatenate([table.labels for table in tables])
+
+    all_features, all_labels = concatenate(participants)
+    fallback_model: CandidateModel | None = None
+
+    def get_fallback_model() -> CandidateModel:
+        nonlocal fallback_model
+        if fallback_model is None:
+            fallback_model = fit_candidate_model(all_features, all_labels, random_state=random_state, max_iter=max_iter)
+        return fallback_model
+
+    fold_count = min(n_folds, len(participants))
+    rng = np.random.default_rng(random_state)
+    shuffled = [participants[index] for index in rng.permutation(len(participants))]
+    folds = [tuple(shuffled[index::fold_count]) for index in range(fold_count)]
+    scores_by_participant: dict[str, tuple[np.ndarray, ...]] = {}
+    fallback_participants: list[str] = []
+
+    for fold in folds:
+        held_out = set(fold)
+        training_participants = tuple(participant for participant in participants if participant not in held_out)
+        try:
+            train_features, train_labels = concatenate(training_participants)
+            model = fit_candidate_model(train_features, train_labels, random_state=random_state, max_iter=max_iter)
+        except ValueError:
+            model = get_fallback_model()
+            fallback_participants.extend(fold)
+        for participant in fold:
+            scores_by_participant[participant] = tuple(
+                model.predict_scores(table.features) for table in tables_by_participant[participant]
+            )
+
+    return scores_by_participant, tuple(sorted(fallback_participants))

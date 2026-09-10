@@ -2,9 +2,11 @@ import numpy as np
 import pytest
 
 from eating_event.candidates import (
+    CandidateTable,
     build_candidate_table,
     eventize_windows,
     fit_candidate_model,
+    participant_oof_candidate_scores,
     split_participants,
 )
 from eating_event.data.timebase import aggregate_timestamp_rows, regularize_series
@@ -78,6 +80,34 @@ def test_hist_gradient_boosting_candidate_model_returns_probabilities() -> None:
     assert scores.shape == (4,)
     assert np.all((scores >= 0) & (scores <= 1))
     assert scores[3] > scores[0]
+
+
+def test_participant_oof_scores_are_disjoint_and_deterministic() -> None:
+    pytest.importorskip("sklearn")
+    tables_by_participant = {}
+    for participant_index, participant in enumerate(("P1", "P2", "P3")):
+        features = np.asarray(
+            [[0.0, float(participant_index)], [0.1, float(participant_index)], [1.0, float(participant_index)], [1.1, float(participant_index)]],
+            dtype=np.float64,
+        )
+        tables_by_participant[participant] = [
+            CandidateTable(
+                features=features,
+                feature_names=("x", "participant_hint"),
+                labels=np.asarray([0, 0, 1, 1], dtype=np.int8),
+                participant_ids=np.full(4, participant, dtype=object),
+                windows=tuple(),
+            )
+        ]
+
+    scores_a, fallback_a = participant_oof_candidate_scores(tables_by_participant, random_state=7, n_folds=3)
+    scores_b, fallback_b = participant_oof_candidate_scores(tables_by_participant, random_state=7, n_folds=3)
+
+    assert fallback_a == fallback_b == tuple()
+    for participant in tables_by_participant:
+        assert len(scores_a[participant]) == 1
+        np.testing.assert_allclose(scores_a[participant][0], scores_b[participant][0])
+        assert scores_a[participant][0].shape == (4,)
 
 
 def test_eventizer_merges_selected_windows_into_one_event() -> None:

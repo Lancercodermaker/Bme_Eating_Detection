@@ -12,7 +12,7 @@
 - 官方事件指标：严格 `IoU > 0.25`、一对一匹配、空集合和边界 MAE 测试通过。
 - 时间轴：重复 packet 聚合、零/非正时间戳缺失化、长 gap 不插值、ACC/GYRO 公共网格对齐测试通过。
 - 原始数据 failure mode：二进制伪 `.txt`、重复 header/非数值行被识别为 `RawFileFormatError` 并可加入 skipped provenance。
-- 全套当前测试：28 个测试通过；之后加入 verifier/候选测试后为 30 个通过。
+- 全套当前测试：32 个测试通过。
 
 ## Spike A：240 s coarse candidate-only
 
@@ -37,3 +37,10 @@
 3. verifier 正式训练必须改为 train participant 内 OOF candidate score；固定绝对概率阈值暂不可信。
 4. 任何正式候选路线仍需同时报告 candidate Recall、event F1、长 FP 比例、participant 最差 F1 和边界 MAE。
 
+## OOF verifier 与候选诊断
+
+- candidate verifier 已改为 participant-level OOF score：每个 train participant 的 candidate 分数由未包含该 participant 的模型产生；验证 participant 使用全训练 participant 模型。小样本 fold 无法形成正负两类时会显式记录 `oof_fallback_participants`。
+- OOF 分数只用于训练 event verifier；candidate threshold 的分位数改为从 full-train model 的 train score 计算，避免 OOF 与 full-train 概率尺度错位。
+- 240 s/15 s、4 participant 小 split、低预算 OOF：candidate coverage recall 仍为 0.25，最终 event F1 为 0；15 s 小 split 最终 F1 也为 0。该结果不足以否定 local-tree，但否定了继续在该小 split 上调参的价值。
+- 扩大 target-only 240 s 实验：10 participant、每人最多 2 session，8 train/2 valid，3 个 malformed session 被跳过并保留 provenance。candidate coverage recall=`0.50`、candidate event F1=`0.2222`、最终 event F1=`0`；HNU21011 candidate recall=1、HNU21037=0，显示 participant shift 仍是主要风险。
+- 诊断新增：candidate coverage recall、start/end MAE、长 FP fraction、participant 级指标。后续路线必须先改善 candidate coverage，再比较 verifier/TCN。
