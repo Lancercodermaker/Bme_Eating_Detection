@@ -72,6 +72,7 @@ def main() -> None:
     parser.add_argument("--candidate-threshold", type=float, default=0.35)
     parser.add_argument("--candidate-quantile", type=float, default=None)
     parser.add_argument("--candidate-fuse-gap-ms", type=int, default=120_000)
+    parser.add_argument("--decode-fuse-gap-ms", type=int, default=600_000)
     parser.add_argument("--verifier-threshold", type=float, default=0.5)
     parser.add_argument("--candidate-max-iter", type=int, default=100)
     parser.add_argument("--verifier-max-iter", type=int, default=100)
@@ -222,7 +223,9 @@ def main() -> None:
     candidate_truths: list[EventInterval] = []
     candidate_participant_metrics: dict[str, object] = {}
     for participant in valid_participants:
-        candidate_events = _merge_intervals(validation_candidate_intervals[participant])
+        candidate_events = _merge_intervals(
+            validation_candidate_intervals[participant], fuse_gap_ms=args.decode_fuse_gap_ms
+        )
         truths = sorted(set(truth_by_participant[participant]))
         candidate_metric = evaluate_events(candidate_events, truths)
         candidate_predictions.extend(candidate_events)
@@ -248,7 +251,8 @@ def main() -> None:
         candidates = validation_candidates[participant]
         scores = verifier.predict_scores(np.vstack([candidate.features for candidate in candidates])) if candidates else np.empty(0)
         predictions = _merge_intervals(
-            decode_event_candidates(candidates, scores, threshold=args.verifier_threshold)
+            decode_event_candidates(candidates, scores, threshold=args.verifier_threshold),
+            fuse_gap_ms=args.decode_fuse_gap_ms,
         )
         truths = sorted(set(truth_by_participant[participant]))
         metrics = evaluate_events(predictions, truths)
@@ -273,6 +277,7 @@ def main() -> None:
         "candidate_threshold": candidate_threshold,
         "candidate_quantile": args.candidate_quantile,
         "candidate_fuse_gap_ms": args.candidate_fuse_gap_ms,
+        "decode_fuse_gap_ms": args.decode_fuse_gap_ms,
         "verifier_threshold": args.verifier_threshold,
         "candidate_counts": candidate_counts,
         "candidate_metrics": {

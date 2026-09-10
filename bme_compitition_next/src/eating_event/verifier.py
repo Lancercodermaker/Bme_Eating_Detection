@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Sequence
 
 import numpy as np
@@ -30,6 +31,9 @@ def _candidate_features(
     coverages = np.asarray([windows[index].coverage for index in indices], dtype=np.float64)
     duration_seconds = (end_ms - start_ms) / 1000.0
     density = len(indices) / max(duration_seconds, 1.0)
+    day_ms = 86_400_000
+    start_phase = 2.0 * math.pi * ((start_ms % day_ms) / day_ms)
+    end_phase = 2.0 * math.pi * ((end_ms % day_ms) / day_ms)
     return np.asarray(
         [
             float(selected_scores.max()),
@@ -44,6 +48,10 @@ def _candidate_features(
             float(coverages.mean()),
             float(coverages.min()),
             float(coverages.max()),
+            math.sin(start_phase),
+            math.cos(start_phase),
+            math.sin(end_phase),
+            math.cos(end_phase),
         ],
         dtype=np.float64,
     )

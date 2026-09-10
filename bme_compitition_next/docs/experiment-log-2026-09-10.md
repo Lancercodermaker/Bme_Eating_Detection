@@ -48,6 +48,8 @@
 - 同一 local cache 改用 40% participant-frozen split（4 valid participants）时，120 s fuse 在 threshold 0.20/0.35 下产生 0 个正 train candidate，verifier 无法训练；record-level 诊断显示 600 s fuse 才产生正候选。600 s fuse 下 candidate coverage recall=`0.75`、candidate event F1=`0.30`、最终 F1=`0.40`（TP/FP/FN=`1/0/3`），但 start/end MAE 约 1101/1129 s，说明长 fuse 带来边界风险。
 - 该 40% split 的 verifier threshold 0.10/0.25/0.50 结果相同，训练正候选只有 1 个；因此当前瓶颈是正候选数量和 participant shift，不是 decoder threshold。
 - 扩展到 20 participant、每人最多 2 session 的 local target-only 实验（15 train/5 valid）后，600 s fuse、candidate threshold 0.20 产生 5 个正 train candidate；candidate coverage recall=`1.0`、candidate event F1=`0.375`、最终 event F1=`0.3333`（TP/FP/FN=`1/2/2`）。5 个 valid participant 中 4 个有真餐段，3 个 candidate coverage=1 但 verifier 只保留 1 个 TP；verifier threshold 0.10/0.25/0.50 无差异。结论仍是 verifier 正样本不足，下一轮扩大 participant/session 覆盖。
+- 20 participant、每人最多 4 session 的 local 实验在 40% valid split 上得到 6 个正 train candidate；candidate coverage=`0.857`，candidate event F1=`0.1935`。candidate fuse gap sweep：300 s 得最终 event F1=`0.7273`（TP/FP/FN=`4/0/3`、long FP=`0`），600 s=`0.50`，900 s=`0.29`；300 s 是当前最优后处理尺度。final decode fuse 300/600/900 s 结果相同。
+- 在该 best split 加入 candidate 起止时间的日周期 sin/cos 特征后，F1、TP/FP/FN 和 MAE 均无变化；该 prior 暂保留，等待更大训练集验证，不把它宣称为增益。
 - 该 local 结果是当前最有希望的 target-only 方向，但 valid 只有 2 个 participant，不能视作排行榜上限；下一步提高训练预算并扩大 participant-frozen 验证覆盖。
 - 诊断新增：candidate coverage recall、start/end MAE、长 FP fraction、participant 级指标。后续路线必须先改善 candidate coverage，再比较 verifier/TCN。
 - 全 participant first-session broad audit（local、600 s fuse、threshold 0.20）覆盖 32 train/11 valid 或 26 train/17 valid，但 valid 餐段都只有 2 个，candidate recall 约 `0.50`、最终 F1=`0`。这不是模型上限，而是 session-selection bias；后续不能只取 participant 的首 session。

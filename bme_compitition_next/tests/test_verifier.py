@@ -33,7 +33,7 @@ def test_event_candidates_cluster_window_scores_and_use_strict_iou_label() -> No
     assert candidates[0].interval == EventInterval(0, 2000)
     assert candidates[0].label == 1
     assert candidates[1].label == 0
-    assert candidates[0].features.shape == candidates[1].features.shape
+    assert candidates[0].features.shape == candidates[1].features.shape == (16,)
 
 
 def test_event_verifier_returns_probability_scores() -> None:
