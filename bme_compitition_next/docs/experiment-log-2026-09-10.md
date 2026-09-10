@@ -50,3 +50,5 @@
 - 扩展到 20 participant、每人最多 2 session 的 local target-only 实验（15 train/5 valid）后，600 s fuse、candidate threshold 0.20 产生 5 个正 train candidate；candidate coverage recall=`1.0`、candidate event F1=`0.375`、最终 event F1=`0.3333`（TP/FP/FN=`1/2/2`）。5 个 valid participant 中 4 个有真餐段，3 个 candidate coverage=1 但 verifier 只保留 1 个 TP；verifier threshold 0.10/0.25/0.50 无差异。结论仍是 verifier 正样本不足，下一轮扩大 participant/session 覆盖。
 - 该 local 结果是当前最有希望的 target-only 方向，但 valid 只有 2 个 participant，不能视作排行榜上限；下一步提高训练预算并扩大 participant-frozen 验证覆盖。
 - 诊断新增：candidate coverage recall、start/end MAE、长 FP fraction、participant 级指标。后续路线必须先改善 candidate coverage，再比较 verifier/TCN。
+- 全 participant first-session broad audit（local、600 s fuse、threshold 0.20）覆盖 32 train/11 valid 或 26 train/17 valid，但 valid 餐段都只有 2 个，candidate recall 约 `0.50`、最终 F1=`0`。这不是模型上限，而是 session-selection bias；后续不能只取 participant 的首 session。
+- broad 运行还发现无有效 ACC/GYRO 时间戳的 session；已统一映射为 `RawFileFormatError`，从 skipped provenance 中记录，不再中断整批实验。

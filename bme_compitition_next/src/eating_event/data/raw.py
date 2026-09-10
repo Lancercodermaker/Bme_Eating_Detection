@@ -125,7 +125,7 @@ def regularize_imu(raw: RawIMU, *, grid_hz: int, max_gap_seconds: float) -> Regu
     """Regularize ACC and GYRO independently, then combine aligned grids."""
 
     if raw.acc.timestamps_ms.size == 0 or raw.gyro.timestamps_ms.size == 0:
-        raise ValueError("ACC and GYRO streams must both contain valid timestamps")
+        raise RawFileFormatError("ACC and GYRO streams must both contain valid timestamps")
     grid_start_ms = int(min(raw.acc.timestamps_ms[0], raw.gyro.timestamps_ms[0]))
     grid_end_ms = int(max(raw.acc.timestamps_ms[-1], raw.gyro.timestamps_ms[-1]))
     acc = regularize_series(

@@ -74,6 +74,18 @@ def test_regularize_imu_aligns_streams_with_small_start_offset() -> None:
     assert result.valid_mask.any()
 
 
+def test_regularize_imu_reports_empty_timestamp_stream_as_file_format_error() -> None:
+    empty = AggregatedSeries(
+        timestamps_ms=np.empty(0, dtype=np.int64),
+        values=np.empty((0, 3), dtype=np.float64),
+        duplicate_count=0,
+        dropped_missing_timestamps=4,
+    )
+
+    with pytest.raises(RawFileFormatError):
+        regularize_imu(RawIMU(acc=empty, gyro=empty), grid_hz=10, max_gap_seconds=2)
+
+
 def test_binary_sensor_file_is_reported_as_unreadable(tmp_path: Path) -> None:
     path = tmp_path / "binary.txt"
     path.write_bytes(bytes([0xD2, 0x3B, 0x00, 0xDB, 0xCA, 0x3B, 0x00]))
