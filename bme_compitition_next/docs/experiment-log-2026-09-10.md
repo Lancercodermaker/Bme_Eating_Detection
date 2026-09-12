@@ -78,4 +78,6 @@
 - 组委会已确认外部数据只能用于训练、不得进入提交包；据此从官方 KU Leuven RDR 下载并校验 FD-I/FD-II 压缩包，MD5 分别为 `e5adb4c6f3caa8f52c215658228917dd` 与 `4c7b2f43560f7f9488643bbe0a9d3dce`。压缩包与解压数据位于工作区外的 `E:\bme_compitition\external-dataset`，并已加入 Git ignore。
 - 新增 `eating_event.external` 适配器：按 participant/wrist 流式读取 `X_L/X_R/Y_L/Y_R.pkl`，验证 6 通道与点级标签契约，将 `1=eating` 映射为二值 eating-window 标签，`2=drinking` 保留为非 eating；窗口特征先从 64 Hz 重采样到目标 10 Hz，再复用同一套 111 维统计特征。
 - 实际 FD-I 首个左腕样本已验证：`(1,984,366, 6)`、约 `8.61 h`、标签集合 `{0,1,2}`；截取 120 s 后得到 `(15,111)` 窗口特征，全部有限值。该步骤只验证训练数据契约，未改变官方 test/submission 读取路径。
-- Spike 3 当前状态为 `EXTERNAL_DATA_READY_FOR_TRAINING_SPIKE`：下载、校验、适配和边界隔离已完成；外部预训练/迁移是否提升官方目标集 F1 尚未宣称，需要在 participant-frozen target validation 上单独对照。
+- 独立外部预训练对照已完成：固定 94-session cache-only、40% participant-frozen target split 和正则化 Transformer 配置，target-only baseline F1=`0.1818`（`TP/FP/FN=4/32/4`）。FD-I participant 0–7 双腕预训练 F1=`0.2083`（`5/35/3`），participant 8–15 双腕预训练 F1=`0.2439`（`5/28/3`）；两个不重叠 cohort 的 Recall 均从 `0.50` 提升到 `0.625`。FD-II participant 0–7 预训练 F1=`0.1224`（`3/38/5`），出现负迁移。
+- FD-I cohort B checkpoint threshold `0.10/0.15/0.20/0.25/0.30` 的 F1=`0.1509/0.2128/0.2439/0.2500/0.2000`；target-only 对应为 `0.1724/0.2000/0.1818/0.1429/0.0952`。增益不是单一 threshold 的偶然结果，但当前仍只验证了一个 target split。
+- 完整 decision record 位于 `docs/external-preflight-2026-09-11.md`。Spike 3 当前状态为 `GO_WITH_RISKS_FD_I_ONLY`：下一步可扩大到全 FD-I 和 event verifier 对照；FD-II 暂不混入，外部 checkpoint 不直接用于提交。
