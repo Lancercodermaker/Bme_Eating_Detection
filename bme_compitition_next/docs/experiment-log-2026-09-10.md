@@ -80,4 +80,5 @@
 - 实际 FD-I 首个左腕样本已验证：`(1,984,366, 6)`、约 `8.61 h`、标签集合 `{0,1,2}`；截取 120 s 后得到 `(15,111)` 窗口特征，全部有限值。该步骤只验证训练数据契约，未改变官方 test/submission 读取路径。
 - 独立外部预训练对照已完成：固定 94-session cache-only、40% participant-frozen target split 和正则化 Transformer 配置，target-only baseline F1=`0.1818`（`TP/FP/FN=4/32/4`）。FD-I participant 0–7 双腕预训练 F1=`0.2083`（`5/35/3`），participant 8–15 双腕预训练 F1=`0.2439`（`5/28/3`）；两个不重叠 cohort 的 Recall 均从 `0.50` 提升到 `0.625`。FD-II participant 0–7 预训练 F1=`0.1224`（`3/38/5`），出现负迁移。
 - FD-I cohort B checkpoint threshold `0.10/0.15/0.20/0.25/0.30` 的 F1=`0.1509/0.2128/0.2439/0.2500/0.2000`；target-only 对应为 `0.1724/0.2000/0.1818/0.1429/0.0952`。增益不是单一 threshold 的偶然结果，但当前仍只验证了一个 target split。
-- 完整 decision record 位于 `docs/external-preflight-2026-09-11.md`。Spike 3 当前状态为 `GO_WITH_RISKS_FD_I_ONLY`：下一步可扩大到全 FD-I 和 event verifier 对照；FD-II 暂不混入，外部 checkpoint 不直接用于提交。
+- 完整 FD-I preflight 已继续完成：34 participant、双腕、不限采样预训练得到 F1=`0.1071`（`TP/FP/FN=3/45/5`）；每序列平衡采样 512 windows 得 F1=`0.1778`（`4/33/4`），threshold sweep 最好 F1=`0.2174`，但 target-only 同 threshold 为 `0.2000`，未达到 baseline + 0.02 gate。full FD-I threshold sweep 最高仅 `0.1224`，排除单纯 decode threshold 问题。
+- 因此完整 decision record `docs/external-preflight-2026-09-11.md` 的最终状态更新为 `NO_GO_CURRENT_FULL_FD1_PRETRAIN`：当前 full FD-I/FD-II 外部预训练不进入正式高分管线；bounded FD-I 的正向结果仅保留为未来重设计线索，官方提交继续使用 target-only/已有 verifier 路线。
