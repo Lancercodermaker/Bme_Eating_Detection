@@ -118,6 +118,19 @@
 4. Compare `candidate-only`, `candidate+tree-verifier`, and `candidate+TCN+tree-verifier` on the exact same split and candidate table.
 5. Stop increasing TCN depth if validation event F1 or long-FP ratio does not improve for two bounded architecture changes.
 
+## Task 8b: Validate a bounded lightweight Transformer context model
+
+**Files:**
+- Create: `E:\bme_compitition\bme_compitition_next\src\eating_event\models\transformer.py`
+- Create: `E:\bme_compitition\bme_compitition_next\scripts\run_transformer_candidate.py`
+- Test: `E:\bme_compitition\bme_compitition_next\tests\test_transformer.py`
+- Test: `E:\bme_compitition\bme_compitition_next\tests\test_transformer_runner.py`
+
+1. Use the same cached dense candidate tables and participant split as the TCN comparison.
+2. Bound the model at `d_model=32`, two encoder layers, four heads, and sequence chunks of at most 128 windows.
+3. Compare candidate-only event F1, candidate coverage, long FP, boundary MAE, and participant-level worst cases at the same eventizer settings.
+4. Kill the route if candidate coverage is below the gate and threshold sensitivity cannot recover it; do not add the Transformer to the final verifier merely because training loss decreases.
+
 ## Task 9: Evaluate external pretraining as an isolated experiment
 
 **Files:**
@@ -129,6 +142,8 @@
 2. Run the focused test and observe the expected failure.
 3. Implement an opt-in FD-I/FD-II pretraining adapter; keep external data out of the target-only baseline and final submission until license/organizer confirmation is recorded.
 4. Compare `target_only`, `external_pretrain -> target_finetune`, and only then `joint_train`; accept external data only if frozen event F1 improves without worsening participant worst-case F1, boundary MAE, or long FP.
+
+**Current gate:** FD-I/FD-II signal archives are not present locally. The official archive is approximately 5.5 GB and carries CC-BY-NC-ND-4.0; full execution remains blocked until the organizer's external-data rule and the data-to-target contract are confirmed.
 
 ## Task 10: Reproducible report and final submission gate
 

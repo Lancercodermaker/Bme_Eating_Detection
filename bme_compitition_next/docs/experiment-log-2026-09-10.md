@@ -56,3 +56,18 @@
 - 诊断新增：candidate coverage recall、start/end MAE、长 FP fraction、participant 级指标。后续路线必须先改善 candidate coverage，再比较 verifier/TCN。
 - 全 participant first-session broad audit（local、600 s fuse、threshold 0.20）覆盖 32 train/11 valid 或 26 train/17 valid，但 valid 餐段都只有 2 个，candidate recall 约 `0.50`、最终 F1=`0`。这不是模型上限，而是 session-selection bias；后续不能只取 participant 的首 session。
 - broad 运行还发现无有效 ACC/GYRO 时间戳的 session；已统一映射为 `RawFileFormatError`，从 skipped provenance 中记录，不再中断整批实验。
+
+## Spike 2 补充：轻量 Transformer 对照
+
+- 新增 `TemporalTransformer` 与 `run_transformer_candidate.py`，先写测试验证窗口级输出、invalid mask、最大序列长度和参数量上限；实现后 focused tests 为 `5 passed`。
+- 配置：15 s/7.5 s dense local windows，序列长度 128、stride 64、`d_model=32`、4 heads、2 layers、FFN 64，约 20,705 个参数，5 epochs，CUDA。
+- 在当前可复用 cache-only 子集（40% participant-frozen valid split，94 个已缓存 session）上，candidate-only event F1=`0.0645`，TP/FP/FN=`1/25/4`。阈值 `0.1/0.2/0.3` 的 F1 分别为约 `0.054/0.065/0.0`。
+- 同一 cache-only 子集重跑 TCN candidate-only 得 F1=`0.1404`，HGB candidate-only 得 F1=`0.1633`，HGB candidate+event-verifier 得 F1=`0.3333`。
+- 结论：该轻量 Transformer 候选层的事件覆盖不足，阈值调整不能恢复漏检事件；按 candidate coverage gate 暂停该配置，不接入最终 verifier。这个结果否定的是“当前 15 s 特征序列 Transformer 直接作为候选层”，不是所有 Transformer 结构的理论上限。
+
+## Spike 3 外部数据预检
+
+- 工作区未发现 FD-I/FD-II/WIMID/FIC 等外部信号文件。
+- 已从 KU Leuven RDR 获取 FD-I README 与 7-fold subject-id 列表到工作区外的 `E:\bme_compitition\tmp`，确认 FD 数据为 64 Hz、左右手各 6 DoF、`X_L/X_R/Y_L/Y_R.pkl` 列表格式；标签为 point-wise 0/1/2，不能直接当作本题餐段区间标签。
+- 官方页面显示 FD-I/FD-II 合计下载约 5.5 GB，数据许可为 `CC-BY-NC-ND-4.0`。在组委会确认外部数据可用于提交、且完成左右手到单手目标契约的映射前，不下载大包、不混入 target-only 训练。
+- 因此 Spike 3 当前状态为 `BLOCKED_EXTERNAL_DATA_AND_RULE_CONFIRMATION`，不是正向收益结论。
