@@ -33,7 +33,7 @@
 ## 当前决策
 
 1. 保留 15 s/7.5 s local-tree 与 240 s coarse-context 两条候选尺度。
-2. 优先扩大 participant-frozen target-only 实验；暂不引入外部数据或 TCN，避免混淆数据契约与模型收益。
+2. 优先扩大 participant-frozen target-only 实验；外部数据已完成隔离和特征契约验证，只允许作为独立的训练预训练/增强对照，不改变 target-only 基线或官方提交读取路径。
 3. verifier 正式训练必须改为 train participant 内 OOF candidate score；固定绝对概率阈值暂不可信。
 4. 任何正式候选路线仍需同时报告 candidate Recall、event F1、长 FP 比例、participant 最差 F1 和边界 MAE。
 
@@ -65,9 +65,17 @@
 - 同一 cache-only 子集重跑 TCN candidate-only 得 F1=`0.1404`，HGB candidate-only 得 F1=`0.1633`，HGB candidate+event-verifier 得 F1=`0.3333`。
 - 结论：该轻量 Transformer 候选层的事件覆盖不足，阈值调整不能恢复漏检事件；按 candidate coverage gate 暂停该配置，不接入最终 verifier。这个结果否定的是“当前 15 s 特征序列 Transformer 直接作为候选层”，不是所有 Transformer 结构的理论上限。
 
-## Spike 3 外部数据预检
+### Spike 2b：小样本正则化复验
+
+- 在同一 94-session cache-only、40% participant-frozen validation 子集上，将 Transformer 缩小为 `d_model=16`、1 层、FFN 32，并将 dropout 从 `0.1` 提高到 `0.3`、AdamW weight decay 从 `1e-4` 提高到 `1e-2`。事件 F1 从未正则化配置的 `0.0645` 提升到 `0.1875`，`TP/FP/FN=3/24/2`，Recall=`0.60`。
+- 同一正则化配置的阈值 sweep：threshold `0.10/0.20/0.30` 的 F1 分别为 `0.1500/0.1875/0.0000`。因此正则化确实改变了泛化和召回，但并未解决 candidate-only 的误报与事件边界问题。
+- 结论：Transformer 不应因首个配置失败而删除；后续保留 dropout、weight decay、较小容量和 early stopping 作为必测正则化轴，但在接入最终 verifier 前仍必须通过更大 participant-frozen split 的 candidate coverage gate。
+
+## Spike 3 外部数据预检与训练适配
 
 - 工作区未发现 FD-I/FD-II/WIMID/FIC 等外部信号文件。
 - 已从 KU Leuven RDR 获取 FD-I README 与 7-fold subject-id 列表到工作区外的 `E:\bme_compitition\tmp`，确认 FD 数据为 64 Hz、左右手各 6 DoF、`X_L/X_R/Y_L/Y_R.pkl` 列表格式；标签为 point-wise 0/1/2，不能直接当作本题餐段区间标签。
-- 官方页面显示 FD-I/FD-II 合计下载约 5.5 GB，数据许可为 `CC-BY-NC-ND-4.0`。在组委会确认外部数据可用于提交、且完成左右手到单手目标契约的映射前，不下载大包、不混入 target-only 训练。
-- 因此 Spike 3 当前状态为 `BLOCKED_EXTERNAL_DATA_AND_RULE_CONFIRMATION`，不是正向收益结论。
+- 组委会已确认外部数据只能用于训练、不得进入提交包；据此从官方 KU Leuven RDR 下载并校验 FD-I/FD-II 压缩包，MD5 分别为 `e5adb4c6f3caa8f52c215658228917dd` 与 `4c7b2f43560f7f9488643bbe0a9d3dce`。压缩包与解压数据位于工作区外的 `E:\bme_compitition\external-dataset`，并已加入 Git ignore。
+- 新增 `eating_event.external` 适配器：按 participant/wrist 流式读取 `X_L/X_R/Y_L/Y_R.pkl`，验证 6 通道与点级标签契约，将 `1=eating` 映射为二值 eating-window 标签，`2=drinking` 保留为非 eating；窗口特征先从 64 Hz 重采样到目标 10 Hz，再复用同一套 111 维统计特征。
+- 实际 FD-I 首个左腕样本已验证：`(1,984,366, 6)`、约 `8.61 h`、标签集合 `{0,1,2}`；截取 120 s 后得到 `(15,111)` 窗口特征，全部有限值。该步骤只验证训练数据契约，未改变官方 test/submission 读取路径。
+- Spike 3 当前状态为 `EXTERNAL_DATA_READY_FOR_TRAINING_SPIKE`：下载、校验、适配和边界隔离已完成；外部预训练/迁移是否提升官方目标集 F1 尚未宣称，需要在 participant-frozen target validation 上单独对照。

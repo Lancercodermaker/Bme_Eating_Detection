@@ -84,6 +84,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--sequence-length", type=int, default=128)
     parser.add_argument("--sequence-stride", type=int, default=64)
     parser.add_argument("--dropout", type=float, default=0.1)
+    parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--pos-weight", type=float, default=None)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     return parser.parse_args()
@@ -162,8 +163,10 @@ def main() -> None:
         dropout=args.dropout,
         max_sequence_length=args.sequence_length,
     )
+    if args.weight_decay < 0:
+        raise ValueError("weight decay must be non-negative")
     model = TemporalTransformer(train_tables[0].features.shape[1], model_config).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=1e-4)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
     criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight, device=device))
     chunks = [
         (table, start, end)
@@ -238,6 +241,8 @@ def main() -> None:
         "decode_fuse_gap_ms": args.decode_fuse_gap_ms,
         "sequence_length": args.sequence_length,
         "sequence_stride": args.sequence_stride,
+        "dropout": args.dropout,
+        "weight_decay": args.weight_decay,
         "pos_weight": pos_weight,
         "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
         "train_window_labels": {"positive": positives, "negative": negatives},
