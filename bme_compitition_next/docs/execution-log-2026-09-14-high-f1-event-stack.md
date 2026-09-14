@@ -43,3 +43,14 @@ This log is updated at each task and milestone. Formal gate failures must record
 - next action: proceed to Task 2b trusted baseline sentinel
 - continue local optimization: no
 - architecture reopen: no
+
+## Task 2b / trusted baseline sentinel
+
+- input: M1 diagnostic manifest audit and the reviewed preflight M0 reference
+- output: `artifacts/m0-trusted-baseline/split-manifest.json`, `metrics.json` and `manifest.json`
+- acceptance: focused test `1 passed`; full suite `60 passed`; strict CLI result `pass`
+- frozen evidence: event F1 `0.17284`, strict IoU `> 0.25` one-to-one matching, `target_only_train`, participant-frozen seed `20260910`, valid fraction `0.20`
+- failure classification: `NONE`
+- next action: proceed to Task 3 hard-gap-aware timebase
+- continue local optimization: no
+- architecture reopen: no
