@@ -500,7 +500,7 @@ G1_CANDIDATE_FUSE_GAP_MS = 300_000
 G1_COVERAGE_THRESHOLD = 0.90
 ~~~
 
-For each outer fold, fit each candidate scorer and derive its score threshold from the outer-train participant scores only. Evaluate every quantile on inner validation sessions only. Select by this exact lexicographic key, in descending/ascending order as shown: highest pooled candidate coverage recall, highest worst event-bearing-participant recall, lowest total candidate interval count, highest quantile. The final key is `(pooled_recall, worst_participant_recall, -candidate_count, quantile)`, and ties are resolved by the fixed grid order. The outer-valid sessions are never used to select the quantile. A change to the grid, metric order, fuse gap or threshold requires a new design review.
+For each outer fold, run the following nested sequence for every quantile in the frozen grid: fit the candidate scorer on inner-train participants only; derive that fit's score threshold from the inner-train participant score distribution only; score inner-valid participants only; and evaluate candidate coverage on inner-valid sessions only. Aggregate the inner-fold results and select by this exact lexicographic key, in descending/ascending order as shown: highest pooled candidate coverage recall, highest worst event-bearing-participant recall, lowest total candidate interval count, highest quantile. The final key is `(pooled_recall, worst_participant_recall, -candidate_count, quantile)`, and ties are resolved by the fixed grid order. Only after this selection, refit the candidate scorer on the complete outer-train participants and derive its threshold from the complete outer-train score distribution. Use that refit exactly once to score outer-valid sessions for the G1 report; outer-valid sessions never affect fitting, threshold derivation, quantile selection or any other decision. A change to the grid, metric order, fuse gap or threshold requires a new design review.
 
 - [ ] **Step 4: Implement formal coverage evaluation**
 
@@ -509,11 +509,11 @@ Implement CandidateCoverageReport, FoldCoverageResult and run_candidate_coverage
 1. discover all eligible target train sessions;
 2. reject max-files-per-participant when formal=True;
 3. build outer participant folds;
-4. select candidate quantile only inside outer-train inner folds;
-5. fit HGB candidate scorer only on outer-train;
-6. score every eligible outer-valid session;
-7. build candidate event intervals with candidate_fuse_gap=300 seconds;
-8. calculate pooled and per-participant candidate coverage;
+4. for every inner fold, fit HGB candidate scorer only on inner-train participants and derive its threshold only from inner-train scores;
+5. score inner-valid participants, evaluate the frozen quantile grid there, and select the quantile using only aggregated inner-valid results;
+6. refit HGB candidate scorer once on complete outer-train participants after selection and derive its threshold only from complete outer-train scores;
+7. use that refit to score every eligible outer-valid session exactly once;
+8. build candidate event intervals with candidate_fuse_gap=300 seconds and calculate pooled and per-participant candidate coverage;
 9. write fold and participant reports even when the gate fails;
 10. never fit an event verifier.
 
@@ -755,6 +755,7 @@ Gate: M4 fails closed when fallback_participants is non-empty or verifier positi
 **Files:**
 
 - Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/verifier.py
+- Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/schemas.py
 - Create: E:/bme_compitition/bme_compitition_next/src/eating_event/artifacts.py
 - Create: E:/bme_compitition/bme_compitition_next/src/eating_event/telemetry.py
 - Modify: E:/bme_compitition/bme_compitition_next/scripts/run_event_verifier.py
@@ -777,6 +778,9 @@ def test_decoder_does_not_merge_different_sessions():
             segment_end_ms=180000,
             features=np.zeros(16),
             label=0,
+            candidate_status="negative",
+            quality_status="audited",
+            quality_flags=(),
             window_indices=(0,),
         ),
         EventCandidate(
@@ -789,6 +793,9 @@ def test_decoder_does_not_merge_different_sessions():
             segment_end_ms=380000,
             features=np.zeros(16),
             label=0,
+            candidate_status="negative",
+            quality_status="audited",
+            quality_flags=(),
             window_indices=(1,),
         ),
     ]
@@ -823,9 +830,50 @@ def test_event_candidate_may_start_at_segment_boundary():
         segment_end_ms=2000,
         features=np.zeros(16),
         label=1,
+        candidate_status="positive",
+        quality_status="audited",
+        quality_flags=(),
         window_indices=(0,),
     )
     assert candidate.interval.start_ms == candidate.segment_start_ms
+
+
+def test_ignored_event_candidate_is_excluded_from_verifier_data():
+    candidate = EventCandidate(
+        session_id="s1",
+        segment_id=0,
+        interval=EventInterval(1000, 2000),
+        session_start_ms=0,
+        session_end_ms=3000,
+        segment_start_ms=0,
+        segment_end_ms=3000,
+        features=np.zeros(16),
+        label=-1,
+        candidate_status="ignore",
+        quality_status="hard_gap_boundary",
+        quality_flags=("hard_gap_boundary",),
+        window_indices=(0,),
+    )
+    assert candidate.is_ignored
+    assert filter_verifier_candidates([candidate]) == []
+
+
+@pytest.mark.parametrize(
+    ("quality_status", "quality_flag"),
+    [
+        ("un_audited", "un_audited_quality"),
+        ("audited", "label_uncertain"),
+        ("hard_gap_boundary", "hard_gap_boundary"),
+    ],
+)
+def test_each_ignore_source_is_excluded_from_verifier_data(quality_status, quality_flag):
+    candidate = make_event_candidate(
+        label=-1,
+        candidate_status="ignore",
+        quality_status=quality_status,
+        quality_flags=(quality_flag,),
+    )
+    assert filter_verifier_candidates([candidate]) == []
 
 
 def test_run_artifact_records_all_required_telemetry_events(tmp_path):
@@ -847,10 +895,10 @@ def test_run_artifact_records_all_required_telemetry_events(tmp_path):
 - [ ] **Step 2: Run focused tests**
 
 ~~~text
-python -m pytest tests/test_verifier.py tests/test_artifacts.py -q
+python -m pytest tests/test_verifier.py tests/test_artifacts.py tests/test_telemetry.py -q
 ~~~
 
-Expected: FAIL because EventCandidate has no session contract, RunArtifact does not exist and the required telemetry API is absent.
+Expected: FAIL because EventCandidate has no session/quality contract, RunArtifact does not exist and the required telemetry API is absent.
 
 - [ ] **Step 3: Implement the complete EventCandidate boundary contract**
 
@@ -865,11 +913,16 @@ session_end_ms: int
 segment_start_ms: int
 segment_end_ms: int
 features: np.ndarray
-label: int
+label: int  # 1 positive, 0 negative, -1 ignore
+candidate_status: Literal["positive", "negative", "ignore"]
+quality_status: Literal["audited", "un_audited", "hard_gap_boundary"]
+quality_flags: tuple[str, ...]
 window_indices: tuple[int, ...]
 ~~~
 
-Validate session_start_ms <= segment_start_ms <= interval.start_ms < interval.end_ms <= segment_end_ms <= session_end_ms. Group, sort and fuse only within the same session_id and segment_id. Apply candidate_fuse_gap before verifier scoring, apply verifier threshold and min_duration after scoring, then clip intervals to segment bounds. Decoder receives no truths. The inclusive `segment_start_ms <= interval.start_ms` boundary is intentional and must have a regression test.
+Validate session_start_ms <= segment_start_ms <= interval.start_ms < interval.end_ms <= segment_end_ms <= session_end_ms. For a clean positive/negative candidate require `label` to be 1/0, `candidate_status` to agree with it, `quality_status="audited"` and `quality_flags=()`. For an ignored candidate require `label=-1`, `candidate_status="ignore"`, and at least one source flag from `un_audited_quality`, `hard_gap_boundary` or `label_uncertain`; `quality_status` identifies whether the boundary or quality region caused the ignore state. `quality_flags` is the bounded tuple of ignore-source flags, not a replacement for the upstream IMU/PPG quality mask. Group, sort and fuse only within the same session_id and segment_id. Apply candidate_fuse_gap before verifier scoring, apply verifier threshold and min_duration after scoring, then clip intervals to segment bounds. Decoder receives no truths. The inclusive `segment_start_ms <= interval.start_ms` boundary is intentional and must have a regression test.
+
+Construct the status from the audited quality mask, segment/hard-gap metadata and label state. Retain ignored candidates in the audit artifact with their source fields, but make `filter_verifier_candidates` remove every candidate with `candidate_status="ignore"`, `label=-1`, `quality_status != "audited"` or non-empty `quality_flags` before verifier fitting, OOF scoring, metric evaluation or decoder input. Ignored candidates must not contribute to verifier positive/negative counts.
 
 - [ ] **Step 4: Implement RunArtifact**
 
@@ -947,7 +1000,7 @@ Update run_event_verifier.py to write micro, macro_all, macro_event_bearing, wor
 - [ ] **Step 6: Run focused and full tests**
 
 ~~~text
-python -m pytest tests/test_verifier.py tests/test_artifacts.py -q
+python -m pytest tests/test_verifier.py tests/test_artifacts.py tests/test_telemetry.py -q
 python -m pytest -q
 ~~~
 
@@ -956,7 +1009,7 @@ Expected: all tests pass.
 - [ ] **Step 7: Commit M4 decoder/artifacts**
 
 ~~~text
-git add src/eating_event/verifier.py src/eating_event/artifacts.py scripts/run_event_verifier.py tests/test_verifier.py tests/test_artifacts.py
+git add src/eating_event/verifier.py src/eating_event/schemas.py src/eating_event/artifacts.py src/eating_event/telemetry.py scripts/run_event_verifier.py tests/test_verifier.py tests/test_artifacts.py tests/test_telemetry.py
 git commit -m "feat: add session-safe decoder and complete run artifacts"
 ~~~
 
@@ -1067,7 +1120,7 @@ def test_full_target_run_writes_candidate_verifier_and_oof_artifacts(tmp_path):
 def test_cache_only_recovery_does_not_fit_again(tmp_path, monkeypatch):
     first = run_fixture_full_target_only(tmp_path)
     monkeypatch.setattr("eating_event.full_run.fit_candidate_model", fail_if_called)
-    monkeypatch.setattr("eating_event.full_run.fit_verifier_model", fail_if_called)
+    monkeypatch.setattr("eating_event.full_run.fit_event_verifier", fail_if_called)
     recovered = run_fixture_full_target_only(tmp_path, cache_only=True, resume=True)
     assert sha256_file(recovered.output_dir / "candidate_model.joblib") == sha256_file(first.output_dir / "candidate_model.joblib")
     assert sha256_file(recovered.output_dir / "verifier_model.joblib") == sha256_file(first.output_dir / "verifier_model.joblib")
@@ -1093,7 +1146,7 @@ Implement `run_full_target_only(config, cache_dir, output_dir, run_id, formal, c
 1. Discover every eligible target train participant and session from the manifest; reject test participants, test metadata and external data references before any feature or label parsing.
 2. In `formal=True`, reject `max_files_per_participant`, process all eligible target train sessions, and write an explicit per-session status for every discovered session.
 3. Load or build the versioned dense candidate cache. Fit the final HGB candidate model on all eligible target train rows using the G1 quantile protocol selected by nested evaluation; no outer-valid or test row may enter fitting.
-4. Generate participant-frozen OOF candidate scores for all target train participants, fit the event verifier only from those OOF scores, and fail closed if OOF fallback is non-empty or the positive-sample gate fails.
+4. Generate participant-frozen OOF candidate scores for all target train participants, then call the existing public `fit_event_verifier` function only with those OOF scores. `fit_event_verifier` is the sole canonical verifier-fit name for this plan. Fail closed if OOF fallback is non-empty or the positive-sample gate fails.
 5. Write these exact outputs under `artifacts/m6-full-target-only/`: `candidate_model.joblib`, `verifier_model.joblib`, `oof_scores/`, `cache_manifest.json`, `metrics.json`, `resource_report.json`, `resolved_config.json`, `run.log`, `telemetry.jsonl` and `manifest.json`. Checkpoints must contain the contract hash, feature schema hash, git revision and training participant digest.
 
 - [ ] **Step 4: Implement bounded resource monitoring and reproducibility**
@@ -1285,7 +1338,10 @@ Check that every Detailed Design section maps to a task, every task has exact fi
 Check that the worktree path is `E:/bme_compitition/.worktrees/high-f1-event-stack-execution`, `/.worktrees/` is verified by `git check-ignore`, and all project commands run from its nested `bme_compitition_next` directory.
 Check that the formal G1 command precedes every verifier or complex-model command and writes fold, participant and failure-class artifacts before stopping on failure.
 Check that the G1 quantile grid, inner-only selection metric, tie-break and fuse gap are frozen and that Task 6 reuses rather than recreates `evaluation.py`.
+Check that every G1 inner fold fits and thresholds on inner-train only, selects on inner-valid only, refits on complete outer-train only, and evaluates outer-valid only after selection.
+Check that EventCandidate carries candidate status, quality status and ignore-source flags, and that every ignored source is excluded from verifier training, OOF scoring, metrics and decoder input.
 Check that Task 8 exposes the `RunArtifact.record_event` telemetry API and tests `run_start`, `gate_result`, `escalation` and `run_end` plus manifest checksums.
+Check that the Task 8 focused command includes `tests/test_telemetry.py` and that M6 recovery patches the canonical `fit_event_verifier` name.
 Check that M6 is an independent full target-only run with full candidate/verifier checkpoints, participant OOF scores, cache-only recovery comparison and resource report before M7/G6 submission.
 Check that EventCandidate allows `segment_start_ms == interval.start_ms` and that submission tests prove test rows are skipped before timestamp parsing.
 
