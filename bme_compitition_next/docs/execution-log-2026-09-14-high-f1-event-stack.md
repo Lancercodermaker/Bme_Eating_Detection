@@ -76,3 +76,15 @@ This log is updated at each task and milestone. Formal gate failures must record
 - next action: proceed to formal G1 candidate coverage; do not treat smoke metrics as formal evidence
 - continue local optimization: no
 - architecture reopen: no
+
+## Task 5 / formal G1 candidate coverage
+
+- input: all eligible target-train manifest records, formal `outer_folds=5`, frozen quantile grid `(0.70, 0.80, 0.90)`, target-only local cache path
+- implementation output: participant fold contracts, inner-only quantile selection, outer coverage report writer, formal RunArtifact telemetry and fail-closed runner
+- test acceptance before formal run: focused tests `4 passed`; full suite `71 passed`
+- formal evidence: discovery found `1161` eligible train sensor files; only `3` formal cache files were materialized during the bounded resource observation before the run became non-viable for this execution window
+- gate result: `G1=fail`, `failure_class=RESOURCE`; `artifacts/g1-candidate-coverage.json` and fold/participant reports were written; formal artifact manifest and lifecycle telemetry were verified
+- next action: stop formal route and perform resource/root-cause review before any verifier or nested evaluation work
+- continue local optimization: no
+- architecture reopen: no
+- deviation: the PTY interruption did not propagate Python `KeyboardInterrupt`; the failure artifact was then materialized through the tested report/artifact APIs. The artifact retains provenance from the interrupted attempts, including repeated `run_start` events.
