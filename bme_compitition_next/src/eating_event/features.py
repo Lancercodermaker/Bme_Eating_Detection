@@ -7,6 +7,10 @@ from dataclasses import dataclass
 import numpy as np
 
 
+FEATURE_SCHEMA_VERSION = "imu_stats_v1"
+IMU_FEATURE_WIDTH = 111
+
+
 @dataclass(frozen=True)
 class FeatureVector:
     names: tuple[str, ...]
@@ -88,5 +92,8 @@ def extract_imu_features(values: np.ndarray, valid_mask: np.ndarray | None = Non
         feature_names.extend(f"{signal_name}_{stat_name}" for stat_name in _STAT_NAMES)
         feature_values.extend(stats.tolist())
 
-    return FeatureVector(tuple(feature_names), np.asarray(feature_values, dtype=np.float64))
+    values = np.asarray(feature_values, dtype=np.float32)
+    if values.shape != (IMU_FEATURE_WIDTH,) or not np.isfinite(values).all():
+        raise ValueError("IMU feature contract must produce 111 finite values")
+    return FeatureVector(tuple(feature_names), values)
 

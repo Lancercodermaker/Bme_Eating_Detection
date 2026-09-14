@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from scripts.run_candidate_baseline import _select_records_for_run
 from eating_event.candidates import (
     CandidateTable,
     build_candidate_table,
@@ -13,6 +14,24 @@ from eating_event.data.timebase import aggregate_timestamp_rows, regularize_seri
 from eating_event.data.windows import generate_dense_windows
 from eating_event.features import extract_imu_features
 from eating_event.metrics import EventInterval
+from eating_event.data.manifest import RawFileRecord
+
+
+def test_diagnostic_file_limit_is_bounded_for_smoke_runs(tmp_path) -> None:
+    records = [
+        RawFileRecord(f"p{index // 2}", tmp_path / f"{index}.txt", f"s{index}", 0, 1000)
+        for index in range(4)
+    ]
+
+    selected = _select_records_for_run(
+        records,
+        max_files_per_participant=2,
+        diagnostic_only=True,
+    )
+
+    assert len(selected) == 4
+    assert {record.participant_id for record in selected} == {"p0", "p1"}
+    assert all(sum(item.participant_id == record.participant_id for item in selected) <= 2 for record in selected)
 
 
 def test_features_are_invariant_to_duplicate_packets_after_timebase_reconstruction() -> None:
@@ -39,6 +58,16 @@ def test_features_are_invariant_to_duplicate_packets_after_timebase_reconstructi
 
     np.testing.assert_array_equal(direct_features.names, reconstructed_features.names)
     np.testing.assert_allclose(direct_features.values, reconstructed_features.values)
+
+
+def test_imu_feature_schema_has_111_finite_values() -> None:
+    values = np.ones((150, 6), dtype=np.float32)
+
+    vector = extract_imu_features(values, np.ones(150, dtype=bool))
+
+    assert len(vector.names) == 111
+    assert vector.values.shape == (111,)
+    assert np.isfinite(vector.values).all()
 
 
 def test_candidate_table_keeps_ignore_labels_out_of_binary_training_rows() -> None:

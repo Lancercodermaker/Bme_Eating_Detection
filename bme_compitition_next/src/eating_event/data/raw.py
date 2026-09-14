@@ -111,7 +111,83 @@ def read_imu_tsv_with_audit(path: str | Path, *, chunk_size: int = 200_000) -> R
         "GYRO_Y",
         "GYRO_Z",
     ]
+
+    def read_large_with_pandas(encoding: str) -> RawIMUReadResult:
+        """Use the bounded C parser for real files; keep the Python parser for fixtures."""
+
+        try:
+            import pandas as pd
+        except ImportError as exc:  # pragma: no cover - dependency is declared in pyproject
+            raise RawFileFormatError("pandas is required to read raw sensor files") from exc
+        malformed_details: list[dict[str, object]] = []
+        try:
+            with file_path.open("r", encoding=encoding, newline="") as stream:
+                reader = csv.reader(stream, delimiter="\t")
+                header = next(reader)
+                missing = sorted(set(required) - set(header))
+                if missing:
+                    raise RawFileFormatError(
+                        f"sensor header missing required columns {missing}: {file_path}"
+                    )
+                total_rows = 0
+                bad_source_rows: set[int] = set()
+                for source_row_number, row in enumerate(reader, start=2):
+                    total_rows += 1
+                    if len(row) != len(header):
+                        bad_source_rows.add(source_row_number)
+                        malformed_details.append(
+                            {
+                                "source_row_number": source_row_number,
+                                "reason": "column_count_mismatch",
+                            }
+                        )
+        except (OSError, UnicodeDecodeError, csv.Error, StopIteration) as exc:
+            raise RawFileFormatError(f"cannot decode sensor rows: {file_path}") from exc
+
+        acc = _TimestampAccumulator(width=3)
+        gyro = _TimestampAccumulator(width=3)
+        skiprows = lambda line_number: line_number + 1 in bad_source_rows
+        try:
+            reader = pd.read_csv(
+                file_path,
+                sep="\t",
+                usecols=required,
+                dtype={column: "float64" for column in required},
+                chunksize=chunk_size,
+                encoding=encoding,
+                on_bad_lines="skip",
+                skiprows=skiprows,
+            )
+            for chunk in reader:
+                acc.update(chunk["ACC_TIME"].to_numpy(), chunk[["ACC_X", "ACC_Y", "ACC_Z"]].to_numpy())
+                gyro.update(chunk["GYRO_TIME"].to_numpy(), chunk[["GYRO_X", "GYRO_Y", "GYRO_Z"]].to_numpy())
+        except (UnicodeDecodeError, pd.errors.ParserError, ValueError, TypeError) as exc:
+            raise RawFileFormatError(f"cannot decode sensor rows: {file_path}") from exc
+        acc_result = acc.finish()
+        gyro_result = gyro.finish()
+        if acc_result.timestamps_ms.size == 0 or gyro_result.timestamps_ms.size == 0:
+            raise RawFileFormatError(f"no valid required ACC/GYRO timestamps: {file_path}")
+        return RawIMUReadResult(
+            acc=acc_result,
+            gyro=gyro_result,
+            audit=RawReadAudit(
+                path=str(file_path),
+                status="processed",
+                reason=None,
+                total_rows=total_rows,
+                valid_rows=total_rows - len(malformed_details),
+                malformed_rows=len(malformed_details),
+                malformed_row_details=tuple(malformed_details),
+                duplicate_count=acc_result.duplicate_count + gyro_result.duplicate_count,
+                dropped_timestamp_count=(
+                    acc_result.dropped_missing_timestamps + gyro_result.dropped_missing_timestamps
+                ),
+            ),
+        )
+
     def read_with_encoding(encoding: str) -> RawIMU:
+        if file_path.stat().st_size > 1_000_000:
+            return read_large_with_pandas(encoding)  # type: ignore[return-value]
         try:
             stream = file_path.open("r", encoding=encoding, newline="")
         except (OSError, UnicodeDecodeError) as exc:
@@ -155,7 +231,7 @@ def read_imu_tsv_with_audit(path: str | Path, *, chunk_size: int = 200_000) -> R
                 total_rows += 1
                 if len(row) != len(header):
                     malformed_details.append(
-                        {"row_number": row_number, "reason": "column_count_mismatch"}
+                        {"source_row_number": row_number, "reason": "column_count_mismatch"}
                     )
                     continue
 
@@ -178,7 +254,7 @@ def read_imu_tsv_with_audit(path: str | Path, *, chunk_size: int = 200_000) -> R
                     }
                 except ValueError:
                     malformed_details.append(
-                        {"row_number": row_number, "reason": "non_numeric_required_signal"}
+                        {"source_row_number": row_number, "reason": "non_numeric_required_signal"}
                     )
                     continue
                 valid_rows += 1

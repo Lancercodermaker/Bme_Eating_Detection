@@ -130,3 +130,4 @@ def test_malformed_sensor_row_is_counted(tmp_path: Path) -> None:
 
     assert result.audit.malformed_rows == 1
     assert result.audit.valid_rows > 0
+    assert result.audit.malformed_row_details[0]["source_row_number"] == 3

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 from collections import defaultdict
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
+from eating_event.cache import build_cache_key, load_candidate_table, save_candidate_table
 from eating_event.candidates import (
     CandidateTable,
     build_candidate_table,
@@ -31,68 +33,39 @@ from eating_event.data.windows import WindowRecord, WindowSpec, generate_dense_w
 from eating_event.metrics import EventInterval, evaluate_events
 
 
-def _cache_key(record: RawFileRecord, config: ProjectConfig) -> str:
+def _cache_metadata(record: RawFileRecord, config: ProjectConfig) -> dict[str, object]:
     stat = record.path.stat()
-    raw = "|".join(
-        [
-            str(record.path),
-            str(stat.st_size),
-            str(stat.st_mtime_ns),
-            str(config.imu_grid_hz),
-            str(config.window_seconds),
-            str(config.step_seconds),
-            str(config.min_coverage),
-            str(config.max_gap_seconds),
-        ]
+    source_fingerprint = hashlib.sha256(
+        "|".join([str(record.path), str(stat.st_size), str(stat.st_mtime_ns)]).encode("utf-8")
+    ).hexdigest()
+    cache_key = build_cache_key(
+        source_fingerprint,
+        config.window_seconds,
+        config.step_seconds,
+        config.feature_schema_version,
+        config.label_schema_version,
     )
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+    return {
+        "cache_key": cache_key,
+        "source_fingerprint": source_fingerprint,
+        "window_seconds": config.window_seconds,
+        "step_seconds": config.step_seconds,
+        "feature_schema_version": config.feature_schema_version,
+        "label_schema_version": config.label_schema_version,
+        "imu_grid_hz": config.imu_grid_hz,
+        "min_coverage": config.min_coverage,
+        "max_gap_seconds": config.max_gap_seconds,
+    }
 
 
-def _save_table(path: Path, table: CandidateTable) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    starts = np.asarray([record.window.start_ms for record in table.windows], dtype=np.int64)
-    ends = np.asarray([record.window.end_ms for record in table.windows], dtype=np.int64)
-    coverage = np.asarray([record.coverage for record in table.windows], dtype=np.float64)
-    invalid_runs = np.asarray([record.longest_invalid_run for record in table.windows], dtype=np.int32)
-    np.savez(
-        path,
-        features=table.features,
-        feature_names=np.asarray(json.dumps(table.feature_names), dtype=object),
-        labels=table.labels,
-        starts=starts,
-        ends=ends,
-        coverage=coverage,
-        invalid_runs=invalid_runs,
-    )
+def _cache_key(record: RawFileRecord, config: ProjectConfig) -> str:
+    """Compatibility helper used by the existing candidate runner variants."""
+
+    return str(_cache_metadata(record, config)["cache_key"])
 
 
 def _load_table(path: Path) -> CandidateTable:
-    with np.load(path, allow_pickle=True) as payload:
-        names = tuple(json.loads(str(payload["feature_names"].item())))
-        windows: list[WindowRecord] = []
-        for start, end, coverage, invalid_run, label in zip(
-            payload["starts"],
-            payload["ends"],
-            payload["coverage"],
-            payload["invalid_runs"],
-            payload["labels"],
-        ):
-            label_enum = {1: WindowLabel.POSITIVE, 0: WindowLabel.NEGATIVE, -1: WindowLabel.IGNORE}[int(label)]
-            windows.append(
-                WindowRecord(
-                    window=WindowSpec(int(start), int(end)),
-                    coverage=float(coverage),
-                    longest_invalid_run=int(invalid_run),
-                    label_result=WindowLabelResult(label_enum, 0.0, None),
-                )
-            )
-        return CandidateTable(
-            features=payload["features"].astype(np.float64, copy=False),
-            feature_names=names,
-            labels=payload["labels"].astype(np.int8, copy=False),
-            participant_ids=np.empty(payload["labels"].shape[0], dtype=object),
-            windows=tuple(windows),
-        )
+    return load_candidate_table(path)
 
 
 def _build_table(
@@ -101,9 +74,10 @@ def _build_table(
     truths: tuple[EventInterval, ...],
     cache_dir: Path,
 ) -> CandidateTable:
-    cache_path = cache_dir / f"{_cache_key(record, config)}.npz"
+    metadata = _cache_metadata(record, config)
+    cache_path = cache_dir / f"{metadata['cache_key']}.npz"
     if cache_path.is_file():
-        return _load_table(cache_path)
+        return load_candidate_table(cache_path, expected_metadata=metadata)
     raw = read_imu_tsv(record.path)
     series = regularize_imu(raw, grid_hz=config.imu_grid_hz, max_gap_seconds=config.max_gap_seconds)
     windows = generate_dense_windows(
@@ -114,10 +88,12 @@ def _build_table(
         step_seconds=config.step_seconds,
         min_coverage=config.min_coverage,
         max_gap_seconds=config.max_gap_seconds,
+        hard_gap_mask=series.hard_gap_mask,
+        segment_id=series.segment_id,
         truths=truths,
     )
     table = build_candidate_table(series, windows, participant_id=record.participant_id)
-    _save_table(cache_path, table)
+    save_candidate_table(cache_path, table, metadata=metadata)
     return table
 
 
@@ -150,11 +126,51 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--threshold", type=float, default=0.35)
     parser.add_argument("--window-seconds", type=float, default=None)
     parser.add_argument("--step-seconds", type=float, default=None)
+    parser.add_argument("--run-id", default="candidate-baseline")
+    parser.add_argument("--diagnostic-only", action="store_true")
     return parser.parse_args()
+
+
+def _select_records_for_run(
+    records: list[RawFileRecord],
+    *,
+    max_files_per_participant: int | None,
+    diagnostic_only: bool,
+) -> list[RawFileRecord]:
+    if max_files_per_participant is None:
+        return records
+    if max_files_per_participant <= 0:
+        raise ValueError("--max-files-per-participant must be positive")
+    limited: list[RawFileRecord] = []
+    counts: dict[str, int] = defaultdict(int)
+    for record in records:
+        if counts[record.participant_id] >= max_files_per_participant:
+            continue
+        limited.append(record)
+        counts[record.participant_id] += 1
+    if diagnostic_only:
+        by_participant: dict[str, list[RawFileRecord]] = defaultdict(list)
+        participant_order: list[str] = []
+        for record in limited:
+            if record.participant_id not in by_participant:
+                participant_order.append(record.participant_id)
+            by_participant[record.participant_id].append(record)
+        bounded: list[RawFileRecord] = []
+        total_limit = max_files_per_participant * 2
+        for round_index in range(max_files_per_participant):
+            for participant in participant_order[:2]:
+                values = by_participant[participant]
+                if round_index < len(values):
+                    bounded.append(values[round_index])
+                    if len(bounded) == total_limit:
+                        return bounded
+        return bounded
+    return limited
 
 
 def main() -> None:
     args = _parse_args()
+    started_at = datetime.now(timezone.utc).isoformat()
     config = load_config(args.config)
     if args.window_seconds is not None or args.step_seconds is not None:
         config = replace(
@@ -169,17 +185,11 @@ def main() -> None:
     if args.participants:
         selected = set(args.participants)
         records = [record for record in records if record.participant_id in selected]
-    if args.max_files_per_participant is not None:
-        if args.max_files_per_participant <= 0:
-            raise ValueError("--max-files-per-participant must be positive")
-        limited: list[RawFileRecord] = []
-        counts: dict[str, int] = defaultdict(int)
-        for record in records:
-            if counts[record.participant_id] >= args.max_files_per_participant:
-                continue
-            limited.append(record)
-            counts[record.participant_id] += 1
-        records = limited
+    records = _select_records_for_run(
+        records,
+        max_files_per_participant=args.max_files_per_participant,
+        diagnostic_only=args.diagnostic_only,
+    )
     if args.limit_files is not None:
         if args.limit_files <= 0:
             raise ValueError("--limit-files must be positive")
@@ -211,7 +221,30 @@ def main() -> None:
     train_tables = [table for record, table in tables.values() if record.participant_id in train_set]
     train_features = np.vstack([table.features for table in train_tables])
     train_labels = np.concatenate([table.labels for table in train_tables])
-    model = fit_candidate_model(train_features, train_labels, random_state=args.split_seed)
+    try:
+        model = fit_candidate_model(train_features, train_labels, random_state=args.split_seed)
+    except ValueError as exc:
+        if not args.diagnostic_only:
+            raise
+        diagnostic_result = {
+            "run_id": args.run_id,
+            "diagnostic_only": True,
+            "telemetry_scope": "diagnostic",
+            "status": "fail",
+            "failure_class": "DATA/PIPELINE",
+            "reason": str(exc),
+            "records": len(records),
+            "processed_records": len(tables),
+            "train_participants": list(train_participants),
+            "valid_participants": list(valid_participants),
+            "skipped_files": skipped_files,
+            "started_at": started_at,
+            "ended_at": datetime.now(timezone.utc).isoformat(),
+        }
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(diagnostic_result, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(json.dumps(diagnostic_result, ensure_ascii=False))
+        return
 
     predictions_by_participant: dict[str, list[EventInterval]] = defaultdict(list)
     truths_by_participant: dict[str, list[EventInterval]] = defaultdict(list)
@@ -264,6 +297,13 @@ def main() -> None:
             "end_mae_ms": metrics.end_mae_ms,
         },
         "participant_metrics": participant_metrics,
+        "run_id": args.run_id,
+        "diagnostic_only": args.diagnostic_only,
+        "telemetry_scope": "diagnostic" if args.diagnostic_only else "formal",
+        "status": "pass",
+        "failure_class": None,
+        "started_at": started_at,
+        "ended_at": datetime.now(timezone.utc).isoformat(),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")

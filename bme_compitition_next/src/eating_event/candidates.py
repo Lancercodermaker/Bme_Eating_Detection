@@ -20,6 +20,7 @@ class CandidateTable:
     labels: np.ndarray
     participant_ids: np.ndarray
     windows: tuple[WindowRecord, ...]
+    session_ids: np.ndarray | None = None
 
 
 def eventize_windows(
@@ -110,7 +111,9 @@ def build_candidate_table(
     if feature_names is None:
         feature_names = tuple()
     feature_width = len(feature_names)
-    features = np.vstack(feature_rows) if feature_rows else np.empty((0, feature_width), dtype=np.float64)
+    if feature_width not in {0, 111}:
+        raise ValueError("candidate feature schema must have width 111")
+    features = np.vstack(feature_rows).astype(np.float32, copy=False) if feature_rows else np.empty((0, feature_width), dtype=np.float32)
     return CandidateTable(
         features=features,
         feature_names=feature_names,

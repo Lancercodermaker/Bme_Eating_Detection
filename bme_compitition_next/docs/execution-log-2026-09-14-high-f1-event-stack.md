@@ -64,3 +64,15 @@ This log is updated at each task and milestone. Formal gate failures must record
 - next action: proceed to Task 4 feature and cache contracts
 - continue local optimization: no
 - architecture reopen: no
+
+## Task 4 / versioned local cache
+
+- input: hard-gap-aware regularized sessions, 15 s / 7.5 s window contract, IMU feature extractor
+- output: finite `[W,111]` feature contract, schema-versioned candidate cache, local-window candidate runner
+- acceptance: focused tests `11 passed`; full suite `67 passed`; cache round-trip preserves float32 features, int8 labels, interval arrays and metadata validation
+- diagnostic smoke: `artifacts/m2-smoke.json` was written with `run_id=m2-smoke`, `diagnostic_only=true`, `telemetry_scope=diagnostic`; the 4-file/2-participant bounded subset had single-class train labels and was classified `DATA/PIPELINE`
+- minimal deviation: diagnostic-only `--max-files-per-participant 2` uses a total bounded sample across two participants so the smoke cannot expand to all large raw files; formal runs do not use this cap
+- failure classification: `DATA/PIPELINE` for diagnostic smoke only; formal M2 contract tests pass
+- next action: proceed to formal G1 candidate coverage; do not treat smoke metrics as formal evidence
+- continue local optimization: no
+- architecture reopen: no
