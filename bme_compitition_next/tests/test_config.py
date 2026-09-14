@@ -83,3 +83,36 @@ def test_load_config_rejects_raw_root_inside_repository(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="inside repository"):
         load_config(config_path)
+
+
+def test_load_config_exposes_formal_local_window_and_resource_contract(tmp_path: Path) -> None:
+    repository_root = tmp_path / "repo"
+    raw_root = tmp_path / "raw"
+    metadata_root = tmp_path / "metadata"
+    repository_root.mkdir()
+    raw_root.mkdir()
+    metadata_root.mkdir()
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                f"repository_root: '{repository_root.as_posix()}'",
+                f"raw_data_root: '{raw_root.as_posix()}'",
+                f"metadata_root: '{metadata_root.as_posix()}'",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.window_seconds == pytest.approx(15.0)
+    assert config.step_seconds == pytest.approx(7.5)
+    assert config.coarse_window_seconds == pytest.approx(240.0)
+    assert config.coarse_step_seconds == pytest.approx(15.0)
+    assert config.use_coarse_context is False
+    assert config.feature_schema_version == "imu_stats_v1"
+    assert config.label_schema_version == "window_event_labels_v1"
+    assert config.raw_chunk_size == 200000
+    assert config.host_memory_fraction == pytest.approx(0.60)
+    assert config.gpu_memory_limit_gb == pytest.approx(7.0)

@@ -2,10 +2,21 @@ repository_root: "E:/bme_compitition/bme_compitition_next"
 raw_data_root: "E:/bme_compitition/official_test_dataset/Data/02_traindataset/organized"
 metadata_root: "E:/bme_compitition/official_test_dataset/Data/01_dataset"
 
-window_seconds: 240
-step_seconds: 15
+window_seconds: 15
+step_seconds: 7.5
 min_coverage: 0.8
 imu_grid_hz: 10
 max_gap_seconds: 2.0
 local_window_seconds: 15.0
 local_step_seconds: 7.5
+coarse_window_seconds: 240.0
+coarse_step_seconds: 15.0
+use_coarse_context: false
+feature_schema_version: imu_stats_v1
+label_schema_version: window_event_labels_v1
+raw_chunk_size: 200000
+host_memory_fraction: 0.60
+gpu_memory_limit_gb: 7.0
+audit_timeout_seconds: 1800
+cache_timeout_seconds: 21600
+fit_timeout_seconds: 7200
