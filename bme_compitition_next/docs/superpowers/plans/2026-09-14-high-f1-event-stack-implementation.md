@@ -12,7 +12,7 @@
 
 ## 执行边界
 
-- 工作区固定为 E:/bme_compitition/bme_compitition_next。
+- 项目工作目录固定为 E:/bme_compitition/bme_compitition_next；Git 仓库根目录固定为 E:/bme_compitition。
 - 原始数据目录只读，不能复制到工作区或加入 Git。
 - 实现开始前必须从冻结提交 6d906ce 创建独立 worktree 和 codex/ 分支；master 只保存已冻结文档，不直接承载实现改动。
 - 每个 task 先写 focused failing test，再实现最小改动，再运行 focused test 和全套测试。
@@ -21,19 +21,27 @@
 - 当前旧计划 E:/bme_compitition/bme_compitition_next/docs/superpowers/plans/2026-09-10-high-f1-event-stack.md 保留为历史记录，本计划是当前冻结设计的执行计划。
 - 本计划执行过程中不得调用外部数据适配器，不得读取 test truth，不得重新做开放式架构搜索。
 
-Worktree preflight must verify that the plan revision descends from 6d906ce, then create the implementation worktree from that plan revision:
+Worktree preflight must verify that the existing repository policy ignores the worktree path, then verify that the plan revision descends from 6d906ce. The implementation worktree is a Git checkout at a path below the ignored directory, while every Python, pytest and project-relative Git command runs from its nested project directory:
 
 ~~~powershell
 $repo = "E:\bme_compitition"
 $project = "E:\bme_compitition\bme_compitition_next"
-$worktree = "E:\bme_compitition\bme_compitition_next-high-f1-execution"
+$worktree = "E:\bme_compitition\.worktrees\high-f1-event-stack-execution"
+$worktreeProject = Join-Path $worktree "bme_compitition_next"
+$ignoreProbe = ".worktrees/high-f1-event-stack-execution"
+git -C $repo check-ignore -q $ignoreProbe
+if ($LASTEXITCODE -ne 0) { throw "worktree path is not ignored by repository policy" }
 $planRevision = git -C $project rev-parse HEAD
 git -C $project merge-base --is-ancestor 6d906ce $planRevision
 if ($LASTEXITCODE -ne 0) { throw "plan revision is not descended from 6d906ce" }
 git -C $repo worktree add $worktree -b codex/high-f1-event-stack-execution $planRevision
+if (-not (Test-Path (Join-Path $worktreeProject "pyproject.toml"))) { throw "nested project directory is missing" }
+Set-Location $worktreeProject
+if ((git rev-parse --show-toplevel) -ne ($worktree -replace '\\','/')) { throw "unexpected worktree root" }
+if ((Get-Location).Path -ne (Resolve-Path $worktreeProject).Path) { throw "commands are not running from the project directory" }
 ~~~
 
-After this command, all implementation commands run from $worktree. The original project checkout remains unchanged during implementation.
+After this command, all implementation commands run from `$worktreeProject`; worktree management alone uses `git -C $repo`. The original project checkout remains unchanged during implementation. Before Task 1, record the verified values of `planRevision`, `$worktree`, `$worktreeProject` and the clean status in the execution log.
 
 ## Adaptive Workflow execution contract
 
@@ -82,11 +90,16 @@ dataset sanity
 | src/eating_event/verifier.py | event candidate features、HGB verifier、decoder |
 | src/eating_event/metrics.py | strict IoU、one-to-one match 和 metric aggregation |
 | src/eating_event/evaluation.py | nested split、inner selection、outer reporting |
+| src/eating_event/coverage.py | formal G1 candidate coverage and frozen quantile selection |
 | src/eating_event/artifacts.py | run directory、checksums、resource logging |
+| src/eating_event/telemetry.py | run_start、gate_result、escalation、run_end event schema and writer |
+| src/eating_event/full_run.py | full target-only scale orchestration and cache recovery |
 | scripts/audit_dataset.py | manifest/timebase audit CLI |
 | scripts/run_candidate_baseline.py | dense cache 和 candidate coverage CLI |
+| scripts/run_candidate_coverage.py | formal outer-fold G1 coverage CLI |
 | scripts/run_event_verifier.py | OOF verifier 和 nested validation CLI |
-| scripts/run_submission.py | target-only final fit 和 test prediction serialization |
+| scripts/run_full_target_only.py | M6 full target-only checkpoints, OOF verifier and resource report |
+| scripts/run_submission.py | load M6 target-only checkpoints and serialize test predictions |
 | tests/test_*.py | contract、leakage、metric、resource 和 runner regression tests |
 
 ### Task 1: Freeze public config and data schemas
@@ -456,6 +469,15 @@ def test_coverage_report_contains_fold_and_participant_results():
     assert report.gate_id == "G1"
     assert report.fold_results[0].pooled_recall == pytest.approx(0.95)
     assert report.fold_results[0].participant_recall["p1"] == pytest.approx(1.0)
+
+
+def test_candidate_quantile_selection_is_frozen_and_deterministic():
+    results = (
+        QuantileResult(quantile=0.70, pooled_recall=0.95, worst_participant_recall=0.80, candidate_count=30),
+        QuantileResult(quantile=0.80, pooled_recall=0.95, worst_participant_recall=0.80, candidate_count=20),
+        QuantileResult(quantile=0.90, pooled_recall=0.95, worst_participant_recall=0.80, candidate_count=20),
+    )
+    assert select_candidate_quantile(results).quantile == pytest.approx(0.90)
 ~~~
 
 - [ ] **Step 2: Run focused tests**
@@ -469,6 +491,16 @@ Expected: FAIL because CoverageRunConfig, CandidateCoverageReport and the formal
 - [ ] **Step 3: Implement deterministic outer/inner participant fold creation**
 
 Add ParticipantFold, build_outer_folds and build_inner_folds to evaluation.py. Sort participant identifiers, apply the supplied seed, assign every participant to exactly one outer validation fold, and keep all sessions of a participant together. No test participant or test metadata is accepted by these functions.
+
+Freeze the G1 candidate-quantile protocol in code and in the formal report:
+
+~~~python
+G1_CANDIDATE_QUANTILE_GRID = (0.70, 0.80, 0.90)
+G1_CANDIDATE_FUSE_GAP_MS = 300_000
+G1_COVERAGE_THRESHOLD = 0.90
+~~~
+
+For each outer fold, fit each candidate scorer and derive its score threshold from the outer-train participant scores only. Evaluate every quantile on inner validation sessions only. Select by this exact lexicographic key, in descending/ascending order as shown: highest pooled candidate coverage recall, highest worst event-bearing-participant recall, lowest total candidate interval count, highest quantile. The final key is `(pooled_recall, worst_participant_recall, -candidate_count, quantile)`, and ties are resolved by the fixed grid order. The outer-valid sessions are never used to select the quantile. A change to the grid, metric order, fuse gap or threshold requires a new design review.
 
 - [ ] **Step 4: Implement formal coverage evaluation**
 
@@ -491,7 +523,10 @@ Use these output files:
 artifacts/g1-candidate-coverage.json
 artifacts/g1-candidate-coverage-by-fold.json
 artifacts/g1-candidate-coverage-by-participant.json
+artifacts/g1-candidate-coverage-telemetry.jsonl
 ~~~
+
+The formal runner writes `run_start` before discovery, a `gate_result` after coverage is computed, an `escalation` only when the adaptive-workflow circuit breaker is reached, and `run_end` on pass or classified failure. The three coverage reports and the telemetry file must be written before a nonzero G1 exit.
 
 - [ ] **Step 5: Enforce the G1 gate**
 
@@ -505,7 +540,7 @@ python scripts/run_candidate_coverage.py --config configs/example.local.yaml --o
 
 Expected: the command uses all eligible sessions, writes participant/fold coverage, and stops before any verifier training if G1 fails.
 
-- [ ] **Step 7: Commit G1 coverage gate**
+- [ ] **Step 7: Commit M2/G1 formal coverage gate**
 
 ~~~text
 git add src/eating_event/coverage.py src/eating_event/evaluation.py scripts/run_candidate_coverage.py tests/test_coverage.py
@@ -514,13 +549,13 @@ git commit -m "feat: add formal candidate coverage gate"
 
 Gate: Task 6 and all verifier tasks are blocked until every outer fold satisfies pooled candidate coverage recall >= 0.90 or an explicit architecture-level kill decision is recorded.
 
-### Task 6: Add nested participant folds and complete official metrics
+### Task 6: Reuse nested participant folds and complete official metrics
 
 **Files:**
 
 - Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/candidates.py
 - Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/metrics.py
-- Create: E:/bme_compitition/bme_compitition_next/src/eating_event/evaluation.py
+- Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/evaluation.py
 - Modify: E:/bme_compitition/bme_compitition_next/tests/test_metrics.py
 - Create: E:/bme_compitition/bme_compitition_next/tests/test_evaluation.py
 
@@ -562,11 +597,11 @@ def test_unmatched_boundary_mae_is_none():
 python -m pytest tests/test_metrics.py tests/test_evaluation.py -q
 ~~~
 
-Expected: FAIL because nested folds, matched_count and missing-match boundary semantics do not exist.
+Expected: FAIL because nested metric aggregation and missing-match boundary semantics do not exist; the participant-fold API is already created by the preceding G1 task and is reused here.
 
 - [ ] **Step 3: Implement deterministic fold objects**
 
-Define:
+Reuse the `ParticipantFold`, `build_outer_folds` and `build_inner_folds` contracts created in Task 5. Extend them only if the focused tests expose a contract gap; do not create a second fold implementation. Define:
 
 ~~~python
 @dataclass(frozen=True)
@@ -598,7 +633,7 @@ git add src/eating_event/candidates.py src/eating_event/metrics.py src/eating_ev
 git commit -m "feat: add nested participant evaluation contracts"
 ~~~
 
-Gate: M3 is invalid if a participant appears in multiple outer validation folds or missing-match MAE is encoded as zero. This task may only run after the formal G1 coverage report has passed.
+Gate: M3 is invalid if a participant appears in multiple outer validation folds or missing-match MAE is encoded as zero. This task may only run after the formal G1 coverage report has passed. Candidate quantile selection remains the frozen Task 5 inner-only protocol; Task 6 must not broaden its candidate set.
 
 ### Task 7: Remove OOF leakage and enforce verifier sample gates
 
@@ -721,9 +756,11 @@ Gate: M4 fails closed when fallback_participants is non-empty or verifier positi
 
 - Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/verifier.py
 - Create: E:/bme_compitition/bme_compitition_next/src/eating_event/artifacts.py
+- Create: E:/bme_compitition/bme_compitition_next/src/eating_event/telemetry.py
 - Modify: E:/bme_compitition/bme_compitition_next/scripts/run_event_verifier.py
 - Modify: E:/bme_compitition/bme_compitition_next/tests/test_verifier.py
 - Create: E:/bme_compitition/bme_compitition_next/tests/test_artifacts.py
+- Create: E:/bme_compitition/bme_compitition_next/tests/test_telemetry.py
 
 - [ ] **Step 1: Write failing decoder and artifact tests**
 
@@ -768,9 +805,43 @@ def test_decoder_does_not_merge_different_sessions():
 def test_artifact_finalize_writes_manifest(tmp_path):
     run = RunArtifact(tmp_path, "m4")
     run.write_json("feature_schema.json", {"version": "imu_stats_v1", "width": 111})
+    run.record_event("run_start", {"workflow_path": "RESEARCH"})
+    run.record_event("run_end", {"final_status": "pass"})
     manifest = run.finalize()
     assert manifest["schema_version"] == "artifact_v1"
     assert "feature_schema.json" in manifest["files"]
+
+
+def test_event_candidate_may_start_at_segment_boundary():
+    candidate = EventCandidate(
+        session_id="s1",
+        segment_id=0,
+        interval=EventInterval(0, 1000),
+        session_start_ms=0,
+        session_end_ms=2000,
+        segment_start_ms=0,
+        segment_end_ms=2000,
+        features=np.zeros(16),
+        label=1,
+        window_indices=(0,),
+    )
+    assert candidate.interval.start_ms == candidate.segment_start_ms
+
+
+def test_run_artifact_records_all_required_telemetry_events(tmp_path):
+    run = RunArtifact(tmp_path, "m5")
+    run.record_event("run_start", {"workflow_path": "RESEARCH"})
+    run.record_event("gate_result", {"gate_id": "G1", "result": "pass", "failure_class": None})
+    run.record_event("escalation", {"reason": "resource threshold", "hypothesis_count": 3})
+    run.record_event("run_end", {"final_status": "failed"})
+    run.finalize()
+    events = [
+        json.loads(line)
+        for line in (run.root / "telemetry.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert [event["event_type"] for event in events] == [
+        "run_start", "gate_result", "escalation", "run_end"
+    ]
 ~~~
 
 - [ ] **Step 2: Run focused tests**
@@ -779,7 +850,7 @@ def test_artifact_finalize_writes_manifest(tmp_path):
 python -m pytest tests/test_verifier.py tests/test_artifacts.py -q
 ~~~
 
-Expected: FAIL because EventCandidate has no session contract and RunArtifact does not exist.
+Expected: FAIL because EventCandidate has no session contract, RunArtifact does not exist and the required telemetry API is absent.
 
 - [ ] **Step 3: Implement the complete EventCandidate boundary contract**
 
@@ -798,7 +869,7 @@ label: int
 window_indices: tuple[int, ...]
 ~~~
 
-Validate session_start_ms <= segment_start_ms < interval.start_ms < interval.end_ms <= segment_end_ms <= session_end_ms. Group, sort and fuse only within the same session_id and segment_id. Apply candidate_fuse_gap before verifier scoring, apply verifier threshold and min_duration after scoring, then clip intervals to segment bounds. Decoder receives no truths.
+Validate session_start_ms <= segment_start_ms <= interval.start_ms < interval.end_ms <= segment_end_ms <= session_end_ms. Group, sort and fuse only within the same session_id and segment_id. Apply candidate_fuse_gap before verifier scoring, apply verifier threshold and min_duration after scoring, then clip intervals to segment bounds. Decoder receives no truths. The inclusive `segment_start_ms <= interval.start_ms` boundary is intentional and must have a regression test.
 
 - [ ] **Step 4: Implement RunArtifact**
 
@@ -809,6 +880,15 @@ class RunArtifact:
     def __init__(self, root: Path, run_id: str) -> None:
         self.root = (root / run_id).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
+        self.context = {
+            "run_id": run_id,
+            "project_id": "bme_compitition_next",
+            "workflow_path": "RESEARCH",
+            "execution_mode": "INLINE",
+            "execution_backend": "executing-plans",
+            "capability_tags": ["machine-learning", "data-contracts"],
+            "loaded_profiles": ["Machine Learning"],
+        }
 
     def write_json(self, relative_path: str, value: object) -> None:
         target = (self.root / relative_path).resolve()
@@ -818,11 +898,51 @@ class RunArtifact:
         target.write_text(json.dumps(value, indent=2), encoding="utf-8")
 ~~~
 
-Add write_jsonl and finalize. finalize writes checksums, git revision, environment versions and the artifact manifest; it rejects paths outside the run directory.
+Add write_jsonl and finalize. `finalize()` writes checksums, git revision, environment versions and the artifact manifest; it rejects paths outside the run directory and rejects a run that has no `run_start` or `run_end` event.
+
+Implement the telemetry schema in `telemetry.py` and expose it through `RunArtifact.record_event`:
+
+~~~python
+class TelemetryEvent(TypedDict):
+    schema_version: Literal["telemetry_v1"]
+    event_id: str
+    event_type: Literal["run_start", "gate_result", "escalation", "run_end"]
+    timestamp: str
+    run_id: str
+    project_id: str
+    workflow_path: str
+    execution_mode: str
+    execution_backend: str
+    capability_tags: list[str]
+    loaded_profiles: list[str]
+    payload: dict[str, object]
+
+
+def record_event(
+    event_type: Literal["run_start", "gate_result", "escalation", "run_end"],
+    payload: Mapping[str, object],
+) -> None:
+    validate_telemetry_payload(event_type, payload)
+    append_jsonl("telemetry.jsonl", build_telemetry_event(event_type, payload))
+
+
+class RunArtifact:
+    def record_event(
+        self,
+        event_type: Literal["run_start", "gate_result", "escalation", "run_end"],
+        payload: Mapping[str, object],
+    ) -> None:
+        event = build_telemetry_event(event_type, payload, run_context=self.context)
+        self.write_jsonl("telemetry.jsonl", [event])
+~~~
+
+Every JSONL record contains `schema_version="telemetry_v1"`, an opaque unique `event_id`, a UTC ISO-8601 `timestamp`, `run_id`, `project_id`, `workflow_path="RESEARCH"`, `execution_mode="INLINE"`, `execution_backend="executing-plans"`, `capability_tags`, `loaded_profiles` and the bounded `payload`. `gate_result` requires `gate_id`, `result` and `failure_class` (use `None` when passing); `escalation` requires `reason` and `hypothesis_count`; `run_end` requires `final_status`; `run_start` requires the resolved workflow and execution context. Reject duplicate event IDs. Payloads must not contain secrets, raw prompts, test truth, source data or unbounded command output. `RunArtifact.record_event` delegates to this schema and injects the run context so callers cannot omit it. The artifact manifest must include `telemetry.jsonl` and its checksum.
+
+Add tests in `tests/test_telemetry.py` for the four event types, required-field validation, duplicate IDs, forbidden payload fields, and the finalize requirement. The artifact test must also verify that `telemetry.jsonl` is listed in the manifest.
 
 - [ ] **Step 5: Emit complete metrics**
 
-Update run_event_verifier.py to write micro, macro_all, macro_event_bearing, worst_participant, candidate coverage, long_fp_fraction, matched_count and split metadata. Write participant_metrics.json separately.
+Update run_event_verifier.py to write micro, macro_all, macro_event_bearing, worst_participant, candidate coverage, long_fp_fraction, matched_count and split metadata. Write participant_metrics.json separately. Emit `run_start` before data work, one `gate_result` after each gate, `escalation` only when the adaptive-workflow circuit breaker is reached, and `run_end` on every normal or classified failure path. An unavailable external recorder is not an excuse to omit these events; the local artifact is the recorder.
 
 - [ ] **Step 6: Run focused and full tests**
 
@@ -833,7 +953,7 @@ python -m pytest -q
 
 Expected: all tests pass.
 
-- [ ] **Step 7: Commit M5 decoder/artifacts**
+- [ ] **Step 7: Commit M4 decoder/artifacts**
 
 ~~~text
 git add src/eating_event/verifier.py src/eating_event/artifacts.py scripts/run_event_verifier.py tests/test_verifier.py tests/test_artifacts.py
@@ -902,7 +1022,7 @@ python -m pytest -q
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit M6 nested evaluation**
+- [ ] **Step 6: Commit M5 nested evaluation**
 
 ~~~text
 git add src/eating_event/evaluation.py scripts/run_event_verifier.py tests/test_nested_evaluation.py
@@ -911,68 +1031,110 @@ git commit -m "feat: enforce nested inner-only decoder selection"
 
 Gate: G4 evaluation is invalid if any outer metric reaches parameter selection.
 
-### Task 10: Add resource governor and deterministic run controls
+### Task 10: Execute the independent M6 full target-only scale run and resource gate
+
+This is a separate milestone from nested evaluation and submission serialization. It is the only task allowed to produce the final target-only candidate and verifier checkpoints. It must run only after G4 nested evaluation passes and after the resource dry-run succeeds.
 
 **Files:**
 
 - Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/artifacts.py
 - Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/config.py
+- Create: E:/bme_compitition/bme_compitition_next/src/eating_event/full_run.py
 - Modify: E:/bme_compitition/bme_compitition_next/scripts/audit_dataset.py
-- Modify: E:/bme_compitition/bme_compitition_next/scripts/run_event_verifier.py
+- Create: E:/bme_compitition/bme_compitition_next/scripts/run_full_target_only.py
+- Create: E:/bme_compitition/bme_compitition_next/tests/test_full_target_run.py
 - Create: E:/bme_compitition/bme_compitition_next/tests/test_resources.py
 - Create: E:/bme_compitition/bme_compitition_next/tests/test_reproducibility.py
 
-- [ ] **Step 1: Write failing resource/reproducibility tests**
+- [ ] **Step 1: Write failing M6 and resource tests**
 
 ~~~python
+def test_full_target_run_rejects_bounded_file_limit(tmp_path):
+    config = make_full_target_config(tmp_path, max_files_per_participant=2)
+    with pytest.raises(ValueError, match="formal full target-only"):
+        validate_full_target_run(config, formal=True)
+
+
+def test_full_target_run_writes_candidate_verifier_and_oof_artifacts(tmp_path):
+    result = run_fixture_full_target_only(tmp_path)
+    assert (result.output_dir / "candidate_model.joblib").exists()
+    assert (result.output_dir / "verifier_model.joblib").exists()
+    assert (result.output_dir / "oof_scores").is_dir()
+    assert (result.output_dir / "cache_manifest.json").exists()
+    assert (result.output_dir / "resource_report.json").exists()
+
+
+def test_cache_only_recovery_does_not_fit_again(tmp_path, monkeypatch):
+    first = run_fixture_full_target_only(tmp_path)
+    monkeypatch.setattr("eating_event.full_run.fit_candidate_model", fail_if_called)
+    monkeypatch.setattr("eating_event.full_run.fit_verifier_model", fail_if_called)
+    recovered = run_fixture_full_target_only(tmp_path, cache_only=True, resume=True)
+    assert sha256_file(recovered.output_dir / "candidate_model.joblib") == sha256_file(first.output_dir / "candidate_model.joblib")
+    assert sha256_file(recovered.output_dir / "verifier_model.joblib") == sha256_file(first.output_dir / "verifier_model.joblib")
+
+
 def test_resource_budget_rejects_gpu_limit_above_seven_gb():
     with pytest.raises(ValueError, match="gpu_memory_limit_gb"):
         ResourceBudget(gpu_memory_limit_gb=7.5)
-
-
-def test_saved_prediction_evaluation_is_deterministic(tmp_path):
-    config = make_deterministic_config(tmp_path)
-    predictions = make_prediction_table()
-    first = evaluate_saved_predictions(config, predictions)
-    second = evaluate_saved_predictions(config, predictions)
-    assert first == second
 ~~~
 
 - [ ] **Step 2: Run focused tests**
 
 ~~~text
-python -m pytest tests/test_resources.py tests/test_reproducibility.py -q
+python -m pytest tests/test_full_target_run.py tests/test_resources.py tests/test_reproducibility.py -q
 ~~~
 
-Expected: FAIL because ResourceBudget and deterministic saved-prediction evaluation do not exist.
+Expected: FAIL because the independent full-run orchestrator, checkpoint contract, cache recovery and resource budget do not exist.
 
-- [ ] **Step 3: Implement bounded monitoring**
+- [ ] **Step 3: Implement the full target-only orchestrator**
 
-Record process RSS before and after each session, peak RSS, stage elapsed time, GPU allocated/reserved memory when CUDA is present, and timeout status. Abort the current stage when configured host fraction, GPU limit or stage timeout is exceeded.
+Implement `run_full_target_only(config, cache_dir, output_dir, run_id, formal, cache_only, resume)` with these non-negotiable boundaries:
 
-- [ ] **Step 4: Implement deterministic seeds**
+1. Discover every eligible target train participant and session from the manifest; reject test participants, test metadata and external data references before any feature or label parsing.
+2. In `formal=True`, reject `max_files_per_participant`, process all eligible target train sessions, and write an explicit per-session status for every discovered session.
+3. Load or build the versioned dense candidate cache. Fit the final HGB candidate model on all eligible target train rows using the G1 quantile protocol selected by nested evaluation; no outer-valid or test row may enter fitting.
+4. Generate participant-frozen OOF candidate scores for all target train participants, fit the event verifier only from those OOF scores, and fail closed if OOF fallback is non-empty or the positive-sample gate fails.
+5. Write these exact outputs under `artifacts/m6-full-target-only/`: `candidate_model.joblib`, `verifier_model.joblib`, `oof_scores/`, `cache_manifest.json`, `metrics.json`, `resource_report.json`, `resolved_config.json`, `run.log`, `telemetry.jsonl` and `manifest.json`. Checkpoints must contain the contract hash, feature schema hash, git revision and training participant digest.
 
-Derive module seeds from master seed, run ID, fold ID and module name. Seed NumPy and Python; if PyTorch is used, enable deterministic algorithms and record CUDA device. Write resolved config, git revision, environment and checksums before final metrics.
+- [ ] **Step 4: Implement bounded resource monitoring and reproducibility**
 
-- [ ] **Step 5: Run resource dry-run**
+Record process RSS before and after each session, peak RSS, stage elapsed time, GPU allocated/reserved memory when CUDA is present, and timeout status. Abort the current stage when the configured host fraction, GPU limit or stage timeout is exceeded. Derive module seeds from master seed, run ID, fold ID and module name; seed NumPy and Python; if PyTorch is used, enable deterministic algorithms and record the CUDA device. Record `run_start`, each `gate_result`, any adaptive-workflow `escalation` and `run_end` in the M6 artifact.
+
+- [ ] **Step 5: Run the resource dry-run before full training**
 
 ~~~text
 python -m pytest tests/test_resources.py tests/test_reproducibility.py -q
-python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/m6-resource-audit.json
+python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/m6-resource-audit.json --resource-dry-run
 ~~~
 
-Expected: tests pass; the audit either completes inside its configured timeout or exits with an explicit resource failure classification.
+Expected: tests pass; the audit completes inside its configured timeout and writes resource limits, peak measurements and a classified result. A resource failure stops M6 before model fitting.
 
-- [ ] **Step 6: Commit M7 resource controls**
+- [ ] **Step 6: Run the complete M6 target-only scale command**
 
 ~~~text
-git add src/eating_event/artifacts.py src/eating_event/config.py scripts/audit_dataset.py scripts/run_event_verifier.py tests/test_resources.py tests/test_reproducibility.py
-git commit -m "feat: add reproducibility and resource gates"
+python scripts/run_full_target_only.py --config configs/example.local.yaml --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal
 ~~~
 
-Gate: no full target-scale training starts before the resource dry-run and cache recovery pass.
+The command must not receive `--max-files-per-participant`. Acceptance requires all eligible target train sessions to be processed or explicitly classified, both full checkpoints to exist, OOF verifier scores to cover every eligible target participant without fallback, resource limits to pass, and the artifact manifest plus telemetry to be complete. No official test score is computed or written.
 
-### Task 11: Enforce target-only submission isolation
+- [ ] **Step 7: Run M6 cache recovery and compare outputs**
+
+~~~text
+python scripts/run_full_target_only.py --config configs/example.local.yaml --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal --cache-only --resume
+~~~
+
+Acceptance requires cache-only recovery to avoid raw reads and model fitting, preserve the cache manifest and contract hashes, and reproduce the candidate/verifier checkpoint checksums and saved target-train predictions. A recovery mismatch is a `PIPELINE` failure and blocks submission.
+
+- [ ] **Step 8: Commit M6 full-scale artifacts and controls**
+
+~~~text
+git add src/eating_event/artifacts.py src/eating_event/config.py src/eating_event/full_run.py scripts/audit_dataset.py scripts/run_full_target_only.py tests/test_full_target_run.py tests/test_resources.py tests/test_reproducibility.py
+git commit -m "feat: add full target-only scale run and resource gates"
+~~~
+
+Gate: M6/G5 passes only when the full target-only candidate checkpoint, participant-OOF verifier checkpoint, cache-recovery comparison and resource report all pass. Any leakage, OOF fallback, missing session status, checkpoint mismatch or resource violation records `gate_result=fail`, writes `run_end` and stops before Task 11.
+
+### Task 11: Execute M7 target-only submission isolation
 
 **Files:**
 
@@ -1018,6 +1180,11 @@ def test_submission_event_loader_never_receives_test_participant(tmp_path, monke
     monkeypatch.setattr("scripts.run_submission.load_train_meal_events", spy)
     run_submission_with_test_fixture(tmp_path)
     assert observed
+
+
+def test_submission_requires_the_passed_m6_checkpoints(tmp_path):
+    with pytest.raises(ValueError, match="M6"):
+        validate_submission_model_dir(tmp_path / "missing-m6")
 ~~~
 
 - [ ] **Step 2: Run focused tests**
@@ -1032,29 +1199,32 @@ Expected: FAIL because submission input validation and test-truth isolation are 
 
 Add load_train_meal_events(path, allowed_participants). The loader must inspect externalid first and skip any row not in allowed_participants before reading or converting beforeTime and afterTime. It must reject allowed_participants containing test. Refactor run_submission.py to discover train records first, derive the train participant set, call this loader once for train labels, and pass an empty truth tuple for every test record.
 
+The runner consumes, rather than recreates, the artifacts from `artifacts/m6-full-target-only/`. Validate that the directory contains `candidate_model.joblib`, `verifier_model.joblib`, `manifest.json`, `resolved_config.json`, `telemetry.jsonl` and the M6 contract/feature hashes. Reject a missing or failed M6 manifest and never retrain either model in the submission task.
+
 Before reading test files, validate that external_data_references and test_truth_references are empty and that the submission contract hash equals the trained contract hash. The runner must not call load_meal_events on the mixed metadata file.
 
-- [ ] **Step 4: Implement deterministic serialization**
+- [ ] **Step 4: Implement deterministic serialization from the M6 checkpoints**
 
-Serialize participant_id, session_id, start_ms and end_ms. Sort by participant_id, session_id, start_ms and end_ms. Write the isolation report and skipped-file provenance beside the submission artifact.
+Serialize participant_id, session_id, start_ms and end_ms. Sort by participant_id, session_id, start_ms and end_ms. Write the isolation report, skipped-file provenance, `telemetry.jsonl` and manifest beside the submission artifact; record `run_start`, the G6 `gate_result` and `run_end` for the submission run.
 
 - [ ] **Step 5: Run focused and full tests**
 
 ~~~text
 python -m pytest tests/test_submission_isolation.py -q
+python scripts/run_submission.py --config configs/example.local.yaml --model-dir artifacts/m6-full-target-only --cache-dir artifacts/m7-submission-cache --output artifacts/m7-submission.json
 python -m pytest -q
 ~~~
 
-Expected: all tests pass.
+Expected: all tests pass; the runner loads the M6 checkpoints, reads only official test raw files for inference, never parses test truth, and writes an isolation report beside the submission artifact.
 
-- [ ] **Step 6: Commit G6 isolation**
+- [ ] **Step 6: Commit M7/G6 isolation**
 
 ~~~text
 git add src/eating_event/data/manifest.py scripts/run_submission.py src/eating_event/artifacts.py tests/test_manifest.py tests/test_submission_isolation.py
 git commit -m "fix: enforce target-only submission isolation"
 ~~~
 
-Gate: G6 passes only when any external or test-truth reference fails closed and a test metadata row with invalid timestamps does not make the train-only loader fail.
+Gate: M7/G6 passes only when the runner consumes a passing M6 artifact, any external or test-truth reference fails closed, a test metadata row with invalid timestamps does not make the train-only loader fail, and a deterministic rerun produces the same serialized output and isolation report.
 
 ### Task 12: Execute gates and record the final implementation state
 
@@ -1100,9 +1270,11 @@ Every gate result must contain gate_id, acceptance, current_evidence, experiment
 
 ~~~text
 python -m pytest -q
-python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/g0-g1-audit.json
-python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/formal-cache --output artifacts/g2-g4-verifier.json
-python scripts/run_submission.py --config configs/example.local.yaml --cache-dir artifacts/formal-cache --output artifacts/g6-submission.json
+python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/g0-audit.json
+python scripts/run_candidate_coverage.py --config configs/example.local.yaml --output artifacts/g1-candidate-coverage.json --cache-dir artifacts/g1-formal-cache --outer-folds 5 --formal
+python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/g1-formal-cache --output artifacts/g2-g4-verifier.json --formal --outer-folds 5
+python scripts/run_full_target_only.py --config configs/example.local.yaml --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal
+python scripts/run_submission.py --config configs/example.local.yaml --model-dir artifacts/m6-full-target-only --cache-dir artifacts/m7-submission-cache --output artifacts/m7-submission.json
 ~~~
 
 Do not start the next command when the previous gate fails. Record the failure classification and next action before continuing.
@@ -1110,6 +1282,12 @@ Do not start the next command when the previous gate fails. Record the failure c
 - [ ] **Step 5: Perform plan self-review**
 
 Check that every Detailed Design section maps to a task, every task has exact files and tests, all public names agree with Task 1, and no step introduces external data, test truth, GT-neighbor sampling, cross-gap interpolation or all-participant fallback.
+Check that the worktree path is `E:/bme_compitition/.worktrees/high-f1-event-stack-execution`, `/.worktrees/` is verified by `git check-ignore`, and all project commands run from its nested `bme_compitition_next` directory.
+Check that the formal G1 command precedes every verifier or complex-model command and writes fold, participant and failure-class artifacts before stopping on failure.
+Check that the G1 quantile grid, inner-only selection metric, tie-break and fuse gap are frozen and that Task 6 reuses rather than recreates `evaluation.py`.
+Check that Task 8 exposes the `RunArtifact.record_event` telemetry API and tests `run_start`, `gate_result`, `escalation` and `run_end` plus manifest checksums.
+Check that M6 is an independent full target-only run with full candidate/verifier checkpoints, participant OOF scores, cache-only recovery comparison and resource report before M7/G6 submission.
+Check that EventCandidate allows `segment_start_ms == interval.start_ms` and that submission tests prove test rows are skipped before timestamp parsing.
 
 - [ ] **Step 6: Commit only the executed gate record**
 
