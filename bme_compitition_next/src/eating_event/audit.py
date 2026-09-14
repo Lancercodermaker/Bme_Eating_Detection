@@ -6,6 +6,7 @@ import csv
 import json
 import math
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -122,4 +123,19 @@ def write_audit_json(audits: Iterable[FileAudit], output_path: str | Path) -> No
     destination = Path(output_path).expanduser().resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def write_dataset_audit_report(payload: dict[str, object], output_path: str | Path) -> None:
+    """Write one bounded dataset-audit report without opening a formal run."""
+
+    report = dict(payload)
+    report.setdefault("schema_version", "dataset_audit_v1")
+    report.setdefault("started_at", datetime.now(timezone.utc).isoformat())
+    report.setdefault("ended_at", datetime.now(timezone.utc).isoformat())
+    destination = Path(output_path).expanduser().resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2, default=str),
+        encoding="utf-8",
+    )
 

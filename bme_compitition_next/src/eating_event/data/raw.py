@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,6 +15,30 @@ from eating_event.data.timebase import AggregatedSeries, RegularizedSeries, regu
 class RawIMU:
     acc: AggregatedSeries
     gyro: AggregatedSeries
+
+
+@dataclass(frozen=True)
+class RawReadAudit:
+    path: str
+    status: str
+    reason: str | None
+    total_rows: int
+    valid_rows: int
+    malformed_rows: int
+    malformed_row_details: tuple[dict[str, object], ...]
+    duplicate_count: int
+    dropped_timestamp_count: int
+
+
+@dataclass(frozen=True)
+class RawIMUReadResult:
+    acc: AggregatedSeries
+    gyro: AggregatedSeries
+    audit: RawReadAudit
+
+    @property
+    def imu(self) -> RawIMU:
+        return RawIMU(acc=self.acc, gyro=self.gyro)
 
 
 class RawFileFormatError(ValueError):
@@ -67,6 +92,12 @@ class _TimestampAccumulator:
 def read_imu_tsv(path: str | Path, *, chunk_size: int = 200_000) -> RawIMU:
     """Read only ACC/GYRO columns and aggregate repeated packet timestamps."""
 
+    return read_imu_tsv_with_audit(path, chunk_size=chunk_size).imu
+
+
+def read_imu_tsv_with_audit(path: str | Path, *, chunk_size: int = 200_000) -> RawIMUReadResult:
+    """Read ACC/GYRO rows while preserving malformed-row provenance."""
+
     if chunk_size <= 0:
         raise ValueError("chunk_size must be positive")
     file_path = Path(path).expanduser().resolve()
@@ -80,37 +111,107 @@ def read_imu_tsv(path: str | Path, *, chunk_size: int = 200_000) -> RawIMU:
         "GYRO_Y",
         "GYRO_Z",
     ]
-    try:
-        import pandas as pd
-    except ImportError as exc:  # pragma: no cover - dependency is declared in pyproject
-        raise RawFileFormatError("pandas is required to read raw sensor files") from exc
-
     def read_with_encoding(encoding: str) -> RawIMU:
         try:
-            header = pd.read_csv(file_path, sep="\t", encoding=encoding, nrows=0)
-        except (UnicodeDecodeError, pd.errors.EmptyDataError, pd.errors.ParserError) as exc:
+            stream = file_path.open("r", encoding=encoding, newline="")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise RawFileFormatError(f"cannot decode sensor file: {file_path}") from exc
+        reader = csv.reader(stream, delimiter="\t")
+        try:
+            header = next(reader)
+        except StopIteration as exc:
+            stream.close()
+            raise RawFileFormatError(f"empty sensor file: {file_path}") from exc
+        except UnicodeDecodeError as exc:
+            stream.close()
             raise RawFileFormatError(f"cannot decode sensor header: {file_path}") from exc
-        missing = sorted(set(required) - set(header.columns))
+        missing = sorted(set(required) - set(header))
         if missing:
+            stream.close()
             raise RawFileFormatError(f"sensor header missing required columns {missing}: {file_path}")
-        reader = pd.read_csv(
-            file_path,
-            sep="\t",
-            usecols=required,
-            dtype={column: "float64" for column in required},
-            chunksize=chunk_size,
-            encoding=encoding,
-            on_bad_lines="skip",
-        )
+        indices = {name: header.index(name) for name in required}
         acc = _TimestampAccumulator(width=3)
         gyro = _TimestampAccumulator(width=3)
+        malformed_details: list[dict[str, object]] = []
+        total_rows = 0
+        valid_rows = 0
+        acc_times: list[float] = []
+        gyro_times: list[float] = []
+        acc_values: list[list[float]] = []
+        gyro_values: list[list[float]] = []
+
+        def flush() -> None:
+            if not acc_times:
+                return
+            acc.update(np.asarray(acc_times), np.asarray(acc_values, dtype=np.float64))
+            gyro.update(np.asarray(gyro_times), np.asarray(gyro_values, dtype=np.float64))
+            acc_times.clear()
+            gyro_times.clear()
+            acc_values.clear()
+            gyro_values.clear()
+
         try:
-            for chunk in reader:
-                acc.update(chunk["ACC_TIME"].to_numpy(), chunk[["ACC_X", "ACC_Y", "ACC_Z"]].to_numpy())
-                gyro.update(chunk["GYRO_TIME"].to_numpy(), chunk[["GYRO_X", "GYRO_Y", "GYRO_Z"]].to_numpy())
-        except (UnicodeDecodeError, pd.errors.ParserError, ValueError, TypeError) as exc:
+            for row_number, row in enumerate(reader, start=2):
+                total_rows += 1
+                if len(row) != len(header):
+                    malformed_details.append(
+                        {"row_number": row_number, "reason": "column_count_mismatch"}
+                    )
+                    continue
+
+                def parse_value(name: str, *, timestamp: bool = False) -> float:
+                    text = row[indices[name]].strip()
+                    if not text:
+                        return float("nan")
+                    try:
+                        value = float(text)
+                    except ValueError:
+                        if timestamp:
+                            return float("nan")
+                        raise
+                    return value
+
+                try:
+                    values = {
+                        name: parse_value(name, timestamp=name.endswith("_TIME"))
+                        for name in required
+                    }
+                except ValueError:
+                    malformed_details.append(
+                        {"row_number": row_number, "reason": "non_numeric_required_signal"}
+                    )
+                    continue
+                valid_rows += 1
+                acc_times.append(values["ACC_TIME"])
+                gyro_times.append(values["GYRO_TIME"])
+                acc_values.append([values["ACC_X"], values["ACC_Y"], values["ACC_Z"]])
+                gyro_values.append([values["GYRO_X"], values["GYRO_Y"], values["GYRO_Z"]])
+                if len(acc_times) >= chunk_size:
+                    flush()
+            flush()
+        except (UnicodeDecodeError, csv.Error, ValueError, TypeError) as exc:
+            stream.close()
             raise RawFileFormatError(f"cannot decode sensor rows: {file_path}") from exc
-        return RawIMU(acc=acc.finish(), gyro=gyro.finish())
+        finally:
+            stream.close()
+        acc_result = acc.finish()
+        gyro_result = gyro.finish()
+        if acc_result.timestamps_ms.size == 0 or gyro_result.timestamps_ms.size == 0:
+            raise RawFileFormatError(f"no valid required ACC/GYRO timestamps: {file_path}")
+        audit = RawReadAudit(
+            path=str(file_path),
+            status="processed",
+            reason=None,
+            total_rows=total_rows,
+            valid_rows=valid_rows,
+            malformed_rows=len(malformed_details),
+            malformed_row_details=tuple(malformed_details),
+            duplicate_count=acc_result.duplicate_count + gyro_result.duplicate_count,
+            dropped_timestamp_count=(
+                acc_result.dropped_missing_timestamps + gyro_result.dropped_missing_timestamps
+            ),
+        )
+        return RawIMUReadResult(acc=acc_result, gyro=gyro_result, audit=audit)
 
     for encoding in ("utf-8-sig", "gb18030"):
         try:

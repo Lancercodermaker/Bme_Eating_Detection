@@ -3,7 +3,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from eating_event.data.raw import RawFileFormatError, RawIMU, read_imu_tsv, regularize_imu
+from eating_event.data.raw import (
+    RawFileFormatError,
+    RawIMU,
+    read_imu_tsv,
+    read_imu_tsv_with_audit,
+    regularize_imu,
+)
 from eating_event.data.timebase import AggregatedSeries
 
 
@@ -104,3 +110,23 @@ def test_non_numeric_sensor_row_is_reported_as_unreadable(tmp_path: Path) -> Non
 
     with pytest.raises(RawFileFormatError):
         read_imu_tsv(path)
+
+
+def test_malformed_sensor_row_is_counted(tmp_path: Path) -> None:
+    path = tmp_path / "mixed-rows.txt"
+    path.write_text(
+        "\n".join(
+            [
+                "ACC_TIME\tGYRO_TIME\tACC_X\tACC_Y\tACC_Z\tGYRO_X\tGYRO_Y\tGYRO_Z",
+                "1000\t1000\t1\t2\t3\t4\t5\t6",
+                "malformed-row",
+                "2000\t2000\t2\t3\t4\t5\t6\t7",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = read_imu_tsv_with_audit(path)
+
+    assert result.audit.malformed_rows == 1
+    assert result.audit.valid_rows > 0

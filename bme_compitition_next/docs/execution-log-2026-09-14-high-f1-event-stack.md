@@ -32,3 +32,14 @@ This log is updated at each task and milestone. Formal gate failures must record
 - next action: proceed to Task 2 manifest/raw audit
 - continue local optimization: no
 - architecture reopen: no
+
+## Task 2 / M1
+
+- input: target-train manifest indexes and bounded raw sensor TSV reads
+- output: explicit manifest status records, malformed-row audit with source row numbers, and diagnostic audit CLI
+- acceptance: focused tests `11 passed`; full suite `59 passed`; `artifacts/m1-audit.json` reports `1161` discovered files and `2` bounded raw files audited
+- observed evidence: `malformed_rows=0`, `duplicate_count=1672486`, `dropped_timestamp_count=145485`; diagnostic metadata includes `run_id=m1-audit`, `diagnostic_only=true`, `telemetry_scope=diagnostic`
+- failure classification: `NONE`
+- next action: proceed to Task 2b trusted baseline sentinel
+- continue local optimization: no
+- architecture reopen: no
