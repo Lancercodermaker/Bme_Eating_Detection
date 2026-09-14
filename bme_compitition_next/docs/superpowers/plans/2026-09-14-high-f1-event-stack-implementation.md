@@ -528,19 +528,28 @@ artifacts/g1-candidate-coverage-telemetry.jsonl
 
 The formal runner writes `run_start` before discovery, a `gate_result` after coverage is computed, an `escalation` only when the adaptive-workflow circuit breaker is reached, and `run_end` on pass or classified failure. The three coverage reports and the telemetry file must be written before a nonzero G1 exit.
 
-- [ ] **Step 5: Enforce the G1 gate**
+- [ ] **Step 5: Re-run coverage tests after implementation**
+
+~~~text
+python -m pytest tests/test_coverage.py -q
+python -m pytest -q
+~~~
+
+Expected: all coverage contract tests and the complete pre-G1 test suite pass. Do not start the formal G1 command when either command fails.
+
+- [ ] **Step 6: Enforce the G1 gate**
 
 The command exits nonzero after writing the report when any outer fold has pooled candidate coverage recall below 0.90. A first failure is classified as DATA/PIPELINE, CONFIGURATION or UNKNOWN according to the audit evidence. ARCHITECTURE is allowed only after three materially different causal hypotheses fail across multiple clean participant-frozen folds.
 
-- [ ] **Step 6: Run the formal coverage command**
+- [ ] **Step 7: Run the formal coverage command**
 
 ~~~text
 python scripts/run_candidate_coverage.py --config configs/example.local.yaml --output artifacts/g1-candidate-coverage.json --cache-dir artifacts/g1-formal-cache --outer-folds 5 --formal
 ~~~
 
-Expected: the command uses all eligible sessions, writes participant/fold coverage, and stops before any verifier training if G1 fails.
+Expected: the command uses all eligible sessions, writes participant/fold coverage, and stops before any verifier training if G1 fails. The command is reached only after the Task 5 focused and full test rerun passes.
 
-- [ ] **Step 7: Commit M2/G1 formal coverage gate**
+- [ ] **Step 8: Commit M2/G1 formal coverage gate**
 
 ~~~text
 git add src/eating_event/coverage.py src/eating_event/evaluation.py scripts/run_candidate_coverage.py tests/test_coverage.py
@@ -1035,6 +1044,14 @@ def test_outer_metrics_cannot_select_decoder_parameters():
     )
     assert selected.candidate_quantile == 0.80
     assert selected.selection_source == "inner"
+
+
+def test_m5_selected_config_is_hashed_and_inner_only(tmp_path):
+    artifact = write_selected_config_fixture(tmp_path)
+    assert artifact["schema_version"] == "decoder_config_v1"
+    assert artifact["selection_source"] == "inner"
+    assert artifact["outer_metrics_used"] is False
+    assert verify_config_hash(artifact)
 ~~~
 
 - [ ] **Step 2: Run focused test**
@@ -1062,9 +1079,49 @@ class DecoderConfig:
 
 Implement select_inner_parameters using inner event F1 as the primary key, then higher candidate coverage, lower long_fp_fraction, lower boundary MAE and lexicographic configuration order. The function accepts inner results only.
 
-- [ ] **Step 4: Implement nested outer evaluation**
+- [ ] **Step 4: Implement the complete nested outer evaluation sequence**
 
-For each outer fold, fit candidate models on outer-train, generate honest OOF verifier data within outer-train, select parameters only from inner folds, refit on outer-train and evaluate once on outer-valid. Persist the selected config and outer participant lists.
+For each outer fold, execute this order and enforce the participant boundary at every function call:
+
+1. Build inner participant folds from that outer fold's `outer-train` participants only; no outer-valid participant or metadata is available to the inner runner.
+2. For every inner fold and every decoder configuration in the frozen candidate grid, fit the candidate scorer on `inner-train` participants only and derive its score threshold from the `inner-train` score distribution only.
+3. Within the same inner fold, generate participant-frozen OOF candidate scores using only `inner-train` participants, then fit the verifier with the existing `fit_event_verifier` contract using only those inner-train OOF scores. OOF-unavailable participants are recorded and never replaced by an all-participant fallback.
+4. Apply the inner-train candidate and verifier to `inner-valid` sessions only. Compute candidate coverage, event F1, long-fp fraction and boundary MAE on inner-valid only; use no outer-valid value for selection.
+5. Select the decoder configuration from aggregated inner-valid results using `select_inner_parameters` and the frozen key. Do not refit any model or inspect outer-valid metrics before this selection is serialized.
+6. After selection, refit the candidate scorer on complete `outer-train` participants and derive its threshold from complete `outer-train` scores only. Generate participant-frozen OOF scores within complete outer-train and fit the verifier only from those OOF scores.
+7. Apply the selected, outer-train-refit pipeline exactly once to `outer-valid`, persist its metrics as evaluation-only output, and prohibit those metrics from changing the selected configuration or any threshold.
+
+Persist one per-fold selection record and the final M5 config under:
+
+~~~text
+artifacts/m5-nested-evaluation/outer-fold-selected-configs.json
+artifacts/m5-nested-evaluation/selected-config.json
+artifacts/m5-nested-evaluation/outer-metrics.json
+artifacts/m5-nested-evaluation/manifest.json
+~~~
+
+`selected-config.json` is the only config that M6 may consume. Its exact schema is:
+
+~~~json
+{
+  "schema_version": "decoder_config_v1",
+  "config_hash": "64 lowercase hexadecimal characters",
+  "base_config_hash": "64 lowercase hexadecimal characters",
+  "selection_source": "inner",
+  "selection_metric": "inner_event_f1",
+  "selection_key": ["inner_event_f1", "candidate_coverage", "-long_fp_fraction", "-boundary_mae_ms", "config_lexicographic"],
+  "candidate_quantile": 0.80,
+  "verifier_threshold": 0.50,
+  "candidate_fuse_gap_ms": 300000,
+  "decode_fuse_gap_ms": 600000,
+  "min_duration_ms": 180000,
+  "outer_metrics_used": false,
+  "source_run_id": "m5-nested-evaluation",
+  "outer_fold_ids": ["outer-0", "outer-1", "outer-2", "outer-3", "outer-4"]
+}
+~~~
+
+The canonical hash is computed after sorting keys and using compact UTF-8 JSON, with `config_hash` omitted during hashing. `outer_metrics_used` must remain false; `selection_source` must remain `inner`. The final config is selected from inner-result rows only, using the fixed selection key and deterministic configuration order. A missing field, hash mismatch, non-inner source or any outer metric dependency invalidates M5/G4.
 
 - [ ] **Step 5: Run focused and full tests**
 
@@ -1109,7 +1166,10 @@ def test_full_target_run_rejects_bounded_file_limit(tmp_path):
 
 
 def test_full_target_run_writes_candidate_verifier_and_oof_artifacts(tmp_path):
-    result = run_fixture_full_target_only(tmp_path)
+    result = run_fixture_full_target_only(
+        tmp_path,
+        selected_config=make_m5_selected_config(tmp_path),
+    )
     assert (result.output_dir / "candidate_model.joblib").exists()
     assert (result.output_dir / "verifier_model.joblib").exists()
     assert (result.output_dir / "oof_scores").is_dir()
@@ -1118,12 +1178,49 @@ def test_full_target_run_writes_candidate_verifier_and_oof_artifacts(tmp_path):
 
 
 def test_cache_only_recovery_does_not_fit_again(tmp_path, monkeypatch):
-    first = run_fixture_full_target_only(tmp_path)
+    selected_config = make_m5_selected_config(tmp_path)
+    first = run_fixture_full_target_only(tmp_path, selected_config=selected_config)
     monkeypatch.setattr("eating_event.full_run.fit_candidate_model", fail_if_called)
     monkeypatch.setattr("eating_event.full_run.fit_event_verifier", fail_if_called)
-    recovered = run_fixture_full_target_only(tmp_path, cache_only=True, resume=True)
+    recovered = run_fixture_full_target_only(
+        tmp_path,
+        selected_config=selected_config,
+        cache_only=True,
+        resume=True,
+    )
     assert sha256_file(recovered.output_dir / "candidate_model.joblib") == sha256_file(first.output_dir / "candidate_model.joblib")
     assert sha256_file(recovered.output_dir / "verifier_model.joblib") == sha256_file(first.output_dir / "verifier_model.joblib")
+
+
+def test_m6_requires_m5_selected_config(tmp_path):
+    with pytest.raises(ValueError, match="selected-config"):
+        run_full_target_only(
+            make_full_target_config(tmp_path),
+            selected_config_path=None,
+            cache_dir=tmp_path / "cache",
+            output_dir=tmp_path / "output",
+            run_id="m6",
+            formal=True,
+        )
+
+
+def test_m6_rejects_selected_config_hash_mismatch(tmp_path):
+    selected_config = make_m5_selected_config(tmp_path, config_hash="sha256:wrong")
+    with pytest.raises(ValueError, match="config_hash"):
+        run_full_target_only(
+            make_full_target_config(tmp_path),
+            selected_config_path=selected_config,
+            cache_dir=tmp_path / "cache",
+            output_dir=tmp_path / "output",
+            run_id="m6",
+            formal=True,
+        )
+
+
+def test_m6_does_not_reselect_parameters(tmp_path, monkeypatch):
+    monkeypatch.setattr("eating_event.full_run.select_inner_parameters", fail_if_called, raising=False)
+    monkeypatch.setattr("eating_event.full_run.select_candidate_quantile", fail_if_called, raising=False)
+    run_fixture_full_target_only(tmp_path, selected_config=make_m5_selected_config(tmp_path))
 
 
 def test_resource_budget_rejects_gpu_limit_above_seven_gb():
@@ -1141,44 +1238,53 @@ Expected: FAIL because the independent full-run orchestrator, checkpoint contrac
 
 - [ ] **Step 3: Implement the full target-only orchestrator**
 
-Implement `run_full_target_only(config, cache_dir, output_dir, run_id, formal, cache_only, resume)` with these non-negotiable boundaries:
+Implement `run_full_target_only(config, selected_config_path, cache_dir, output_dir, run_id, formal, cache_only, resume)` with these non-negotiable boundaries:
 
-1. Discover every eligible target train participant and session from the manifest; reject test participants, test metadata and external data references before any feature or label parsing.
-2. In `formal=True`, reject `max_files_per_participant`, process all eligible target train sessions, and write an explicit per-session status for every discovered session.
-3. Load or build the versioned dense candidate cache. Fit the final HGB candidate model on all eligible target train rows using the G1 quantile protocol selected by nested evaluation; no outer-valid or test row may enter fitting.
-4. Generate participant-frozen OOF candidate scores for all target train participants, then call the existing public `fit_event_verifier` function only with those OOF scores. `fit_event_verifier` is the sole canonical verifier-fit name for this plan. Fail closed if OOF fallback is non-empty or the positive-sample gate fails.
-5. Write these exact outputs under `artifacts/m6-full-target-only/`: `candidate_model.joblib`, `verifier_model.joblib`, `oof_scores/`, `cache_manifest.json`, `metrics.json`, `resource_report.json`, `resolved_config.json`, `run.log`, `telemetry.jsonl` and `manifest.json`. Checkpoints must contain the contract hash, feature schema hash, git revision and training participant digest.
+1. Require `selected_config_path` in formal mode and require it to resolve exactly to `artifacts/m5-nested-evaluation/selected-config.json`. Load that file, its sibling M5 `manifest.json` and the resolved base config before model fitting. Require `schema_version="decoder_config_v1"`, `selection_source="inner"`, `outer_metrics_used=false`, `source_run_id="m5-nested-evaluation"`, and `manifest["gate_results"]["G4"]["result"]="pass"`.
+2. Recompute the canonical JSON hash excluding `config_hash` and compare it with `selected-config.json.config_hash`. Recompute the resolved ProjectConfig hash and compare it with `base_config_hash`. Reject missing fields, any hash mismatch, a non-inner selection source, a failed/missing G4 result, or a selected quantile outside `G1_CANDIDATE_QUANTILE_GRID`.
+3. Discover every eligible target train participant and session from the manifest; reject test participants, test metadata and external data references before any feature or label parsing. In `formal=True`, reject `max_files_per_participant`, process all eligible target train sessions, and write an explicit per-session status for every discovered session.
+4. Load or build the versioned dense candidate cache. Fit the final HGB candidate model on all eligible target train rows using the values in the validated selected config; no outer-valid or test row may enter fitting. M6 must not call `select_inner_parameters` or `select_candidate_quantile`, and the CLI must provide no candidate-quantile, verifier-threshold or decoder-parameter override.
+5. Generate participant-frozen OOF candidate scores for all target train participants, then call the existing public `fit_event_verifier` function only with those OOF scores. `fit_event_verifier` is the sole canonical verifier-fit name for this plan. Fail closed if OOF fallback is non-empty or the positive-sample gate fails.
+6. Write these exact outputs under `artifacts/m6-full-target-only/`: `candidate_model.joblib`, `verifier_model.joblib`, `oof_scores/`, `cache_manifest.json`, `metrics.json`, `resource_report.json`, `resolved_config.json`, `selected-config.json`, `run.log`, `telemetry.jsonl` and `manifest.json`. Copy the validated M5 selected config into the M6 artifact. Checkpoints must contain the contract hash, feature schema hash, git revision and training participant digest.
 
 - [ ] **Step 4: Implement bounded resource monitoring and reproducibility**
 
 Record process RSS before and after each session, peak RSS, stage elapsed time, GPU allocated/reserved memory when CUDA is present, and timeout status. Abort the current stage when the configured host fraction, GPU limit or stage timeout is exceeded. Derive module seeds from master seed, run ID, fold ID and module name; seed NumPy and Python; if PyTorch is used, enable deterministic algorithms and record the CUDA device. Record `run_start`, each `gate_result`, any adaptive-workflow `escalation` and `run_end` in the M6 artifact.
 
-- [ ] **Step 5: Run the resource dry-run before full training**
+- [ ] **Step 5: Re-run M6 focused and full tests after implementation**
 
 ~~~text
-python -m pytest tests/test_resources.py tests/test_reproducibility.py -q
+python -m pytest tests/test_full_target_run.py tests/test_resources.py tests/test_reproducibility.py -q
+python -m pytest -q
+~~~
+
+Expected: all M6 checkpoint, selected-config, cache-recovery, resource and reproducibility tests pass. Do not start the resource dry-run or any model fitting when either command fails.
+
+- [ ] **Step 6: Run the resource dry-run before full training**
+
+~~~text
 python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/m6-resource-audit.json --resource-dry-run
 ~~~
 
 Expected: tests pass; the audit completes inside its configured timeout and writes resource limits, peak measurements and a classified result. A resource failure stops M6 before model fitting.
 
-- [ ] **Step 6: Run the complete M6 target-only scale command**
+- [ ] **Step 7: Run the complete M6 target-only scale command**
 
 ~~~text
-python scripts/run_full_target_only.py --config configs/example.local.yaml --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal
+python scripts/run_full_target_only.py --config configs/example.local.yaml --selected-config artifacts/m5-nested-evaluation/selected-config.json --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal
 ~~~
 
-The command must not receive `--max-files-per-participant`. Acceptance requires all eligible target train sessions to be processed or explicitly classified, both full checkpoints to exist, OOF verifier scores to cover every eligible target participant without fallback, resource limits to pass, and the artifact manifest plus telemetry to be complete. No official test score is computed or written.
+The command must not receive `--max-files-per-participant` or any decoder-parameter override. Acceptance requires the M5 selected config to pass schema/hash/G4 validation, all eligible target train sessions to be processed or explicitly classified, both full checkpoints to exist, OOF verifier scores to cover every eligible target participant without fallback, resource limits to pass, and the artifact manifest plus telemetry to be complete. No official test score is computed or written.
 
-- [ ] **Step 7: Run M6 cache recovery and compare outputs**
+- [ ] **Step 8: Run M6 cache recovery and compare outputs**
 
 ~~~text
-python scripts/run_full_target_only.py --config configs/example.local.yaml --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal --cache-only --resume
+python scripts/run_full_target_only.py --config configs/example.local.yaml --selected-config artifacts/m5-nested-evaluation/selected-config.json --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal --cache-only --resume
 ~~~
 
 Acceptance requires cache-only recovery to avoid raw reads and model fitting, preserve the cache manifest and contract hashes, and reproduce the candidate/verifier checkpoint checksums and saved target-train predictions. A recovery mismatch is a `PIPELINE` failure and blocks submission.
 
-- [ ] **Step 8: Commit M6 full-scale artifacts and controls**
+- [ ] **Step 9: Commit M6 full-scale artifacts and controls**
 
 ~~~text
 git add src/eating_event/artifacts.py src/eating_event/config.py src/eating_event/full_run.py scripts/audit_dataset.py scripts/run_full_target_only.py tests/test_full_target_run.py tests/test_resources.py tests/test_reproducibility.py
@@ -1326,7 +1432,7 @@ python -m pytest -q
 python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/g0-audit.json
 python scripts/run_candidate_coverage.py --config configs/example.local.yaml --output artifacts/g1-candidate-coverage.json --cache-dir artifacts/g1-formal-cache --outer-folds 5 --formal
 python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/g1-formal-cache --output artifacts/g2-g4-verifier.json --formal --outer-folds 5
-python scripts/run_full_target_only.py --config configs/example.local.yaml --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal
+python scripts/run_full_target_only.py --config configs/example.local.yaml --selected-config artifacts/m5-nested-evaluation/selected-config.json --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal
 python scripts/run_submission.py --config configs/example.local.yaml --model-dir artifacts/m6-full-target-only --cache-dir artifacts/m7-submission-cache --output artifacts/m7-submission.json
 ~~~
 
@@ -1337,12 +1443,16 @@ Do not start the next command when the previous gate fails. Record the failure c
 Check that every Detailed Design section maps to a task, every task has exact files and tests, all public names agree with Task 1, and no step introduces external data, test truth, GT-neighbor sampling, cross-gap interpolation or all-participant fallback.
 Check that the worktree path is `E:/bme_compitition/.worktrees/high-f1-event-stack-execution`, `/.worktrees/` is verified by `git check-ignore`, and all project commands run from its nested `bme_compitition_next` directory.
 Check that the formal G1 command precedes every verifier or complex-model command and writes fold, participant and failure-class artifacts before stopping on failure.
+Check that Task 5 reruns `tests/test_coverage.py` and `python -m pytest -q` after implementation and before the formal G1 command.
 Check that the G1 quantile grid, inner-only selection metric, tie-break and fuse gap are frozen and that Task 6 reuses rather than recreates `evaluation.py`.
 Check that every G1 inner fold fits and thresholds on inner-train only, selects on inner-valid only, refits on complete outer-train only, and evaluates outer-valid only after selection.
+Check that Task 9 repeats this full inner-train/inner-valid/complete-outer-train/outer-valid order for candidate and verifier models, not only for the G1 scorer.
 Check that EventCandidate carries candidate status, quality status and ignore-source flags, and that every ignored source is excluded from verifier training, OOF scoring, metrics and decoder input.
 Check that Task 8 exposes the `RunArtifact.record_event` telemetry API and tests `run_start`, `gate_result`, `escalation` and `run_end` plus manifest checksums.
 Check that the Task 8 focused command includes `tests/test_telemetry.py` and that M6 recovery patches the canonical `fit_event_verifier` name.
 Check that M6 is an independent full target-only run with full candidate/verifier checkpoints, participant OOF scores, cache-only recovery comparison and resource report before M7/G6 submission.
+Check that Task 9 writes the exact M5 selected-config schema and that Task 10 validates its path, schema, canonical hash, base-config hash and G4 status without reselecting parameters.
+Check that Task 10 reruns `tests/test_full_target_run.py`, resource/reproducibility tests and `python -m pytest -q` before the resource dry-run and full target-only training.
 Check that EventCandidate allows `segment_start_ms == interval.start_ms` and that submission tests prove test rows are skipped before timestamp parsing.
 
 - [ ] **Step 6: Commit only the executed gate record**
