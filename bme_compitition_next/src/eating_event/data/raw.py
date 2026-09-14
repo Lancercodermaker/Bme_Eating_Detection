@@ -245,4 +245,13 @@ def regularize_imu(raw: RawIMU, *, grid_hz: int, max_gap_seconds: float) -> Regu
     )
     values = np.concatenate([acc.values, gyro.values], axis=1)
     valid_mask = acc.valid_mask & gyro.valid_mask
-    return RegularizedSeries(acc.timestamps_ms, values, valid_mask)
+    hard_gap_mask = acc.hard_gap_mask | gyro.hard_gap_mask
+    segment_id = np.where(hard_gap_mask, -1, np.minimum(acc.segment_id, gyro.segment_id)).astype(np.int32)
+    return RegularizedSeries(
+        timestamps_ms=acc.timestamps_ms,
+        values=values,
+        valid_mask=valid_mask,
+        hard_gap_mask=hard_gap_mask,
+        interpolated_mask=acc.interpolated_mask | gyro.interpolated_mask,
+        segment_id=segment_id,
+    )

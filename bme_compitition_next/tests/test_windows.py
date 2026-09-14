@@ -65,3 +65,21 @@ def test_dense_windows_report_coverage() -> None:
 
     assert len(windows) == 1
     assert windows[0].coverage == pytest.approx(0.8)
+
+
+def test_window_generation_rejects_hard_gap() -> None:
+    timestamps = np.arange(0, 10_000, 100, dtype=np.int64)
+    valid = np.ones(timestamps.size, dtype=bool)
+    hard_gap = np.zeros(timestamps.size, dtype=bool)
+    hard_gap[40] = True
+    records = generate_dense_windows(
+        timestamps,
+        valid,
+        hard_gap_mask=hard_gap,
+        grid_hz=10,
+        window_seconds=3,
+        step_seconds=1,
+        min_coverage=0.8,
+        max_gap_seconds=2.0,
+    )
+    assert all(not record.crosses_hard_gap for record in records)

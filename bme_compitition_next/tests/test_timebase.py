@@ -40,3 +40,16 @@ def test_regularization_does_not_interpolate_across_a_real_gap() -> None:
     assert result.valid_mask[10]
     assert np.isnan(result.values[5, 0])
     assert result.coverage == pytest.approx(3 / 11)
+
+
+def test_regularized_series_keeps_large_gap_invalid() -> None:
+    series = aggregate_timestamp_rows(
+        [1000, 1100, 5000, 5100],
+        [[1.0], [2.0], [3.0], [4.0]],
+    )
+
+    result = regularize_series(series, grid_hz=10, max_gap_seconds=2.0)
+
+    assert result.hard_gap_mask.any()
+    assert not result.valid_mask[20:40].any()
+    assert np.all(result.segment_id[result.hard_gap_mask] == -1)

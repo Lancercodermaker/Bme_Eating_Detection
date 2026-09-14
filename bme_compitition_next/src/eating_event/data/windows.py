@@ -27,6 +27,7 @@ class WindowRecord:
     coverage: float
     longest_invalid_run: int
     label_result: WindowLabelResult
+    crosses_hard_gap: bool = False
 
     @property
     def label(self) -> WindowLabel:
@@ -54,6 +55,8 @@ def generate_dense_windows(
     step_seconds: float,
     min_coverage: float,
     max_gap_seconds: float,
+    hard_gap_mask: Sequence[bool] | np.ndarray | None = None,
+    segment_id: Sequence[int] | np.ndarray | None = None,
     truths: Sequence[EventInterval] = (),
     positive_overlap: float = 0.5,
     negative_distance_ms: int = 300_000,
@@ -64,6 +67,18 @@ def generate_dense_windows(
     valid = np.asarray(valid_mask, dtype=bool)
     if timestamps.ndim != 1 or valid.ndim != 1 or timestamps.size != valid.size:
         raise ValueError("timestamps_ms and valid_mask must be one-dimensional and aligned")
+    if hard_gap_mask is None:
+        hard_gap = np.zeros(timestamps.size, dtype=bool)
+    else:
+        hard_gap = np.asarray(hard_gap_mask, dtype=bool)
+        if hard_gap.ndim != 1 or hard_gap.size != timestamps.size:
+            raise ValueError("hard_gap_mask must align with timestamps_ms")
+    if segment_id is None:
+        segments = np.zeros(timestamps.size, dtype=np.int32)
+    else:
+        segments = np.asarray(segment_id, dtype=np.int32)
+        if segments.ndim != 1 or segments.size != timestamps.size:
+            raise ValueError("segment_id must align with timestamps_ms")
     if grid_hz <= 0 or window_seconds <= 0 or step_seconds <= 0:
         raise ValueError("grid_hz, window_seconds, and step_seconds must be positive")
     if not 0 < min_coverage <= 1:
@@ -88,9 +103,17 @@ def generate_dense_windows(
     for start_index in range(0, timestamps.size - window_points + 1, step_points):
         end_index = start_index + window_points
         window_valid = valid[start_index:end_index]
+        window_hard_gap = hard_gap[start_index:end_index]
+        window_segments = segments[start_index:end_index]
         coverage = float(window_valid.mean())
         longest_invalid_run = _longest_false_run(window_valid)
-        if coverage < min_coverage or longest_invalid_run > allowed_invalid_run:
+        crosses_hard_gap = bool(
+            window_hard_gap.any()
+            or (window_segments >= 0).sum() != 0
+            and np.unique(window_segments[window_segments >= 0]).size > 1
+            or (window_segments < 0).any()
+        )
+        if coverage < min_coverage or longest_invalid_run > allowed_invalid_run or crosses_hard_gap:
             continue
         window = WindowSpec(
             start_ms=int(timestamps[start_index]),
@@ -108,6 +131,7 @@ def generate_dense_windows(
                 coverage=coverage,
                 longest_invalid_run=longest_invalid_run,
                 label_result=label_result,
+                crosses_hard_gap=crosses_hard_gap,
             )
         )
     return records

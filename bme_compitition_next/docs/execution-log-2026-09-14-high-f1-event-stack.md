@@ -54,3 +54,13 @@ This log is updated at each task and milestone. Formal gate failures must record
 - next action: proceed to Task 3 hard-gap-aware timebase
 - continue local optimization: no
 - architecture reopen: no
+
+## Task 3 / hard-gap-aware timebase
+
+- input: synthetic duplicate/gap timestamp series and dense-window fixtures
+- output: `hard_gap_mask`, `interpolated_mask`, `segment_id`, and segment-safe window filtering
+- acceptance: focused tests `9 passed`; full suite `62 passed`
+- failure classification: `NONE`
+- next action: proceed to Task 4 feature and cache contracts
+- continue local optimization: no
+- architecture reopen: no
