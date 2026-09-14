@@ -1149,6 +1149,8 @@ def test_m5_selected_config_is_hashed_and_inner_only(tmp_path):
     assert artifact["schema_version"] == "decoder_config_v1"
     assert artifact["selection_source"] == "inner"
     assert artifact["outer_metrics_used"] is False
+    assert artifact["selection_seed"] == 20260910
+    assert artifact["evaluation_seeds"] == [20260910, 20260911, 20260912]
     assert verify_config_hash(artifact)
 
 
@@ -1167,6 +1169,8 @@ def test_final_config_aggregates_inner_results_without_outer_metrics(tmp_path):
     selected = aggregate_inner_results(inner_results)
     assert selected["selection_source"] == "inner"
     assert selected["outer_metrics_used"] is False
+    assert selected["selection_seed"] == 20260910
+    assert selected["evaluation_seeds"] == [20260910, 20260911, 20260912]
     assert selected["inner_results_artifact"] == "inner-results.jsonl"
     assert selected["aggregate_inner_metrics"]["inner_result_count"] == 20
     assert "mean_inner_event_f1" in selected["aggregate_inner_metrics"]
@@ -1190,6 +1194,20 @@ def test_m5_decoder_grid_is_finite_and_schema_complete():
         "budget_v1": {"candidate_max_iter": 100, "verifier_max_iter": 100}
     }
     assert len(expand_decoder_grid(M5_DECODER_GRID, M5_TRAINING_BUDGETS)) == 81
+    assert M5_SELECTION_SEED == 20260910
+    assert M5_EVALUATION_SEEDS == (20260910, 20260911, 20260912)
+
+
+def test_m5_evaluation_seeds_do_not_reselect_or_write_inner_rows(tmp_path):
+    result = run_nested_evaluation_fixture(
+        tmp_path,
+        selection_seed=20260910,
+        evaluation_seeds=(20260910, 20260911, 20260912),
+    )
+    assert {row["selection_seed"] for row in result.inner_results} == {20260910}
+    assert {row["seed"] for row in result.outer_metrics} == {20260910, 20260911, 20260912}
+    assert result.selected_config["selection_seed"] == 20260910
+    assert result.selected_config["evaluation_seeds"] == [20260910, 20260911, 20260912]
 
 
 def test_g4_uses_three_seed_outer_metrics_and_trusted_baseline(tmp_path):
@@ -1301,26 +1319,29 @@ M5_DECODER_GRID = {
 M5_TRAINING_BUDGETS = {
     "budget_v1": {"candidate_max_iter": 100, "verifier_max_iter": 100},
 }
-M5_SEEDS = (20260910, 20260911, 20260912)
+M5_SELECTION_SEED = 20260910
+M5_EVALUATION_SEEDS = (20260910, 20260911, 20260912)
 ~~~
 
 Implement `expand_decoder_grid(grid, training_budgets)` as a deterministic sorted Cartesian-product helper; it must validate that every `training_budget` key exists in `training_budgets`, attach the corresponding `candidate_max_iter` and `verifier_max_iter`, and return exactly 81 `DecoderConfig` values for the constants above.
 
-The three quantiles reuse the frozen G1 grid; verifier thresholds are the preflight-tested `{0.10, 0.25, 0.50}` set; candidate fusion remains fixed at the preflight-supported 300 s; decode fusion is the finite `{300, 600, 900}` s set; minimum duration is the pre-registered `{120, 180, 240}` s set centered on the design default. The feature variant is the singleton `event_stats_v1` (the exact `[E,16]` event feature contract built from the Task 4 `imu_stats_v1` `[W,111]` cache); no coarse-context, TCN or Transformer feature enters M5. The training budget is the singleton design budget `budget_v1` (candidate/verifier `max_iter=100`); the field remains in the schema so a future approved plan can add a budget, but this plan has no open budget search. Inner code must enumerate exactly 81 configurations (`3×3×1×3×3×1×1`) and reject any configuration outside it; with 5 outer folds and 4 inner folds, `inner-results.jsonl` therefore contains exactly 1,620 passing config/fold rows.
+The three quantiles reuse the frozen G1 grid; verifier thresholds are the preflight-tested `{0.10, 0.25, 0.50}` set; candidate fusion remains fixed at the preflight-supported 300 s; decode fusion is the finite `{300, 600, 900}` s set; minimum duration is the pre-registered `{120, 180, 240}` s set centered on the design default. The feature variant is the singleton `event_stats_v1` (the exact `[E,16]` event feature contract built from the Task 4 `imu_stats_v1` `[W,111]` cache); no coarse-context, TCN or Transformer feature enters M5. The training budget is the singleton design budget `budget_v1` (candidate/verifier `max_iter=100`); the field remains in the schema so a future approved plan can add a budget, but this plan has no open budget search. Inner code must enumerate exactly 81 configurations (`3×3×1×3×3×1×1`) and reject any configuration outside it; with the single `selection_seed`, 5 outer folds and 4 inner folds, `inner-results.jsonl` therefore contains exactly 1,620 passing config/fold rows.
 
 Implement `select_inner_parameters` using inner event F1 as the primary key, then higher candidate coverage, lower long_fp_fraction, lower count of `boundary_mae_ms=None` rows, lower finite boundary MAE, and lexicographic configuration order. The function accepts inner results only. Use `boundary_mae_sort_key`: every finite boundary MAE precedes `None`, finite values sort ascending, and `None` is never converted to zero. If all remaining candidates have `None`, proceed to the lexicographic configuration tie-break. The lexicographic configuration ID includes all seven fields, including `feature_variant` and `training_budget`.
 
 - [ ] **Step 4: Implement the complete nested outer evaluation sequence**
 
-For each outer fold, execute this order and enforce the participant boundary at every function call:
+For each outer fold, execute this order and enforce the participant boundary at every function call. The nested selection is performed exactly once with `M5_SELECTION_SEED=20260910`; `M5_EVALUATION_SEEDS=(20260910, 20260911, 20260912)` are the three outer-evaluation seeds. The latter two seeds never create inner rows, call a selector, or alter `selected-config.json`.
+
+Expose the orchestration as `run_nested_evaluation(config, output_dir, selection_seed, evaluation_seeds)` and reject any `selection_seed` other than `M5_SELECTION_SEED` or any evaluation-seed tuple other than `M5_EVALUATION_SEEDS`. The function returns/serializes separate `inner_results` and `outer_metrics` collections so the test can prove that selection and stability evaluation have different scopes.
 
 1. Build inner participant folds from that outer fold's `outer-train` participants only; no outer-valid participant or metadata is available to the inner runner.
-2. For every inner fold and every decoder configuration in the frozen candidate grid, fit the candidate scorer on `inner-train` participants only and derive its score threshold from the `inner-train` score distribution only.
-3. Within the same inner fold, generate participant-frozen OOF candidate scores using only `inner-train` participants, then fit the verifier with the existing `fit_event_verifier` contract using only those inner-train OOF scores. OOF-unavailable participants are recorded and never replaced by an all-participant fallback.
-4. Apply the inner-train candidate and verifier to `inner-valid` sessions only. Compute candidate coverage, event F1, long-fp fraction and boundary MAE on inner-valid only; use no outer-valid value for selection.
-5. Select the decoder configuration from aggregated inner-valid results using `select_inner_parameters` and the frozen key. Do not refit any model or inspect outer-valid metrics before this selection is serialized.
-6. After selection, refit the candidate scorer on complete `outer-train` participants and derive its threshold from complete `outer-train` scores only. Generate participant-frozen OOF scores within complete outer-train and fit the verifier only from those OOF scores.
-7. Apply the selected, outer-train-refit pipeline exactly once to `outer-valid`, persist its metrics as evaluation-only output, and prohibit those metrics from changing the selected configuration or any threshold.
+2. With `selection_seed=20260910`, for every inner fold and every decoder configuration in the frozen candidate grid, fit the candidate scorer on `inner-train` participants only and derive its score threshold from the `inner-train` score distribution only.
+3. Within the same selection-seed inner fold, generate participant-frozen OOF candidate scores using only `inner-train` participants, then fit the verifier with the existing `fit_event_verifier` contract using only those inner-train OOF scores. OOF-unavailable participants are recorded and never replaced by an all-participant fallback.
+4. Apply the inner-train candidate and verifier to `inner-valid` sessions only. Compute candidate coverage, event F1, long-fp fraction and boundary MAE on inner-valid only; use no outer-valid value for selection. Every `inner_result_v1` row records `selection_seed=20260910`.
+5. Select the decoder configuration from aggregated inner-valid results using `select_inner_parameters` and the frozen key. Do not refit any model or inspect outer-valid metrics before this selection is serialized. This produces the sole `selected-config.json` from exactly 20 contributing inner rows per selected configuration.
+6. For each seed in `(20260910, 20260911, 20260912)`, after the single selection is complete, refit the candidate scorer on complete `outer-train` participants using that seed and derive its threshold from complete `outer-train` scores only. Generate participant-frozen OOF scores within complete outer-train and fit the verifier only from those OOF scores. These are evaluation-only refits; neither seed may invoke `select_inner_parameters`.
+7. Apply each seed's selected, outer-train-refit pipeline exactly once to `outer-valid`, persist the 15 seed×outer-fold metrics as evaluation-only output, and prohibit those metrics from changing the selected configuration or any threshold.
 
 Persist one per-fold selection record and the final M5 config under:
 
@@ -1332,11 +1353,11 @@ artifacts/m5-nested-evaluation/outer-metrics.json
 artifacts/m5-nested-evaluation/manifest.json
 ~~~
 
-`inner-results.jsonl` contains exactly one `inner_result_v1` record for each `(outer_fold_id, inner_fold_id, decoder_config)` evaluation. Every record has `outer_fold_id`, `inner_fold_id`, `config_id`, all seven frozen configuration fields (`candidate_quantile`, `verifier_threshold`, `candidate_fuse_gap_ms`, `decode_fuse_gap_ms`, `min_duration_ms`, `feature_variant`, `training_budget`), the resolved `candidate_max_iter` and `verifier_max_iter`, `inner_event_f1`, `candidate_coverage`, `long_fp_fraction`, `boundary_mae_ms` (finite number or `None`), `candidate_count` and `status`. Records are sorted by `outer_fold_id`, `inner_fold_id` and `config_id`; incomplete or failed inner results cannot be silently omitted from aggregation.
+`inner-results.jsonl` contains exactly one `inner_result_v1` record for each `(outer_fold_id, inner_fold_id, decoder_config)` evaluation under the single `selection_seed=20260910`. Every record has `selection_seed=20260910`, `outer_fold_id`, `inner_fold_id`, `config_id`, all seven frozen configuration fields (`candidate_quantile`, `verifier_threshold`, `candidate_fuse_gap_ms`, `decode_fuse_gap_ms`, `min_duration_ms`, `feature_variant`, `training_budget`), the resolved `candidate_max_iter` and `verifier_max_iter`, `inner_event_f1`, `candidate_coverage`, `long_fp_fraction`, `boundary_mae_ms` (finite number or `None`), `candidate_count` and `status`. Records are sorted by `outer_fold_id`, `inner_fold_id` and `config_id`; incomplete or failed inner results cannot be silently omitted from aggregation. No `inner_result_v1` row is written for evaluation seeds `20260911` or `20260912`.
 
 The unique final config is aggregated from all `status="pass"` rows in this `inner-results.jsonl` across all five outer folds and all four inner folds per outer fold. Selection is permitted only when every expected `(outer_fold_id, inner_fold_id, config_id)` row from the exact `M5_DECODER_GRID` Cartesian product is present and has `status="pass"`; a missing or failed row invalidates M5 and prevents `selected-config.json` from being written. For each `config_id`, compute arithmetic means of `inner_event_f1`, `candidate_coverage`, `long_fp_fraction` and all finite `boundary_mae_ms` values, plus `boundary_mae_missing_count`. Select with this exact key: highest mean inner event F1, highest mean candidate coverage, lowest mean long-fp fraction, lowest boundary-MAE missing count, lowest finite boundary-MAE mean with `None` after every finite value, then lexicographically smallest `config_id`. Write the aggregate and the contributing row IDs into `selected-config.json` under the exact `aggregate_inner_metrics` object below. `outer-metrics.json` is written only after this selection and is never read by the selector or used in the final-config key.
 
-The implementation API for this step is `aggregate_inner_results(inner_results_path)`; it reads only `inner-results.jsonl`, validates the complete 5×4 row matrix for every decoder config, computes the aggregate key above, and returns the selected config payload. `write_selected_config` then writes and hashes that payload. Neither function accepts `outer-metrics.json` as an input.
+The implementation API for this step is `aggregate_inner_results(inner_results_path, selection_seed=20260910)`; it reads only `inner-results.jsonl`, validates the complete 5×4 row matrix for every decoder config and the constant selection seed, computes the aggregate key above, and returns the selected config payload. `write_selected_config` then writes and hashes that payload. Neither function accepts `outer-metrics.json` as an input, and evaluation seeds are not accepted by the aggregation API.
 
 `selected-config.json` is the only config that M6 may consume. Its exact schema is:
 
@@ -1359,6 +1380,8 @@ The implementation API for this step is `aggregate_inner_results(inner_results_p
   "verifier_max_iter": 100,
   "outer_metrics_used": false,
   "source_run_id": "m5-nested-evaluation",
+  "selection_seed": 20260910,
+  "evaluation_seeds": [20260910, 20260911, 20260912],
   "outer_fold_ids": ["outer-0", "outer-1", "outer-2", "outer-3", "outer-4"],
   "inner_results_artifact": "inner-results.jsonl",
   "contributing_inner_result_ids": ["outer-0/inner-0/q0.80-v0.50-f300000-d600000-min180000-fv-event_stats_v1-b-budget_v1"],
@@ -1373,9 +1396,9 @@ The implementation API for this step is `aggregate_inner_results(inner_results_p
 }
 ~~~
 
-The example numeric values are schema examples; the implementation writes the actual aggregate from the selected config's 20 contributing inner rows. If all 20 boundary MAE values are `None`, `finite_boundary_mae_mean_ms` is JSON `null` and the selection key places it after every finite mean; it is never encoded as zero. `aggregate_inner_metrics` is required and is part of the canonical hash. The canonical hash is computed after sorting keys and using compact UTF-8 JSON, with only `config_hash` omitted during hashing. `outer_metrics_used` must remain false; `selection_source` must remain `inner`. The final config is selected from the complete inner-result row set only, using the fixed aggregate key and deterministic configuration order. A missing field, hash mismatch, non-inner source, incomplete inner-result set or any outer metric dependency invalidates M5/G4.
+The example numeric values are schema examples; the implementation writes the actual aggregate from the selected config's 20 contributing inner rows. If all 20 boundary MAE values are `None`, `finite_boundary_mae_mean_ms` is JSON `null` and the selection key places it after every finite mean; it is never encoded as zero. `selection_seed=20260910` and the complete `evaluation_seeds=[20260910,20260911,20260912]` are required schema fields and are part of the canonical hash. `aggregate_inner_metrics` is required and is part of the canonical hash. The canonical hash is computed after sorting keys and using compact UTF-8 JSON, with only `config_hash` omitted during hashing. `outer_metrics_used` must remain false; `selection_source` must remain `inner`. The final config is selected from the complete selection-seed inner-result row set only, using the fixed aggregate key and deterministic configuration order. A missing field, hash mismatch, non-inner source, incomplete inner-result set or any outer metric dependency invalidates M5/G4.
 
-M5 must run exactly the three seeds `M5_SEEDS=(20260910, 20260911, 20260912)` and write `artifacts/m5-nested-evaluation/stability-report.json`. The stability report contains one row for every seed and outer fold, per-seed median/mean/standard deviation, the exact seed list, the split-manifest hash and the resolved selected-config hash. `outer-metrics.json` contains one aggregate row per outer fold, where each metric is the median of that fold's three seed results, plus the raw 15 seed×fold rows. Define `median_outer_f1` as the median of all 15 raw outer-fold F1 values; define `outer_splits_at_or_above_baseline` as the count of the five outer-fold medians whose F1 is at least the trusted baseline; define `long_fp_fraction_max` and `boundary_mae_ms_max` as the maxima of the five outer-fold medians. A missing/non-finite boundary MAE is a G4 failure, not zero.
+M5 performs inner selection exactly once with `selection_seed=20260910`, then evaluates that immutable selected config with `evaluation_seeds=[20260910, 20260911, 20260912]`. It writes `artifacts/m5-nested-evaluation/stability-report.json`. The stability report contains one row for every evaluation seed and outer fold, per-seed median/mean/standard deviation, the exact `selection_seed`, evaluation-seed list, split-manifest hash and resolved selected-config hash. `outer-metrics.json` contains one aggregate row per outer fold, where each metric is the median of that fold's three evaluation-seed results, plus the raw 15 seed×fold rows. Define `median_outer_f1` as the median of the five outer-fold medians; define `outer_splits_at_or_above_baseline` as the count of the five outer-fold medians whose F1 is at least the trusted baseline; define `long_fp_fraction_max` and `boundary_mae_ms_max` as the maxima of the five outer-fold medians. A missing/non-finite boundary MAE is a G4 failure, not zero. The two non-selection seeds never produce inner rows and never reselect a configuration.
 
 G4 consumes exactly `artifacts/m0-trusted-baseline/metrics.json` and its sibling `split-manifest.json`, and reads `$.metric.value` only after verifying `schema_version="trusted_baseline_v1"`, `baseline_id="m0-q50-groupnorm"`, `data_scope="target_only_train"`, `split_manifest_sha256`, split `strategy="participant_frozen"`, split `seed=20260910`, split `valid_fraction=0.20`, `metric.name="event_f1"`, `metric.matching="strict_iou_gt_0.25_one_to_one"`, `metric.source_document="docs/preflight-2026-09-10.md"` and `metric.value=0.17284` within `1e-5`. The final `outer-metrics.json` must contain this source path, its SHA256 and the resolved baseline value. G4 passes only when all of the following are true: `median_outer_f1 >= trusted_baseline_event_f1 + 0.02`; `outer_splits_at_or_above_baseline >= 3`; `long_fp_fraction_max <= 0.25`; and `boundary_mae_ms_max <= 900_000`. The stability report must contain all three seeds and no failed/missing seed-fold row. Any failed condition writes `gate_result=fail`, classifies the failure and prevents M6.
 
@@ -1385,8 +1408,8 @@ Implement `build_g4_report(outer_metrics, trusted_baseline_path)` with the follo
 baseline = read_json(trusted_baseline_path)
 baseline_f1 = baseline["metric"]["value"]
 rows = sorted(outer_metrics, key=lambda row: (row["outer_fold_id"], row["seed"]))
-assert sorted({row["seed"] for row in rows}) == [20260910, 20260911, 20260912]
-assert all(sum(row["seed"] == seed for row in rows) == 5 for seed in (20260910, 20260911, 20260912))
+assert sorted({row["seed"] for row in rows}) == list(M5_EVALUATION_SEEDS)
+assert all(sum(row["seed"] == seed for row in rows) == 5 for seed in M5_EVALUATION_SEEDS)
 assert all(is_finite(row["event_f1"]) for row in rows)
 fold_medians = {
     fold_id: median([row["event_f1"] for row in rows if row["outer_fold_id"] == fold_id])
@@ -1395,7 +1418,7 @@ fold_medians = {
 long_fp_max = max_fold_median("long_fp_fraction", rows)
 boundary_mae_max = max_finite_fold_median("boundary_mae_ms", rows)
 g4 = {
-    "median_outer_f1_pass": median([row["event_f1"] for row in rows]) >= baseline_f1 + 0.02,
+    "median_outer_f1_pass": median(list(fold_medians.values())) >= baseline_f1 + 0.02,
     "outer_splits_at_or_above_baseline": sum(value >= baseline_f1 for value in fold_medians.values()),
     "long_fp_fraction_max": long_fp_max,
     "long_fp_fraction_max_pass": long_fp_max is not None and long_fp_max <= 0.25,
@@ -1424,10 +1447,10 @@ Expected: all tests pass.
 - [ ] **Step 6: Run M5 nested evaluation and the three-seed stability report after tests pass**
 
 ~~~text
-python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/g1-formal-cache --output-dir artifacts/m5-nested-evaluation --formal --outer-folds 5 --seeds 20260910,20260911,20260912 --trusted-baseline artifacts/m0-trusted-baseline/metrics.json
+python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/g1-formal-cache --output-dir artifacts/m5-nested-evaluation --formal --outer-folds 5 --selection-seed 20260910 --evaluation-seeds 20260910,20260911,20260912 --trusted-baseline artifacts/m0-trusted-baseline/metrics.json
 ~~~
 
-Expected: `inner-results.jsonl`, `outer-fold-selected-configs.json`, `selected-config.json`, `outer-metrics.json`, `stability-report.json`, `manifest.json` and `telemetry.jsonl` exist. The command must stop before M6 if the complete frozen Cartesian grid, all 5×4 inner rows per config, three seeds, trusted-baseline validation or any G4 condition fails.
+Expected: `inner-results.jsonl`, `outer-fold-selected-configs.json`, `selected-config.json`, `outer-metrics.json`, `stability-report.json`, `manifest.json` and `telemetry.jsonl` exist. The command must stop before M6 if the complete frozen Cartesian grid, the single-selection-seed 5×4 inner rows per config, the 15 outer seed×fold evaluation rows, trusted-baseline validation or any G4 condition fails.
 
 - [ ] **Step 7: Commit M5 nested evaluation**
 
@@ -1436,7 +1459,7 @@ git add src/eating_event/evaluation.py scripts/run_event_verifier.py tests/test_
 git commit -m "feat: enforce nested inner-only decoder selection"
 ~~~
 
-Gate: G4 evaluation is invalid if any outer metric reaches parameter selection. After inner-only selection, G4 passes only if the three-seed stability report is complete, `median_outer_f1 >= 0.17284 + 0.02`, at least 3 of the 5 outer-fold medians are at least `0.17284`, the maximum outer-fold-median `long_fp_fraction <= 0.25`, and the maximum outer-fold-median `boundary_mae_ms <= 900000`. A missing or non-finite metric is a failed gate, not an imputed value.
+Gate: G4 evaluation is invalid if any outer metric reaches parameter selection. After inner-only selection, G4 passes only if the three-seed stability report is complete, `median_outer_f1 >= trusted_baseline_event_f1 + 0.02`, `outer_splits_at_or_above_baseline >= 3`, the maximum outer-fold-median `long_fp_fraction <= 0.25`, and the maximum outer-fold-median `boundary_mae_ms <= 900000`. A missing or non-finite metric is a failed gate, not an imputed value.
 
 ### Task 10: Execute the independent M6 full target-only scale run and resource gate
 
@@ -1540,7 +1563,7 @@ Expected: FAIL because the independent full-run orchestrator, checkpoint contrac
 
 Implement `run_full_target_only(config, selected_config_path, cache_dir, output_dir, run_id, formal, cache_only, resume)` with these non-negotiable boundaries:
 
-1. Require `selected_config_path` in formal mode and require it to resolve exactly to `artifacts/m5-nested-evaluation/selected-config.json` relative to the configured repository root. Load that file, its sibling M5 `manifest.json` and the resolved base config before model fitting. Require `schema_version="decoder_config_v1"`, `selection_source="inner"`, `outer_metrics_used=false`, `source_run_id="m5-nested-evaluation"`, the seven frozen decoder fields, the `aggregate_inner_metrics` object, and `manifest["gate_results"]["G4"]["result"]="pass"`.
+1. Require `selected_config_path` in formal mode and require it to resolve exactly to `artifacts/m5-nested-evaluation/selected-config.json` relative to the configured repository root. Load that file, its sibling M5 `manifest.json` and the resolved base config before model fitting. Require `schema_version="decoder_config_v1"`, `selection_source="inner"`, `outer_metrics_used=false`, `source_run_id="m5-nested-evaluation"`, `selection_seed=20260910`, `evaluation_seeds=[20260910, 20260911, 20260912]`, the seven frozen decoder fields, the `aggregate_inner_metrics` object, and `manifest["gate_results"]["G4"]["result"]="pass"`.
 2. Recompute the canonical JSON hash excluding `config_hash` and compare it with `selected-config.json.config_hash`; the aggregate object is included in this hash. Recompute the resolved ProjectConfig hash and compare it with `base_config_hash`. Reject missing fields, any hash mismatch, a non-inner selection source, a failed/missing G4 result, a selected value outside `M5_DECODER_GRID`, or a `training_budget` whose `candidate_max_iter`/`verifier_max_iter` do not exactly equal `M5_TRAINING_BUDGETS[training_budget]`.
 3. Discover every eligible target train participant and session from the manifest; reject test participants, test metadata and external data references before any feature or label parsing. In `formal=True`, reject `max_files_per_participant`, process all eligible target train sessions, and write an explicit per-session status for every discovered session.
 4. Load or build the versioned dense candidate cache. Fit the final HGB candidate model on all eligible target train rows using the values in the validated selected config, including `feature_variant`, `training_budget`, `candidate_max_iter`, `verifier_max_iter`, threshold and decoder values; no outer-valid or test row may enter fitting. M6 must not call `select_inner_parameters` or `select_candidate_quantile`, and the CLI must provide no candidate-quantile, verifier-threshold or decoder-parameter override.
@@ -1732,7 +1755,7 @@ python -m pytest -q
 python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/g0-audit.json --run-id g0-audit --diagnostic-only
 python scripts/run_trusted_baseline.py --config configs/example.local.yaml --audit artifacts/g0-audit.json --baseline-id m0-q50-groupnorm --split-seed 20260910 --valid-fraction 0.20 --expected-event-f1 0.17284 --output-dir artifacts/m0-trusted-baseline --strict
 python scripts/run_candidate_coverage.py --config configs/example.local.yaml --output artifacts/g1-candidate-coverage.json --cache-dir artifacts/g1-formal-cache --outer-folds 5 --formal
-python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/g1-formal-cache --output-dir artifacts/m5-nested-evaluation --formal --outer-folds 5 --seeds 20260910,20260911,20260912 --trusted-baseline artifacts/m0-trusted-baseline/metrics.json
+python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/g1-formal-cache --output-dir artifacts/m5-nested-evaluation --formal --outer-folds 5 --selection-seed 20260910 --evaluation-seeds 20260910,20260911,20260912 --trusted-baseline artifacts/m0-trusted-baseline/metrics.json
 python scripts/run_full_target_only.py --config configs/example.local.yaml --selected-config artifacts/m5-nested-evaluation/selected-config.json --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal
 python scripts/run_submission.py --config configs/example.local.yaml --model-dir artifacts/m6-full-target-only --cache-dir artifacts/m7-submission-cache --output artifacts/m7-submission.json
 ~~~
@@ -1754,11 +1777,11 @@ Check that formal G1 and M3–M7 runs always have `run_start`, `gate_result` and
 Check that the Task 8 focused command includes `tests/test_telemetry.py` and that M6 recovery patches the canonical `fit_event_verifier` name.
 Check that M6 is an independent full target-only run with full candidate/verifier checkpoints, participant OOF scores, cache-only recovery comparison and resource report before M7/G6 submission.
 Check that Task 9 writes the exact M5 selected-config schema and that Task 10 validates its path, schema, canonical hash, base-config hash and G4 status without reselecting parameters.
-Check that `inner-results.jsonl` contains all 5×4 inner-fold rows per decoder config, final config aggregation uses only those rows, and `outer-metrics.json` is excluded from selection.
+Check that `inner-results.jsonl` contains exactly the single `M5_SELECTION_SEED` 5×4 inner-fold rows per decoder config, that the other evaluation seeds produce no inner rows and never reselect, that final config aggregation uses only those rows, and that `outer-metrics.json` is excluded from selection.
 Check that `selected-config.json` contains `feature_variant`, `training_budget`, resolved budget values and `aggregate_inner_metrics`, and that the aggregate object is included in the canonical hash.
 Check that finite boundary MAE sorts before `None`, `None` is never encoded as zero, and the selection test covers the rule.
 Check that the trusted baseline sentinel writes `artifacts/m0-trusted-baseline/metrics.json` and `split-manifest.json`, fixes the M0 value at `0.17284` under the strict IoU rule, and that M5 consumes that artifact rather than a hard-coded or outer-derived baseline.
-Check that M5 runs exactly three seeds, writes the stability report, defines the outer-fold/seed aggregation, and explicitly enforces all four G4 acceptance conditions including the 3/5 split condition, long-FP limit and 900000 ms boundary limit.
+Check that M5 performs one inner selection with `M5_SELECTION_SEED`, evaluates the immutable config with exactly `M5_EVALUATION_SEEDS`, writes the stability report, defines the outer-fold/seed aggregation, and explicitly enforces all four G4 acceptance conditions including the 3/5 split condition, long-FP limit and 900000 ms boundary limit.
 Check that the M6 hash-mismatch test uses the formal relative selected-config path and a valid 64-character hexadecimal wrong hash.
 Check that Task 10 reruns `tests/test_full_target_run.py`, resource/reproducibility tests and `python -m pytest -q` before the resource dry-run and full target-only training.
 Check that EventCandidate allows `segment_start_ms == interval.start_ms` and that submission tests prove test rows are skipped before timestamp parsing.
