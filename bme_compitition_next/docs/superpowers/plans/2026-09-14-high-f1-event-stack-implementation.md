@@ -71,7 +71,7 @@ dataset sanity
 -> submission isolation
 ~~~
 
-每个 run 必须记录 `run_start`、`gate_result` 和 `run_end`；只有实际触发 adaptive-workflow circuit breaker 时才记录 `escalation`。若当前 host 没有独立 telemetry recorder，则由 run artifact 写入这些事件，不能伪称已有外部 telemetry。
+Telemetry 的范围必须明确区分正式 run 和诊断 run。正式 G1 以及 M3–M7 的 formal run 必须使用统一的 `RunArtifact.record_event`，并记录 `run_start`、`gate_result` 和 `run_end`；只有实际触发 adaptive-workflow circuit breaker 时才记录 `escalation`。Task 2 的 dataset audit、Task 4 的 bounded smoke cache 和 Task 7 的 verifier smoke 都是 `diagnostic_only`，不属于 formal telemetry 生命周期；它们只在各自的 audit/smoke JSON 中写入 `run_id`、`diagnostic_only=true`、命令、状态、失败分类和开始/结束时间，不得被误当成正式 gate 结果。正式 run 的 host 若没有独立 telemetry recorder，则由 run artifact 写入这些事件，不能伪称已有外部 telemetry。
 
 ## 文件结构
 
@@ -95,11 +95,13 @@ dataset sanity
 | src/eating_event/telemetry.py | run_start、gate_result、escalation、run_end schema and validation helpers; writes are owned by RunArtifact |
 | src/eating_event/full_run.py | full target-only scale orchestration and cache recovery |
 | scripts/audit_dataset.py | manifest/timebase audit CLI |
+| scripts/run_trusted_baseline.py | materialize and validate the frozen M0 trusted-baseline sentinel |
 | scripts/run_candidate_baseline.py | dense cache 和 candidate coverage CLI |
 | scripts/run_candidate_coverage.py | formal outer-fold G1 coverage CLI |
 | scripts/run_event_verifier.py | OOF verifier 和 nested validation CLI |
 | scripts/run_full_target_only.py | M6 full target-only checkpoints, OOF verifier and resource report |
 | scripts/run_submission.py | load M6 target-only checkpoints and serialize test predictions |
+| tests/test_trusted_baseline.py | frozen M0 baseline value/split/source contract |
 | tests/test_*.py | contract、leakage、metric、resource 和 runner regression tests |
 
 ### Task 1: Freeze public config and data schemas
@@ -108,9 +110,13 @@ dataset sanity
 
 - Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/config.py
 - Create: E:/bme_compitition/bme_compitition_next/src/eating_event/schemas.py
+- Create: E:/bme_compitition/bme_compitition_next/src/eating_event/artifacts.py
+- Create: E:/bme_compitition/bme_compitition_next/src/eating_event/telemetry.py
 - Modify: E:/bme_compitition/bme_compitition_next/configs/example.local.yaml
 - Modify: E:/bme_compitition/bme_compitition_next/tests/test_config.py
 - Create: E:/bme_compitition/bme_compitition_next/tests/test_schemas.py
+- Create: E:/bme_compitition/bme_compitition_next/tests/test_artifacts.py
+- Create: E:/bme_compitition/bme_compitition_next/tests/test_telemetry.py
 
 - [ ] **Step 1: Write failing schema tests**
 
@@ -141,15 +147,23 @@ def test_prediction_row_rejects_bounds_outside_session():
             session_start_ms=100,
             session_end_ms=900,
         )
+
+
+def test_formal_run_artifact_requires_core_lifecycle_events(tmp_path):
+    run = RunArtifact(tmp_path, "g1")
+    run.record_event("run_start", {"workflow_path": "RESEARCH"})
+    run.record_event("gate_result", {"gate_id": "G1", "result": "pass", "failure_class": None})
+    with pytest.raises(ValueError, match="run_end"):
+        run.finalize()
 ~~~
 
 - [ ] **Step 2: Run focused tests and confirm failure**
 
 ~~~text
-python -m pytest tests/test_config.py tests/test_schemas.py -q
+python -m pytest tests/test_config.py tests/test_schemas.py tests/test_artifacts.py tests/test_telemetry.py -q
 ~~~
 
-Expected: FAIL because the resource fields, schema dataclasses and bounds validation do not exist.
+Expected: FAIL because the resource fields, schema dataclasses, formal-run artifact and telemetry lifecycle do not exist.
 
 - [ ] **Step 3: Add the typed contracts**
 
@@ -168,12 +182,14 @@ fit_timeout_seconds: int = 7200
 
 Define frozen dataclasses ManifestRow, GapSummary, CandidateRow, EventCandidateRow and PredictionRow. PredictionRow validates end_ms > start_ms and session_start_ms <= start_ms < end_ms <= session_end_ms. Candidate labels use int8 values 1, 0 and -1.
 
+Create the initial `RunArtifact`/`TelemetryEvent` foundation here, before any formal G1 command can run. `RunArtifact.record_event(event_type, payload)` is the only writer; it injects the resolved run context and writes `telemetry.jsonl`. `finalize()` must require `run_start`, `gate_result` and `run_end`, allow `escalation` only when `circuit_breaker_fired=true`, and include the telemetry checksum in the manifest. Task 8 extends this foundation with the complete artifact payload and checkpoint rules; it must modify these files rather than recreate them.
+
 Change configs/example.local.yaml so the formal defaults are window_seconds=15 and step_seconds=7.5. Add explicit coarse_window_seconds=240, coarse_step_seconds=15 and use_coarse_context=false fields; coarse context is disabled unless an inner-validation experiment enables it.
 
 - [ ] **Step 4: Run focused and full tests**
 
 ~~~text
-python -m pytest tests/test_config.py tests/test_schemas.py -q
+python -m pytest tests/test_config.py tests/test_schemas.py tests/test_artifacts.py tests/test_telemetry.py -q
 python -m pytest -q
 ~~~
 
@@ -182,7 +198,7 @@ Expected: all focused tests and all existing tests pass.
 - [ ] **Step 5: Commit M0**
 
 ~~~text
-git add src/eating_event/config.py src/eating_event/schemas.py configs/example.local.yaml tests/test_config.py tests/test_schemas.py
+git add src/eating_event/config.py src/eating_event/schemas.py src/eating_event/artifacts.py src/eating_event/telemetry.py configs/example.local.yaml tests/test_config.py tests/test_schemas.py tests/test_artifacts.py tests/test_telemetry.py
 git commit -m "feat: freeze pipeline data schemas and resource config"
 ~~~
 
@@ -244,10 +260,10 @@ Keep bounded chunks of raw rows and count malformed rows with their source row n
 
 ~~~text
 python -m pytest tests/test_manifest.py tests/test_raw.py tests/test_audit.py -q
-python scripts/audit_dataset.py --config configs/example.local.yaml --limit-files 2 --output artifacts/m1-audit.json
+python scripts/audit_dataset.py --config configs/example.local.yaml --limit-files 2 --output artifacts/m1-audit.json --run-id m1-audit --diagnostic-only
 ~~~
 
-Expected: focused tests pass; audit JSON contains status_counts, malformed_rows, duplicate_count and dropped_timestamp_count.
+Expected: focused tests pass; audit JSON contains `status_counts`, `malformed_rows`, `duplicate_count`, `dropped_timestamp_count`, `run_id="m1-audit"`, `diagnostic_only=true`, `telemetry_scope="diagnostic"`, `status`, `failure_class`, `started_at` and `ended_at`. This artifact is dataset evidence only and is not a formal telemetry run.
 
 - [ ] **Step 6: Commit M1 parser changes**
 
@@ -257,6 +273,77 @@ git commit -m "feat: make manifest and raw parsing auditable"
 ~~~
 
 Gate: stop M1 if any file or malformed row lacks an explicit status.
+
+### Task 2b: Materialize the trusted baseline sentinel before pipeline work
+
+This is the required bridge between dataset sanity and the pipeline-sanity/timebase tasks. It does not tune a new model and does not read test truth; it turns the preflight M0 reference into a self-contained, hashable artifact that G4 must consume.
+
+**Files:**
+
+- Create: E:/bme_compitition/bme_compitition_next/scripts/run_trusted_baseline.py
+- Create: E:/bme_compitition/bme_compitition_next/tests/test_trusted_baseline.py
+
+- [ ] **Step 1: Write the failing baseline-contract test**
+
+~~~python
+def test_trusted_baseline_artifact_freezes_value_split_and_metric_source(tmp_path):
+    artifact = build_trusted_baseline_artifact(
+        output_dir=tmp_path,
+        audited_target_participants=("p-01", "p-02", "p-03", "p-04", "p-05"),
+        baseline_id="m0-q50-groupnorm",
+        split_seed=20260910,
+        valid_fraction=0.20,
+        expected_event_f1=0.17284,
+    )
+    assert artifact["schema_version"] == "trusted_baseline_v1"
+    assert artifact["baseline_id"] == "m0-q50-groupnorm"
+    assert artifact["metric"]["name"] == "event_f1"
+    assert artifact["metric"]["value"] == pytest.approx(0.17284, abs=1e-5)
+    assert artifact["metric"]["matching"] == "strict_iou_gt_0.25_one_to_one"
+    assert artifact["metric"]["source_document"] == "docs/preflight-2026-09-10.md"
+    assert artifact["split"] == {
+        "strategy": "participant_frozen",
+        "seed": 20260910,
+        "valid_fraction": 0.20,
+        "participant_order": "sorted_unique_target_train",
+        "manifest": "split-manifest.json",
+    }
+~~~
+
+- [ ] **Step 2: Run the focused sentinel test and confirm failure**
+
+~~~text
+python -m pytest tests/test_trusted_baseline.py -q
+~~~
+
+Expected: FAIL because the baseline artifact builder and its frozen split/metric schema do not exist.
+
+- [ ] **Step 3: Implement the frozen baseline sentinel**
+
+Implement `build_trusted_baseline_artifact(output_dir, audited_target_participants, baseline_id, split_seed, valid_fraction, expected_event_f1)` and the CLI with these exact rules:
+
+1. Resolve only eligible target-train participants from the audited manifest, sort their IDs lexicographically, and call the existing deterministic `split_participants(..., valid_fraction=0.20, seed=20260910)` exactly once. Write `artifacts/m0-trusted-baseline/split-manifest.json` with `schema_version="participant_split_v1"`, `strategy="participant_frozen"`, `seed=20260910`, `valid_fraction=0.20`, the exact sorted `participant_ids`, `train_participant_ids`, `valid_participant_ids`, `participant_order_sha256` and `split_sha256`; that file is the authoritative split, not an implicit random split.
+2. Write `artifacts/m0-trusted-baseline/metrics.json` with `schema_version="trusted_baseline_v1"`, `baseline_id="m0-q50-groupnorm"`, `data_scope="target_only_train"`, `split_manifest="split-manifest.json"`, `split_manifest_sha256` equal to the sibling split artifact, and this exact nested metric object: `{"name":"event_f1","value":0.17284,"matching":"strict_iou_gt_0.25_one_to_one","source_document":"docs/preflight-2026-09-10.md","source_locator":"Baseline / M0 q50 + GroupNorm"}`. The runner must reject a different value, split seed, valid fraction, metric rule, or data scope; it must never substitute an M5 result or a newly sampled split.
+3. Write `artifacts/m0-trusted-baseline/manifest.json` containing the config hash, audited target manifest hash, split-manifest hash, metrics hash, `data_scope="target_only_train"`, `test_truth_references=[]`, `external_data_references=[]` and `result="pass"`. A missing source/contract field produces `result="fail"` and blocks Task 3 and all later model work.
+
+- [ ] **Step 4: Run the sentinel and the full existing suite**
+
+~~~text
+python -m pytest tests/test_trusted_baseline.py -q
+python -m pytest -q
+python scripts/run_trusted_baseline.py --config configs/example.local.yaml --audit artifacts/m1-audit.json --baseline-id m0-q50-groupnorm --split-seed 20260910 --valid-fraction 0.20 --expected-event-f1 0.17284 --output-dir artifacts/m0-trusted-baseline --strict
+~~~
+
+Expected: the artifact contains `split-manifest.json`, `metrics.json` and `manifest.json`, with `result="pass"` and `metric.value=0.17284`. Do not start Task 3 if the sentinel cannot prove the exact participant-frozen split, the official strict IoU rule or the preflight metric source.
+
+- [ ] **Step 5: Commit M1 baseline sentinel**
+
+~~~text
+git add scripts/run_trusted_baseline.py tests/test_trusted_baseline.py
+git commit -m "test: freeze trusted baseline sentinel"
+~~~
+
+Gate: the trusted baseline consumed by G4 is exactly `artifacts/m0-trusted-baseline/metrics.json:$.metric.value`, with value `0.17284`; its split is exactly the sibling `split-manifest.json` generated by seed `20260910` and valid fraction `0.20`. No G4 command may use a hard-coded scalar or any outer metric as a replacement.
 
 ### Task 3: Add hard-gap metadata and segment-aware timebase
 
@@ -421,10 +508,10 @@ Expected: all tests pass; cache round-trip preserves schema, shape and labels ex
 - [ ] **Step 6: Run the bounded smoke cache**
 
 ~~~text
-python scripts/run_candidate_baseline.py --config configs/example.local.yaml --cache-dir artifacts/m2-smoke-cache --output artifacts/m2-smoke.json --max-files-per-participant 2
+python scripts/run_candidate_baseline.py --config configs/example.local.yaml --cache-dir artifacts/m2-smoke-cache --output artifacts/m2-smoke.json --max-files-per-participant 2 --run-id m2-smoke --diagnostic-only
 ~~~
 
-The command must label this run smoke-only and must not treat its metrics as formal evaluation.
+The command must write `run_id="m2-smoke"`, `diagnostic_only=true`, `telemetry_scope="diagnostic"`, `status`, `failure_class`, `started_at` and `ended_at` in `artifacts/m2-smoke.json`. It must label the run smoke-only and must not treat its metrics as formal evaluation or as a formal telemetry lifecycle.
 
 - [ ] **Step 7: Commit M2 cache changes**
 
@@ -750,10 +837,10 @@ Write the counts and the gate result to the run artifact.
 
 ~~~text
 python -m pytest tests/test_verifier.py tests/test_oof_leakage.py -q
-python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/m2-smoke-cache --cache-only --output artifacts/m3-smoke.json
+python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/m2-smoke-cache --cache-only --output artifacts/m3-smoke.json --run-id m3-smoke --diagnostic-only
 ~~~
 
-Expected: focused tests pass. A smoke dataset that cannot meet the positive-sample gate exits with VerifierTrainingGateError and a recorded gate result.
+Expected: focused tests pass. A smoke dataset that cannot meet the positive-sample gate exits with VerifierTrainingGateError and writes diagnostic-only `run_id`, `status`, `failure_class`, `started_at` and `ended_at`; it does not emit or stand in for the formal M3/M4 telemetry lifecycle.
 
 - [ ] **Step 7: Commit M4 OOF changes**
 
@@ -770,12 +857,12 @@ Gate: M4 fails closed when fallback_participants is non-empty or verifier positi
 
 - Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/verifier.py
 - Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/schemas.py
-- Create: E:/bme_compitition/bme_compitition_next/src/eating_event/artifacts.py
-- Create: E:/bme_compitition/bme_compitition_next/src/eating_event/telemetry.py
+- Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/artifacts.py
+- Modify: E:/bme_compitition/bme_compitition_next/src/eating_event/telemetry.py
 - Modify: E:/bme_compitition/bme_compitition_next/scripts/run_event_verifier.py
 - Modify: E:/bme_compitition/bme_compitition_next/tests/test_verifier.py
-- Create: E:/bme_compitition/bme_compitition_next/tests/test_artifacts.py
-- Create: E:/bme_compitition/bme_compitition_next/tests/test_telemetry.py
+- Modify: E:/bme_compitition/bme_compitition_next/tests/test_artifacts.py
+- Modify: E:/bme_compitition/bme_compitition_next/tests/test_telemetry.py
 
 - [ ] **Step 1: Write failing decoder and artifact tests**
 
@@ -925,7 +1012,7 @@ def test_escalation_requires_circuit_breaker_flag(tmp_path):
 python -m pytest tests/test_verifier.py tests/test_artifacts.py tests/test_telemetry.py -q
 ~~~
 
-Expected: FAIL because EventCandidate has no session/quality contract, RunArtifact does not exist and the required telemetry API is absent.
+Expected: FAIL because EventCandidate has no session/quality contract and the existing formal-run artifact foundation lacks the complete decoder, checkpoint and telemetry payload contract.
 
 - [ ] **Step 3: Implement the complete EventCandidate boundary contract**
 
@@ -980,7 +1067,7 @@ class RunArtifact:
 
 Add write_jsonl and finalize. `finalize()` writes checksums, git revision, environment versions and the artifact manifest; it rejects paths outside the run directory and rejects a run that lacks `run_start`, `gate_result` or `run_end`.
 
-Implement the telemetry schema in `telemetry.py` and expose it through `RunArtifact.record_event`:
+Extend the telemetry schema in `telemetry.py` and expose it through the existing `RunArtifact.record_event` API:
 
 ~~~python
 class TelemetryEvent(TypedDict):
@@ -1081,6 +1168,97 @@ def test_final_config_aggregates_inner_results_without_outer_metrics(tmp_path):
     assert selected["selection_source"] == "inner"
     assert selected["outer_metrics_used"] is False
     assert selected["inner_results_artifact"] == "inner-results.jsonl"
+    assert selected["aggregate_inner_metrics"]["inner_result_count"] == 20
+    assert "mean_inner_event_f1" in selected["aggregate_inner_metrics"]
+    assert "mean_candidate_coverage" in selected["aggregate_inner_metrics"]
+    assert "mean_long_fp_fraction" in selected["aggregate_inner_metrics"]
+    assert "boundary_mae_missing_count" in selected["aggregate_inner_metrics"]
+    assert "finite_boundary_mae_mean_ms" in selected["aggregate_inner_metrics"]
+
+
+def test_m5_decoder_grid_is_finite_and_schema_complete():
+    assert M5_DECODER_GRID == {
+        "candidate_quantile": (0.70, 0.80, 0.90),
+        "verifier_threshold": (0.10, 0.25, 0.50),
+        "candidate_fuse_gap_ms": (300_000,),
+        "decode_fuse_gap_ms": (300_000, 600_000, 900_000),
+        "min_duration_ms": (120_000, 180_000, 240_000),
+        "feature_variant": ("event_stats_v1",),
+        "training_budget": ("budget_v1",),
+    }
+    assert M5_TRAINING_BUDGETS == {
+        "budget_v1": {"candidate_max_iter": 100, "verifier_max_iter": 100}
+    }
+    assert len(expand_decoder_grid(M5_DECODER_GRID, M5_TRAINING_BUDGETS)) == 81
+
+
+def test_g4_uses_three_seed_outer_metrics_and_trusted_baseline(tmp_path):
+    baseline_path = tmp_path / "artifacts" / "m0-trusted-baseline" / "metrics.json"
+    baseline_path.parent.mkdir(parents=True)
+    split_path = baseline_path.parent / "split-manifest.json"
+    split_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "participant_split_v1",
+                "strategy": "participant_frozen",
+                "seed": 20260910,
+                "valid_fraction": 0.20,
+                "participant_ids": ["p-01", "p-02", "p-03", "p-04", "p-05"],
+                "train_participant_ids": ["p-01", "p-02", "p-03", "p-04"],
+                "valid_participant_ids": ["p-05"],
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    split_hash = hashlib.sha256(split_path.read_bytes()).hexdigest()
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "trusted_baseline_v1",
+                "baseline_id": "m0-q50-groupnorm",
+                "data_scope": "target_only_train",
+                "split_manifest": "split-manifest.json",
+                "split_manifest_sha256": split_hash,
+                "split": {
+                    "strategy": "participant_frozen",
+                    "seed": 20260910,
+                    "valid_fraction": 0.20,
+                    "participant_order": "sorted_unique_target_train",
+                    "manifest": "split-manifest.json",
+                },
+                "metric": {
+                    "name": "event_f1",
+                    "value": 0.17284,
+                    "matching": "strict_iou_gt_0.25_one_to_one",
+                    "source_document": "docs/preflight-2026-09-10.md",
+                    "source_locator": "Baseline / M0 q50 + GroupNorm",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    outer_metrics = [
+        {
+            "seed": seed,
+            "outer_fold_id": f"outer-{fold}",
+            "event_f1": 0.20,
+            "long_fp_fraction": 0.10,
+            "boundary_mae_ms": 800_000,
+        }
+        for seed in (20260910, 20260911, 20260912)
+        for fold in range(5)
+    ]
+    report = build_g4_report(
+        outer_metrics=outer_metrics,
+        trusted_baseline_path=baseline_path,
+    )
+    assert report["seed_ids"] == [20260910, 20260911, 20260912]
+    assert report["trusted_baseline_artifact"] == "artifacts/m0-trusted-baseline/metrics.json"
+    assert report["g4"]["median_outer_f1_pass"] is True
+    assert report["g4"]["outer_splits_at_or_above_baseline"] >= 3
+    assert report["g4"]["long_fp_fraction_max_pass"] is True
+    assert report["g4"]["boundary_mae_ms_max_pass"] is True
 ~~~
 
 - [ ] **Step 2: Run focused test**
@@ -1103,10 +1281,34 @@ class DecoderConfig:
     candidate_fuse_gap_ms: int
     decode_fuse_gap_ms: int
     min_duration_ms: int
+    feature_variant: str
+    training_budget: str
     selection_source: str
 ~~~
 
-Implement `select_inner_parameters` using inner event F1 as the primary key, then higher candidate coverage, lower long_fp_fraction, lower count of `boundary_mae_ms=None` rows, lower finite boundary MAE, and lexicographic configuration order. The function accepts inner results only. Use `boundary_mae_sort_key`: every finite boundary MAE precedes `None`, finite values sort ascending, and `None` is never converted to zero. If all remaining candidates have `None`, proceed to the lexicographic configuration tie-break.
+Freeze the complete M5 search space before any inner result is written. There is no implicit range, CLI override or unregistered value:
+
+~~~python
+M5_DECODER_GRID = {
+    "candidate_quantile": (0.70, 0.80, 0.90),
+    "verifier_threshold": (0.10, 0.25, 0.50),
+    "candidate_fuse_gap_ms": (300_000,),
+    "decode_fuse_gap_ms": (300_000, 600_000, 900_000),
+    "min_duration_ms": (120_000, 180_000, 240_000),
+    "feature_variant": ("event_stats_v1",),
+    "training_budget": ("budget_v1",),
+}
+M5_TRAINING_BUDGETS = {
+    "budget_v1": {"candidate_max_iter": 100, "verifier_max_iter": 100},
+}
+M5_SEEDS = (20260910, 20260911, 20260912)
+~~~
+
+Implement `expand_decoder_grid(grid, training_budgets)` as a deterministic sorted Cartesian-product helper; it must validate that every `training_budget` key exists in `training_budgets`, attach the corresponding `candidate_max_iter` and `verifier_max_iter`, and return exactly 81 `DecoderConfig` values for the constants above.
+
+The three quantiles reuse the frozen G1 grid; verifier thresholds are the preflight-tested `{0.10, 0.25, 0.50}` set; candidate fusion remains fixed at the preflight-supported 300 s; decode fusion is the finite `{300, 600, 900}` s set; minimum duration is the pre-registered `{120, 180, 240}` s set centered on the design default. The feature variant is the singleton `event_stats_v1` (the exact `[E,16]` event feature contract built from the Task 4 `imu_stats_v1` `[W,111]` cache); no coarse-context, TCN or Transformer feature enters M5. The training budget is the singleton design budget `budget_v1` (candidate/verifier `max_iter=100`); the field remains in the schema so a future approved plan can add a budget, but this plan has no open budget search. Inner code must enumerate exactly 81 configurations (`3×3×1×3×3×1×1`) and reject any configuration outside it; with 5 outer folds and 4 inner folds, `inner-results.jsonl` therefore contains exactly 1,620 passing config/fold rows.
+
+Implement `select_inner_parameters` using inner event F1 as the primary key, then higher candidate coverage, lower long_fp_fraction, lower count of `boundary_mae_ms=None` rows, lower finite boundary MAE, and lexicographic configuration order. The function accepts inner results only. Use `boundary_mae_sort_key`: every finite boundary MAE precedes `None`, finite values sort ascending, and `None` is never converted to zero. If all remaining candidates have `None`, proceed to the lexicographic configuration tie-break. The lexicographic configuration ID includes all seven fields, including `feature_variant` and `training_budget`.
 
 - [ ] **Step 4: Implement the complete nested outer evaluation sequence**
 
@@ -1130,9 +1332,9 @@ artifacts/m5-nested-evaluation/outer-metrics.json
 artifacts/m5-nested-evaluation/manifest.json
 ~~~
 
-`inner-results.jsonl` contains exactly one `inner_result_v1` record for each `(outer_fold_id, inner_fold_id, decoder_config)` evaluation. Every record has `outer_fold_id`, `inner_fold_id`, `config_id`, the five decoder parameters, `inner_event_f1`, `candidate_coverage`, `long_fp_fraction`, `boundary_mae_ms` (finite number or `None`), `candidate_count` and `status`. Records are sorted by `outer_fold_id`, `inner_fold_id` and `config_id`; incomplete or failed inner results cannot be silently omitted from aggregation.
+`inner-results.jsonl` contains exactly one `inner_result_v1` record for each `(outer_fold_id, inner_fold_id, decoder_config)` evaluation. Every record has `outer_fold_id`, `inner_fold_id`, `config_id`, all seven frozen configuration fields (`candidate_quantile`, `verifier_threshold`, `candidate_fuse_gap_ms`, `decode_fuse_gap_ms`, `min_duration_ms`, `feature_variant`, `training_budget`), the resolved `candidate_max_iter` and `verifier_max_iter`, `inner_event_f1`, `candidate_coverage`, `long_fp_fraction`, `boundary_mae_ms` (finite number or `None`), `candidate_count` and `status`. Records are sorted by `outer_fold_id`, `inner_fold_id` and `config_id`; incomplete or failed inner results cannot be silently omitted from aggregation.
 
-The unique final config is aggregated from all `status="pass"` rows in this `inner-results.jsonl` across all five outer folds and all four inner folds per outer fold. Selection is permitted only when every expected `(outer_fold_id, inner_fold_id, config_id)` row is present and has `status="pass"`; a missing or failed row invalidates M5 and prevents `selected-config.json` from being written. For each `config_id`, compute arithmetic means of `inner_event_f1`, `candidate_coverage`, `long_fp_fraction` and all finite `boundary_mae_ms` values, plus `boundary_mae_missing_count`. Select with this exact key: highest mean inner event F1, highest mean candidate coverage, lowest mean long-fp fraction, lowest boundary-MAE missing count, lowest finite boundary-MAE mean with `None` after every finite value, then lexicographically smallest `config_id`. Write the aggregate and the contributing row IDs into `selected-config.json`. `outer-metrics.json` is written only after this selection and is never read by the selector or used in the final-config key.
+The unique final config is aggregated from all `status="pass"` rows in this `inner-results.jsonl` across all five outer folds and all four inner folds per outer fold. Selection is permitted only when every expected `(outer_fold_id, inner_fold_id, config_id)` row from the exact `M5_DECODER_GRID` Cartesian product is present and has `status="pass"`; a missing or failed row invalidates M5 and prevents `selected-config.json` from being written. For each `config_id`, compute arithmetic means of `inner_event_f1`, `candidate_coverage`, `long_fp_fraction` and all finite `boundary_mae_ms` values, plus `boundary_mae_missing_count`. Select with this exact key: highest mean inner event F1, highest mean candidate coverage, lowest mean long-fp fraction, lowest boundary-MAE missing count, lowest finite boundary-MAE mean with `None` after every finite value, then lexicographically smallest `config_id`. Write the aggregate and the contributing row IDs into `selected-config.json` under the exact `aggregate_inner_metrics` object below. `outer-metrics.json` is written only after this selection and is never read by the selector or used in the final-config key.
 
 The implementation API for this step is `aggregate_inner_results(inner_results_path)`; it reads only `inner-results.jsonl`, validates the complete 5×4 row matrix for every decoder config, computes the aggregate key above, and returns the selected config payload. `write_selected_config` then writes and hashes that payload. Neither function accepts `outer-metrics.json` as an input.
 
@@ -1145,23 +1347,72 @@ The implementation API for this step is `aggregate_inner_results(inner_results_p
   "base_config_hash": "64 lowercase hexadecimal characters",
   "selection_source": "inner",
   "selection_metric": "mean_inner_event_f1",
-  "selection_key": ["mean_inner_event_f1", "mean_candidate_coverage", "mean_long_fp_fraction", "boundary_mae_missing_count", "finite_boundary_mae_mean", "config_lexicographic"],
+  "selection_key": ["mean_inner_event_f1", "mean_candidate_coverage", "mean_long_fp_fraction", "boundary_mae_missing_count", "finite_boundary_mae_mean_ms", "config_lexicographic"],
   "candidate_quantile": 0.80,
   "verifier_threshold": 0.50,
   "candidate_fuse_gap_ms": 300000,
   "decode_fuse_gap_ms": 600000,
   "min_duration_ms": 180000,
+  "feature_variant": "event_stats_v1",
+  "training_budget": "budget_v1",
+  "candidate_max_iter": 100,
+  "verifier_max_iter": 100,
   "outer_metrics_used": false,
   "source_run_id": "m5-nested-evaluation",
   "outer_fold_ids": ["outer-0", "outer-1", "outer-2", "outer-3", "outer-4"],
   "inner_results_artifact": "inner-results.jsonl",
-  "contributing_inner_result_ids": ["outer-0/inner-0/q0.80-v0.50-f300000-d600000-min180000"]
+  "contributing_inner_result_ids": ["outer-0/inner-0/q0.80-v0.50-f300000-d600000-min180000-fv-event_stats_v1-b-budget_v1"],
+  "aggregate_inner_metrics": {
+    "inner_result_count": 20,
+    "mean_inner_event_f1": 0.40,
+    "mean_candidate_coverage": 0.90,
+    "mean_long_fp_fraction": 0.10,
+    "boundary_mae_missing_count": 0,
+    "finite_boundary_mae_mean_ms": 900.0
+  }
 }
 ~~~
 
-The canonical hash is computed after sorting keys and using compact UTF-8 JSON, with `config_hash` omitted during hashing. `outer_metrics_used` must remain false; `selection_source` must remain `inner`. The final config is selected from the complete inner-result row set only, using the fixed aggregate key and deterministic configuration order. A missing field, hash mismatch, non-inner source, incomplete inner-result set or any outer metric dependency invalidates M5/G4.
+The example numeric values are schema examples; the implementation writes the actual aggregate from the selected config's 20 contributing inner rows. If all 20 boundary MAE values are `None`, `finite_boundary_mae_mean_ms` is JSON `null` and the selection key places it after every finite mean; it is never encoded as zero. `aggregate_inner_metrics` is required and is part of the canonical hash. The canonical hash is computed after sorting keys and using compact UTF-8 JSON, with only `config_hash` omitted during hashing. `outer_metrics_used` must remain false; `selection_source` must remain `inner`. The final config is selected from the complete inner-result row set only, using the fixed aggregate key and deterministic configuration order. A missing field, hash mismatch, non-inner source, incomplete inner-result set or any outer metric dependency invalidates M5/G4.
 
-- [ ] **Step 5: Run focused and full tests**
+M5 must run exactly the three seeds `M5_SEEDS=(20260910, 20260911, 20260912)` and write `artifacts/m5-nested-evaluation/stability-report.json`. The stability report contains one row for every seed and outer fold, per-seed median/mean/standard deviation, the exact seed list, the split-manifest hash and the resolved selected-config hash. `outer-metrics.json` contains one aggregate row per outer fold, where each metric is the median of that fold's three seed results, plus the raw 15 seed×fold rows. Define `median_outer_f1` as the median of all 15 raw outer-fold F1 values; define `outer_splits_at_or_above_baseline` as the count of the five outer-fold medians whose F1 is at least the trusted baseline; define `long_fp_fraction_max` and `boundary_mae_ms_max` as the maxima of the five outer-fold medians. A missing/non-finite boundary MAE is a G4 failure, not zero.
+
+G4 consumes exactly `artifacts/m0-trusted-baseline/metrics.json` and its sibling `split-manifest.json`, and reads `$.metric.value` only after verifying `schema_version="trusted_baseline_v1"`, `baseline_id="m0-q50-groupnorm"`, `data_scope="target_only_train"`, `split_manifest_sha256`, split `strategy="participant_frozen"`, split `seed=20260910`, split `valid_fraction=0.20`, `metric.name="event_f1"`, `metric.matching="strict_iou_gt_0.25_one_to_one"`, `metric.source_document="docs/preflight-2026-09-10.md"` and `metric.value=0.17284` within `1e-5`. The final `outer-metrics.json` must contain this source path, its SHA256 and the resolved baseline value. G4 passes only when all of the following are true: `median_outer_f1 >= trusted_baseline_event_f1 + 0.02`; `outer_splits_at_or_above_baseline >= 3`; `long_fp_fraction_max <= 0.25`; and `boundary_mae_ms_max <= 900_000`. The stability report must contain all three seeds and no failed/missing seed-fold row. Any failed condition writes `gate_result=fail`, classifies the failure and prevents M6.
+
+Implement `build_g4_report(outer_metrics, trusted_baseline_path)` with the following deterministic calculation; do not replace it with a single-seed or mean-only check:
+
+~~~python
+baseline = read_json(trusted_baseline_path)
+baseline_f1 = baseline["metric"]["value"]
+rows = sorted(outer_metrics, key=lambda row: (row["outer_fold_id"], row["seed"]))
+assert sorted({row["seed"] for row in rows}) == [20260910, 20260911, 20260912]
+assert all(sum(row["seed"] == seed for row in rows) == 5 for seed in (20260910, 20260911, 20260912))
+assert all(is_finite(row["event_f1"]) for row in rows)
+fold_medians = {
+    fold_id: median([row["event_f1"] for row in rows if row["outer_fold_id"] == fold_id])
+    for fold_id in ("outer-0", "outer-1", "outer-2", "outer-3", "outer-4")
+}
+long_fp_max = max_fold_median("long_fp_fraction", rows)
+boundary_mae_max = max_finite_fold_median("boundary_mae_ms", rows)
+g4 = {
+    "median_outer_f1_pass": median([row["event_f1"] for row in rows]) >= baseline_f1 + 0.02,
+    "outer_splits_at_or_above_baseline": sum(value >= baseline_f1 for value in fold_medians.values()),
+    "long_fp_fraction_max": long_fp_max,
+    "long_fp_fraction_max_pass": long_fp_max is not None and long_fp_max <= 0.25,
+    "boundary_mae_ms_max": boundary_mae_max,
+    "boundary_mae_ms_max_pass": boundary_mae_max is not None and boundary_mae_max <= 900_000,
+}
+g4["result"] = "pass" if (
+    g4["median_outer_f1_pass"]
+    and g4["outer_splits_at_or_above_baseline"] >= 3
+    and g4["long_fp_fraction_max_pass"]
+    and g4["boundary_mae_ms_max_pass"]
+) else "fail"
+~~~
+
+`max_fold_median` and `max_finite_fold_median` return `None` when required values are missing/non-finite; they may not coerce `None` to zero. The serialized `outer-metrics.json` stores numeric-or-null `median_outer_f1`, `outer_splits_at_or_above_baseline`, `long_fp_fraction_max`, `boundary_mae_ms_max`, the four boolean checks above, `g4.result`, `trusted_baseline_artifact`, `trusted_baseline_sha256`, `trusted_baseline_event_f1`, `seed_ids`, `outer_fold_ids` and the raw 15 rows. `stability-report.json` stores the same raw rows plus per-seed median/mean/std and the selected-config hash.
+
+- [ ] **Step 5: Run focused and full tests after the M5 implementation**
 
 ~~~text
 python -m pytest tests/test_nested_evaluation.py -q
@@ -1170,14 +1421,22 @@ python -m pytest -q
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit M5 nested evaluation**
+- [ ] **Step 6: Run M5 nested evaluation and the three-seed stability report after tests pass**
+
+~~~text
+python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/g1-formal-cache --output-dir artifacts/m5-nested-evaluation --formal --outer-folds 5 --seeds 20260910,20260911,20260912 --trusted-baseline artifacts/m0-trusted-baseline/metrics.json
+~~~
+
+Expected: `inner-results.jsonl`, `outer-fold-selected-configs.json`, `selected-config.json`, `outer-metrics.json`, `stability-report.json`, `manifest.json` and `telemetry.jsonl` exist. The command must stop before M6 if the complete frozen Cartesian grid, all 5×4 inner rows per config, three seeds, trusted-baseline validation or any G4 condition fails.
+
+- [ ] **Step 7: Commit M5 nested evaluation**
 
 ~~~text
 git add src/eating_event/evaluation.py scripts/run_event_verifier.py tests/test_nested_evaluation.py
 git commit -m "feat: enforce nested inner-only decoder selection"
 ~~~
 
-Gate: G4 evaluation is invalid if any outer metric reaches parameter selection.
+Gate: G4 evaluation is invalid if any outer metric reaches parameter selection. After inner-only selection, G4 passes only if the three-seed stability report is complete, `median_outer_f1 >= 0.17284 + 0.02`, at least 3 of the 5 outer-fold medians are at least `0.17284`, the maximum outer-fold-median `long_fp_fraction <= 0.25`, and the maximum outer-fold-median `boundary_mae_ms <= 900000`. A missing or non-finite metric is a failed gate, not an imputed value.
 
 ### Task 10: Execute the independent M6 full target-only scale run and resource gate
 
@@ -1267,7 +1526,7 @@ def test_resource_budget_rejects_gpu_limit_above_seven_gb():
         ResourceBudget(gpu_memory_limit_gb=7.5)
 ~~~
 
-`make_formal_m5_fixture` must create a temporary repository root, write `artifacts/m5-nested-evaluation/selected-config.json` and its sibling `manifest.json` under that root, set a passing G4 result and a correct `base_config_hash`, then replace only `config_hash` with the valid but incorrect value `"f" * 64`. The test therefore reaches canonical hash validation after the formal path and schema checks.
+`make_formal_m5_fixture` must create a temporary repository root, write `artifacts/m5-nested-evaluation/selected-config.json` and its sibling `manifest.json` under that root, include every exact selected-config field (including `feature_variant`, `training_budget`, resolved max-iteration values and `aggregate_inner_metrics`), set a passing G4 result and a correct `base_config_hash`, compute a correct canonical hash first, then replace only `config_hash` with the valid but incorrect value `"f" * 64`. The test therefore reaches canonical hash validation after the formal path, schema, grid and aggregate checks.
 
 - [ ] **Step 2: Run focused tests**
 
@@ -1281,10 +1540,10 @@ Expected: FAIL because the independent full-run orchestrator, checkpoint contrac
 
 Implement `run_full_target_only(config, selected_config_path, cache_dir, output_dir, run_id, formal, cache_only, resume)` with these non-negotiable boundaries:
 
-1. Require `selected_config_path` in formal mode and require it to resolve exactly to `artifacts/m5-nested-evaluation/selected-config.json` relative to the configured repository root. Load that file, its sibling M5 `manifest.json` and the resolved base config before model fitting. Require `schema_version="decoder_config_v1"`, `selection_source="inner"`, `outer_metrics_used=false`, `source_run_id="m5-nested-evaluation"`, and `manifest["gate_results"]["G4"]["result"]="pass"`.
-2. Recompute the canonical JSON hash excluding `config_hash` and compare it with `selected-config.json.config_hash`. Recompute the resolved ProjectConfig hash and compare it with `base_config_hash`. Reject missing fields, any hash mismatch, a non-inner selection source, a failed/missing G4 result, or a selected quantile outside `G1_CANDIDATE_QUANTILE_GRID`.
+1. Require `selected_config_path` in formal mode and require it to resolve exactly to `artifacts/m5-nested-evaluation/selected-config.json` relative to the configured repository root. Load that file, its sibling M5 `manifest.json` and the resolved base config before model fitting. Require `schema_version="decoder_config_v1"`, `selection_source="inner"`, `outer_metrics_used=false`, `source_run_id="m5-nested-evaluation"`, the seven frozen decoder fields, the `aggregate_inner_metrics` object, and `manifest["gate_results"]["G4"]["result"]="pass"`.
+2. Recompute the canonical JSON hash excluding `config_hash` and compare it with `selected-config.json.config_hash`; the aggregate object is included in this hash. Recompute the resolved ProjectConfig hash and compare it with `base_config_hash`. Reject missing fields, any hash mismatch, a non-inner selection source, a failed/missing G4 result, a selected value outside `M5_DECODER_GRID`, or a `training_budget` whose `candidate_max_iter`/`verifier_max_iter` do not exactly equal `M5_TRAINING_BUDGETS[training_budget]`.
 3. Discover every eligible target train participant and session from the manifest; reject test participants, test metadata and external data references before any feature or label parsing. In `formal=True`, reject `max_files_per_participant`, process all eligible target train sessions, and write an explicit per-session status for every discovered session.
-4. Load or build the versioned dense candidate cache. Fit the final HGB candidate model on all eligible target train rows using the values in the validated selected config; no outer-valid or test row may enter fitting. M6 must not call `select_inner_parameters` or `select_candidate_quantile`, and the CLI must provide no candidate-quantile, verifier-threshold or decoder-parameter override.
+4. Load or build the versioned dense candidate cache. Fit the final HGB candidate model on all eligible target train rows using the values in the validated selected config, including `feature_variant`, `training_budget`, `candidate_max_iter`, `verifier_max_iter`, threshold and decoder values; no outer-valid or test row may enter fitting. M6 must not call `select_inner_parameters` or `select_candidate_quantile`, and the CLI must provide no candidate-quantile, verifier-threshold or decoder-parameter override.
 5. Generate participant-frozen OOF candidate scores for all target train participants, then call the existing public `fit_event_verifier` function only with those OOF scores. `fit_event_verifier` is the sole canonical verifier-fit name for this plan. Fail closed if OOF fallback is non-empty or the positive-sample gate fails.
 6. Write these exact outputs under `artifacts/m6-full-target-only/`: `candidate_model.joblib`, `verifier_model.joblib`, `oof_scores/`, `cache_manifest.json`, `metrics.json`, `resource_report.json`, `resolved_config.json`, `selected-config.json`, `run.log`, `telemetry.jsonl` and `manifest.json`. Copy the validated M5 selected config into the M6 artifact. Checkpoints must contain the contract hash, feature schema hash, git revision and training participant digest.
 
@@ -1304,10 +1563,10 @@ Expected: all M6 checkpoint, selected-config, cache-recovery, resource and repro
 - [ ] **Step 6: Run the resource dry-run before full training**
 
 ~~~text
-python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/m6-resource-audit.json --resource-dry-run
+python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/m6-resource-audit.json --resource-dry-run --run-id m6-resource-audit --diagnostic-only
 ~~~
 
-Expected: tests pass; the audit completes inside its configured timeout and writes resource limits, peak measurements and a classified result. A resource failure stops M6 before model fitting.
+Expected: tests pass; the diagnostic audit completes inside its configured timeout and writes resource limits, peak measurements, `run_id`, `diagnostic_only=true` and a classified result. A resource failure stops M6 before model fitting.
 
 - [ ] **Step 7: Run the complete M6 target-only scale command**
 
@@ -1470,9 +1729,10 @@ Every gate result must contain gate_id, acceptance, current_evidence, experiment
 
 ~~~text
 python -m pytest -q
-python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/g0-audit.json
+python scripts/audit_dataset.py --config configs/example.local.yaml --output artifacts/g0-audit.json --run-id g0-audit --diagnostic-only
+python scripts/run_trusted_baseline.py --config configs/example.local.yaml --audit artifacts/g0-audit.json --baseline-id m0-q50-groupnorm --split-seed 20260910 --valid-fraction 0.20 --expected-event-f1 0.17284 --output-dir artifacts/m0-trusted-baseline --strict
 python scripts/run_candidate_coverage.py --config configs/example.local.yaml --output artifacts/g1-candidate-coverage.json --cache-dir artifacts/g1-formal-cache --outer-folds 5 --formal
-python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/g1-formal-cache --output artifacts/g2-g4-verifier.json --formal --outer-folds 5
+python scripts/run_event_verifier.py --config configs/example.local.yaml --cache-dir artifacts/g1-formal-cache --output-dir artifacts/m5-nested-evaluation --formal --outer-folds 5 --seeds 20260910,20260911,20260912 --trusted-baseline artifacts/m0-trusted-baseline/metrics.json
 python scripts/run_full_target_only.py --config configs/example.local.yaml --selected-config artifacts/m5-nested-evaluation/selected-config.json --cache-dir artifacts/m6-full-cache --output-dir artifacts/m6-full-target-only --run-id m6-full-target-only --formal
 python scripts/run_submission.py --config configs/example.local.yaml --model-dir artifacts/m6-full-target-only --cache-dir artifacts/m7-submission-cache --output artifacts/m7-submission.json
 ~~~
@@ -1485,17 +1745,20 @@ Check that every Detailed Design section maps to a task, every task has exact fi
 Check that the worktree path is `E:/bme_compitition/.worktrees/high-f1-event-stack-execution`, `/.worktrees/` is verified by `git check-ignore`, and all project commands run from its nested `bme_compitition_next` directory.
 Check that the formal G1 command precedes every verifier or complex-model command and writes fold, participant and failure-class artifacts before stopping on failure.
 Check that Task 5 reruns `tests/test_coverage.py` and `python -m pytest -q` after implementation and before the formal G1 command.
-Check that the G1 quantile grid, inner-only selection metric, tie-break and fuse gap are frozen and that Task 6 reuses rather than recreates `evaluation.py`.
+Check that the G1 quantile grid, M5 `verifier_threshold`/`decode_fuse_gap_ms`/`min_duration_ms` values, singleton `feature_variant`/`training_budget`, inner-only selection metric, tie-break and fuse gap are frozen and that Task 6 reuses rather than recreates `evaluation.py`.
 Check that every G1 inner fold fits and thresholds on inner-train only, selects on inner-valid only, refits on complete outer-train only, and evaluates outer-valid only after selection.
 Check that Task 9 repeats this full inner-train/inner-valid/complete-outer-train/outer-valid order for candidate and verifier models, not only for the G1 scorer.
 Check that EventCandidate carries candidate status, quality status and ignore-source flags, and that every ignored source is excluded from verifier training, OOF scoring, metrics and decoder input.
 Check that Task 8 exposes the `RunArtifact.record_event` telemetry API and tests `run_start`, `gate_result`, `escalation` and `run_end` plus manifest checksums.
-Check that every run always has `run_start`, `gate_result` and `run_end`, while `escalation` exists only with `circuit_breaker_fired=true`, and that no module-level telemetry writer remains.
+Check that formal G1 and M3–M7 runs always have `run_start`, `gate_result` and `run_end`, while `escalation` exists only with `circuit_breaker_fired=true`, and that no module-level telemetry writer remains. Check that Task 1 creates the artifact/telemetry foundation before G1 and that Task 2/4/7 bounded commands are explicitly `diagnostic_only` with audit/smoke JSON metadata rather than formal lifecycle events.
 Check that the Task 8 focused command includes `tests/test_telemetry.py` and that M6 recovery patches the canonical `fit_event_verifier` name.
 Check that M6 is an independent full target-only run with full candidate/verifier checkpoints, participant OOF scores, cache-only recovery comparison and resource report before M7/G6 submission.
 Check that Task 9 writes the exact M5 selected-config schema and that Task 10 validates its path, schema, canonical hash, base-config hash and G4 status without reselecting parameters.
 Check that `inner-results.jsonl` contains all 5×4 inner-fold rows per decoder config, final config aggregation uses only those rows, and `outer-metrics.json` is excluded from selection.
+Check that `selected-config.json` contains `feature_variant`, `training_budget`, resolved budget values and `aggregate_inner_metrics`, and that the aggregate object is included in the canonical hash.
 Check that finite boundary MAE sorts before `None`, `None` is never encoded as zero, and the selection test covers the rule.
+Check that the trusted baseline sentinel writes `artifacts/m0-trusted-baseline/metrics.json` and `split-manifest.json`, fixes the M0 value at `0.17284` under the strict IoU rule, and that M5 consumes that artifact rather than a hard-coded or outer-derived baseline.
+Check that M5 runs exactly three seeds, writes the stability report, defines the outer-fold/seed aggregation, and explicitly enforces all four G4 acceptance conditions including the 3/5 split condition, long-FP limit and 900000 ms boundary limit.
 Check that the M6 hash-mismatch test uses the formal relative selected-config path and a valid 64-character hexadecimal wrong hash.
 Check that Task 10 reruns `tests/test_full_target_run.py`, resource/reproducibility tests and `python -m pytest -q` before the resource dry-run and full target-only training.
 Check that EventCandidate allows `segment_start_ms == interval.start_ms` and that submission tests prove test rows are skipped before timestamp parsing.
