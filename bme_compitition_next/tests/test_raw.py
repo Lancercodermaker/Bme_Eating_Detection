@@ -151,3 +151,20 @@ def test_malformed_sensor_row_is_counted(tmp_path: Path) -> None:
     assert result.audit.malformed_rows == 1
     assert result.audit.valid_rows > 0
     assert result.audit.malformed_row_details[0]["source_row_number"] == 3
+
+
+def test_large_sensor_file_skips_repeated_header_as_malformed_row(tmp_path: Path) -> None:
+    header = "ACC_TIME\tGYRO_TIME\tACC_X\tACC_Y\tACC_Z\tGYRO_X\tGYRO_Y\tGYRO_Z"
+    valid_row = "1000\t1000\t1\t2\t3\t4\t5\t6"
+    rows = [header, *([valid_row] * 50_000)]
+    rows.insert(25_000, header)
+    path = tmp_path / "large-repeated-header.txt"
+    path.write_text("\n".join(rows), encoding="utf-8")
+
+    assert path.stat().st_size > 1_000_000
+    result = read_imu_tsv_with_audit(path)
+
+    assert result.audit.malformed_rows == 1
+    assert result.audit.malformed_row_details[0]["reason"] == "non_numeric_required_signal"
+    assert result.audit.malformed_row_details[0]["source_row_number"] == 25_001
+    assert result.acc.timestamps_ms.tolist() == [1000]

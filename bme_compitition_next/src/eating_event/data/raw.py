@@ -171,6 +171,16 @@ def read_imu_tsv_with_audit(path: str | Path, *, chunk_size: int = 200_000) -> R
                     )
                 total_rows = 0
                 bad_source_rows: set[int] = set()
+                indices = {name: header.index(name) for name in required}
+                signal_names = [
+                    "ACC_X",
+                    "ACC_Y",
+                    "ACC_Z",
+                    "GYRO_X",
+                    "GYRO_Y",
+                    "GYRO_Z",
+                ]
+                invalid_timestamp_values = {"ACC_TIME": set(), "GYRO_TIME": set()}
                 for source_row_number, row in enumerate(reader, start=2):
                     total_rows += 1
                     if len(row) != len(header):
@@ -181,6 +191,34 @@ def read_imu_tsv_with_audit(path: str | Path, *, chunk_size: int = 200_000) -> R
                                 "reason": "column_count_mismatch",
                             }
                         )
+                        continue
+                    malformed_signal = False
+                    for name in signal_names:
+                        text = row[indices[name]].strip()
+                        if not text:
+                            continue
+                        try:
+                            float(text)
+                        except ValueError:
+                            bad_source_rows.add(source_row_number)
+                            malformed_details.append(
+                                {
+                                    "source_row_number": source_row_number,
+                                    "reason": "non_numeric_required_signal",
+                                }
+                            )
+                            malformed_signal = True
+                            break
+                    if malformed_signal:
+                        continue
+                    for name in ("ACC_TIME", "GYRO_TIME"):
+                        text = row[indices[name]].strip()
+                        if not text:
+                            continue
+                        try:
+                            float(text)
+                        except ValueError:
+                            invalid_timestamp_values[name].add(text)
         except (OSError, UnicodeDecodeError, csv.Error, StopIteration) as exc:
             raise RawFileFormatError(f"cannot decode sensor rows: {file_path}") from exc
 
@@ -193,11 +231,12 @@ def read_imu_tsv_with_audit(path: str | Path, *, chunk_size: int = 200_000) -> R
                 sep="\t",
                 usecols=required,
                 dtype={column: "float64" for column in required},
-                chunksize=chunk_size,
-                encoding=encoding,
-                on_bad_lines="skip",
-                skiprows=skiprows,
-            )
+                    chunksize=chunk_size,
+                    encoding=encoding,
+                    on_bad_lines="skip",
+                    skiprows=skiprows,
+                    na_values=invalid_timestamp_values,
+                )
             for chunk in reader:
                 acc.update(chunk["ACC_TIME"].to_numpy(), chunk[["ACC_X", "ACC_Y", "ACC_Z"]].to_numpy())
                 gyro.update(chunk["GYRO_TIME"].to_numpy(), chunk[["GYRO_X", "GYRO_Y", "GYRO_Z"]].to_numpy())
