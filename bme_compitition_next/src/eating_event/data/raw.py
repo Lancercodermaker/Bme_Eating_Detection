@@ -45,6 +45,45 @@ class RawFileFormatError(ValueError):
     """The file is not a valid competition sensor TSV."""
 
 
+def _aggregate_timestamp_values(
+    timestamps: np.ndarray,
+    values: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Group one chunk by timestamp without scanning the full chunk per group."""
+
+    timestamp_array = np.asarray(timestamps, dtype=np.int64)
+    value_array = np.asarray(values, dtype=np.float64)
+    if timestamp_array.ndim != 1 or value_array.ndim != 2:
+        raise ValueError("timestamps must be 1-D and values must be 2-D")
+    if timestamp_array.size != value_array.shape[0]:
+        raise ValueError("timestamps and values must have aligned rows")
+    unique, inverse = np.unique(timestamp_array, return_inverse=True)
+    if unique.size == 0:
+        return (
+            unique,
+            np.empty((0, value_array.shape[1]), dtype=np.float64),
+            np.empty((0, value_array.shape[1]), dtype=np.int64),
+        )
+    finite = np.isfinite(value_array)
+    sums = np.column_stack(
+        [
+            np.bincount(
+                inverse,
+                weights=np.where(finite[:, column], value_array[:, column], 0.0),
+                minlength=unique.size,
+            )
+            for column in range(value_array.shape[1])
+        ]
+    )
+    counts = np.column_stack(
+        [
+            np.bincount(inverse, weights=finite[:, column].astype(np.int64), minlength=unique.size)
+            for column in range(value_array.shape[1])
+        ]
+    ).astype(np.int64, copy=False)
+    return unique, sums, counts
+
+
 class _TimestampAccumulator:
     def __init__(self, width: int) -> None:
         self.width = width
@@ -60,12 +99,13 @@ class _TimestampAccumulator:
         self.positive_rows += int(positive_time.sum())
         valid_timestamps = np.rint(timestamps[positive_time]).astype(np.int64)
         valid_values = values[positive_time]
-        unique, inverse = np.unique(valid_timestamps, return_inverse=True)
+        unique, sums_by_timestamp, counts_by_timestamp = _aggregate_timestamp_values(
+            valid_timestamps,
+            valid_values,
+        )
         for group_index, timestamp in enumerate(unique):
-            group = valid_values[inverse == group_index]
-            finite_values = np.isfinite(group)
-            sums = np.nansum(group, axis=0)
-            counts = finite_values.sum(axis=0).astype(np.int64)
+            sums = sums_by_timestamp[group_index]
+            counts = counts_by_timestamp[group_index]
             if int(timestamp) not in self.sums:
                 self.sums[int(timestamp)] = sums
                 self.counts[int(timestamp)] = counts

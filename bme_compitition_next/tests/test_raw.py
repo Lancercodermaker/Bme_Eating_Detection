@@ -6,11 +6,31 @@ import pytest
 from eating_event.data.raw import (
     RawFileFormatError,
     RawIMU,
+    _aggregate_timestamp_values,
     read_imu_tsv,
     read_imu_tsv_with_audit,
     regularize_imu,
 )
 from eating_event.data.timebase import AggregatedSeries
+
+
+def test_timestamp_aggregation_is_nan_safe_and_returns_group_counts() -> None:
+    timestamps = np.asarray([1000, 1000, 2000, 2000], dtype=np.int64)
+    values = np.asarray(
+        [
+            [1.0, np.nan, 3.0],
+            [3.0, 5.0, np.nan],
+            [np.nan, 7.0, 9.0],
+            [5.0, np.nan, 11.0],
+        ],
+        dtype=np.float64,
+    )
+
+    unique, sums, counts = _aggregate_timestamp_values(timestamps, values)
+
+    np.testing.assert_array_equal(unique, [1000, 2000])
+    np.testing.assert_allclose(sums, [[4.0, 5.0, 3.0], [5.0, 7.0, 20.0]])
+    np.testing.assert_array_equal(counts, [[2, 1, 1], [1, 1, 2]])
 
 
 def test_read_imu_tsv_aggregates_duplicate_packets_across_chunks(tmp_path: Path) -> None:
