@@ -158,8 +158,11 @@ def _load_eligibility(path: Path, expected_sha: str, expected_denominator_sha: s
         participant = str(row.get("participant_id", ""))
         if not participant:
             raise InvalidA2Source("eligibility participant is missing")
-        participant_ids.add(participant)
-        if not bool(row.get("evaluation_eligibility")) and not bool(row.get("training_eligibility")):
+        evaluation_eligible = bool(row.get("evaluation_eligibility"))
+        training_eligible = bool(row.get("training_eligibility"))
+        if evaluation_eligible or training_eligible:
+            participant_ids.add(participant)
+        if not evaluation_eligible and not training_eligible:
             continue
         try:
             event_index = int(row["event_index"])
@@ -188,6 +191,73 @@ def _load_eligibility(path: Path, expected_sha: str, expected_denominator_sha: s
     return evaluation_rows, training_rows, tuple(sorted(participant_ids)), payload
 
 
+def validate_eligible_gt_participants(
+    event_rows: Sequence[Mapping[str, object]],
+    cache_participants: Sequence[str] | set[str],
+) -> tuple[str, ...]:
+    """Require only training/evaluation-eligible canonical GT people in cache."""
+
+    eligible: set[str] = set()
+    for row in event_rows:
+        participant = str(row.get("participant_id", ""))
+        if not participant:
+            raise InvalidA2Source("eligibility participant is missing")
+        if bool(row.get("evaluation_eligibility")) or bool(row.get("training_eligibility")):
+            eligible.add(participant)
+    outside = eligible - set(map(str, cache_participants))
+    if outside:
+        raise InvalidA2Source(f"eligible canonical GT participant outside approved cache population: {sorted(outside)}")
+    return tuple(sorted(eligible))
+
+
+def index_approved_manifest_records(
+    audit_records: Sequence[Mapping[str, object]],
+    cache_entries: Sequence[Mapping[str, object]],
+) -> dict[str, Mapping[str, object]]:
+    """Index nonempty opaque IDs, then bind each cache entry to one processed row."""
+
+    indexed: dict[str, Mapping[str, object]] = {}
+    for row in audit_records:
+        if not isinstance(row, Mapping):
+            raise InvalidA2Source("approved record audit row is malformed")
+        status = str(row.get("status", ""))
+        opaque_value = row.get("path_or_file_id")
+        if opaque_value is None or opaque_value == "":
+            if status == "processed":
+                raise InvalidA2Source("processed manifest audit identity is missing")
+            continue
+        opaque = str(opaque_value)
+        if not opaque.strip():
+            if status == "processed":
+                raise InvalidA2Source("processed manifest audit identity is empty")
+            continue
+        if opaque in indexed:
+            raise InvalidA2Source("duplicate nonempty manifest audit identity")
+        indexed[opaque] = row
+
+    referenced: set[str] = set()
+    for entry in cache_entries:
+        if not isinstance(entry, Mapping):
+            raise InvalidA2Source("approved cache manifest entry is malformed")
+        opaque_value = entry.get("path", entry.get("path_or_file_id"))
+        if opaque_value is None or opaque_value == "" or not str(opaque_value).strip():
+            raise InvalidA2Source("approved cache entry has no manifest audit identity")
+        opaque = str(opaque_value)
+        if opaque in referenced:
+            raise InvalidA2Source("duplicate cache reference to one manifest audit identity")
+        referenced.add(opaque)
+        row = indexed.get(opaque)
+        if row is None:
+            raise InvalidA2Source(f"cache entry is absent from approved manifest audit: {opaque}")
+        if str(row.get("status", "")) != "processed":
+            raise InvalidA2Source("cache entry must map to a processed manifest audit record")
+        if str(row.get("participant_id", "")) != str(entry.get("participant_id", "")):
+            raise InvalidA2Source("cache/manifest participant identity mismatch")
+        if str(row.get("session_id", "")) != str(entry.get("session_id", "")):
+            raise InvalidA2Source("cache/manifest session identity mismatch")
+    return indexed
+
+
 def _load_cache_geometry(
     root: Path,
     cache_manifest_path: Path,
@@ -200,14 +270,7 @@ def _load_cache_geometry(
         raise InvalidA2Source("approved cache manifest is malformed")
     if not isinstance(audit, dict) or not isinstance(audit.get("records"), list):
         raise InvalidA2Source("approved record audit is malformed")
-    audit_by_opaque: dict[str, Mapping[str, object]] = {}
-    for record in audit["records"]:
-        if not isinstance(record, dict):
-            raise InvalidA2Source("approved record audit row is malformed")
-        opaque = str(record.get("path_or_file_id", ""))
-        if not opaque or opaque in audit_by_opaque:
-            raise InvalidA2Source("approved record audit identity is missing or duplicated")
-        audit_by_opaque[opaque] = record
+    audit_by_opaque = index_approved_manifest_records(audit["records"], manifest["entries"])
     geometry: list[dict[str, object]] = []
     cache_hashes: dict[str, str] = {}
     seen_sessions: set[tuple[str, str]] = set()
@@ -216,7 +279,8 @@ def _load_cache_geometry(
             raise InvalidA2Source("approved cache manifest entry is malformed")
         participant = str(entry.get("participant_id", ""))
         session = str(entry.get("session_id", ""))
-        opaque = str(entry.get("path", entry.get("path_or_file_id", "")))
+        opaque_value = entry.get("path", entry.get("path_or_file_id"))
+        opaque = "" if opaque_value is None else str(opaque_value)
         cache_value = str(entry.get("cache_path", ""))
         if not participant or not session or not opaque or not cache_value:
             raise InvalidA2Source("approved cache identity is incomplete")
@@ -672,8 +736,9 @@ def run_audit(
     participants = tuple(sorted({str(row["participant_id"]) for row in geometry}))
     if len(participants) != 41 or "6C7" not in participants:
         raise InvalidA2Source("approved cache population must include all 41 participants and 6C7")
-    if not set(_eligibility_participants) <= set(participants):
-        raise InvalidA2Source("canonical event participants fall outside the approved cache population")
+    validated_eligible = validate_eligible_gt_participants(eligibility_payload["event_eligibility"], participants)
+    if validated_eligible != _eligibility_participants:
+        raise InvalidA2Source("eligible canonical GT participant collection is inconsistent")
     global_identity, global_index_by_stable, window_identity_sha = _load_global_identity(a1_root / "window-identity.json", geometry)
     if len({str(row["participant_id"]) for row in global_identity}) != 41:
         raise InvalidA2Source("global window identities do not contain the approved 41 participants")
