@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -96,6 +97,41 @@ A2_CONFIG: dict[str, object] = {
     "outer_candidate_covered_gt": [46, 48, 47, 31, 41],
 }
 
+STUDY_001_ID = "a2-context-verifier-v1-001"
+STUDY_002_ID = "a2-context-verifier-v1-002"
+DEFAULT_STUDY_ID = STUDY_001_ID
+PREDECESSOR_001: dict[str, object] = {
+    "study_id": STUDY_001_ID,
+    "status": "INVALID",
+    "run_status_sha256": "321ff020f82e3a81172959c86a7f44b7cf801234b6dc4ed210bdc34c65dfcb60",
+    "external_ledger_sha256": "1f8698d4957b468f0dc67fd4dfb9a42483c8b71334d8fb5808ec03999a576453",
+    "mirror_ledger_sha256": "1f8698d4957b468f0dc67fd4dfb9a42483c8b71334d8fb5808ec03999a576453",
+    "config_sha256": "f34e05939745a081a8ab4878a2e94f30e0cc4879980d1d32d761664c722ed6f5",
+    "output_tree_sha256": "e58935ebfcac05a22481e14835b80e00f213304940834527116789bfb2acb4a0",
+    "active_wall_seconds": 3.5,
+    "fit_wall_seconds": 0.0,
+    "verifier_fit_attempts": 0,
+    "rss_ceiling_bytes": 2127893299,
+    "output_tree_bytes": 2671,
+    "external_ledger_bytes": 634,
+}
+
+
+def expected_study_config(study_id: str) -> dict[str, object]:
+    if study_id == STUDY_001_ID:
+        return copy.deepcopy(A2_CONFIG)
+    if study_id != STUDY_002_ID:
+        raise ValueError(f"unapproved A2 study identity: {study_id}")
+    expected = copy.deepcopy(A2_CONFIG)
+    expected.update({
+        "study_id": STUDY_002_ID,
+        "study_output": "artifacts/a2-context-verifier-v1-002",
+        "ledger_path": "artifacts/a2-study-budget-v1-002.jsonl",
+        "lock_path": "artifacts/a2-study-budget-v1-002.lock",
+        "predecessor": copy.deepcopy(PREDECESSOR_001),
+    })
+    return expected
+
 
 def canonical_json(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -105,24 +141,57 @@ def config_digest(value: object) -> str:
     return hashlib.sha256(canonical_json(value)).hexdigest()
 
 
-def validate_config(config: object) -> dict[str, object]:
-    if not isinstance(config, dict) or canonical_json(config) != canonical_json(A2_CONFIG):
-        raise ValueError("A2 config differs from the one frozen study definition")
+def validate_config(config: object, *, study_id: str = DEFAULT_STUDY_ID) -> dict[str, object]:
+    expected = expected_study_config(study_id)
+    if not isinstance(config, dict) or canonical_json(config) != canonical_json(expected):
+        raise ValueError("A2 config differs from the frozen study definition/namespace")
     return config
 
 
-def load_config(root: str | Path) -> tuple[dict[str, object], str]:
+def config_path(root: str | Path, study_id: str = DEFAULT_STUDY_ID) -> Path:
+    expected_study_config(study_id)
+    filename = "a2-context-verifier-v1.json" if study_id == STUDY_001_ID else "a2-context-verifier-v1-002.json"
+    return Path(root).resolve() / "configs" / filename
+
+
+def load_config(root: str | Path, *, study_id: str = DEFAULT_STUDY_ID) -> tuple[dict[str, object], str]:
     workspace = Path(root).resolve()
-    path = workspace / "configs" / "a2-context-verifier-v1.json"
-    sidecar = workspace / "configs" / "a2-context-verifier-v1.sha256"
+    path = config_path(workspace, study_id)
+    sidecar = path.with_suffix(".sha256")
     raw = path.read_bytes()
     expected = sidecar.read_text(encoding="ascii").strip().split()[0]
     actual = hashlib.sha256(raw).hexdigest()
     if actual != expected:
-        raise ValueError("A2 config SHA-256 sidecar mismatch")
+        raise ValueError(f"{study_id} config SHA-256 sidecar mismatch")
     parsed = json.loads(raw)
-    validate_config(parsed)
+    validate_config(parsed, study_id=study_id)
     return parsed, actual
+
+
+def study_output_path(root: str | Path, config: Mapping[str, object], *, study_id: str) -> Path:
+    validate_config(dict(config), study_id=study_id)
+    workspace = Path(root).resolve()
+    path = (workspace / str(config["study_output"])).resolve()
+    expected = (workspace / ("artifacts/a2-context-verifier-v1-001" if study_id == STUDY_001_ID else "artifacts/a2-context-verifier-v1-002")).resolve()
+    if path != expected:
+        raise ValueError("A2 study output path differs from its fixed namespace")
+    return path
+
+
+def validate_study_binding(
+    root: str | Path,
+    output: str | Path,
+    *,
+    study_id: str,
+    config_sha256: str,
+) -> tuple[dict[str, object], Path]:
+    config, actual_sha = load_config(root, study_id=study_id)
+    if actual_sha != config_sha256:
+        raise ValueError("A2 config SHA does not match the supervised study request")
+    expected_output = study_output_path(root, config, study_id=study_id)
+    if Path(output).resolve() != expected_output:
+        raise ValueError("A2 output path does not match the fixed study namespace")
+    return config, expected_output
 
 
 class CandidateKey(tuple):
