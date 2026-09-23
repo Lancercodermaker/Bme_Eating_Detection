@@ -15,7 +15,15 @@ from eating_event.a1.contracts import WindowIdentity, canonical_json as a1_canon
 from eating_event.a1.inputs import A1Window, TruthRecord
 from eating_event.a1.pipeline import Role, build_role_graph, validate_role_graph
 from eating_event.a2.budget import StudyResourceError, require_environment
-from eating_event.a2.contracts import A2_CONFIG, A2FeatureRow, CandidateKey, ContextWindow, load_config
+from eating_event.a2.contracts import (
+    A2_CONFIG,
+    A2FeatureRow,
+    CandidateKey,
+    ContextWindow,
+    DEFAULT_STUDY_ID,
+    load_config,
+    validate_study_binding,
+)
 from eating_event.a2.features import build_a2_features
 from eating_event.a2.inputs import (
     authenticate_checksum_manifest,
@@ -68,7 +76,7 @@ def _read_jsonl(path: Path) -> list[dict[str, object]]:
 def current_a2_code_identity(workspace: str | Path) -> dict[str, str]:
     root = Path(workspace).resolve()
     paths = sorted((root / "src" / "eating_event" / "a2").glob("*.py"))
-    paths += [root / "scripts" / "run_a2_context_verifier.py"]
+    paths += sorted((root / "scripts").glob("run_a2_context_verifier*.py"))
     paths += sorted((root / "tests").glob("test_a2_*.py"))
     result: dict[str, str] = {}
     for path in paths:
@@ -677,14 +685,19 @@ def run_audit(
     *,
     config_sha256: str,
     startup_resources: Mapping[str, int] | None = None,
+    study_id: str = DEFAULT_STUDY_ID,
 ) -> dict[str, object]:
     """Authenticate source artifacts and materialize fixed features; never fits or predicts."""
 
     root = Path(workspace).resolve()
     output_dir = Path(output).resolve()
-    config, actual_config_sha = load_config(root)
-    if actual_config_sha != config_sha256:
-        raise InvalidA2Source("A2 config hash differs from the supervised request")
+    config, output_dir = validate_study_binding(
+        root,
+        output_dir,
+        study_id=study_id,
+        config_sha256=config_sha256,
+    )
+    actual_config_sha = config_sha256
     frozen_a2_code = current_a2_code_identity(root)
     if not startup_resources:
         raise StudyResourceError("persisted startup resource sample is unavailable")
@@ -830,6 +843,8 @@ def run_audit(
         **{f"score-or-model:{name}": value for name, value in score_hashes.items()},
     })
     frozen_identity = {
+        "study_id": study_id,
+        "study_output": str(config["study_output"]),
         "config_sha256": actual_config_sha,
         "a2_code_identity": frozen_a2_code,
         "a2_code_identity_sha256": _digest(frozen_a2_code),
@@ -1004,6 +1019,8 @@ def run_audit(
                 all_study_files[name] = sha256_file(output_dir / name)
     report = {
         "status": "AUDIT_READY",
+        "study_id": study_id,
+        "study_output": str(config["study_output"]),
         "study_id": config["study_id"],
         "a1_run_id": config["a1_run_id"],
         "config_sha256": actual_config_sha,
@@ -1082,12 +1099,21 @@ def _verify_materialized_digests(output: Path, report: Mapping[str, object]) -> 
                 raise InvalidA2Source("AUDIT_READY separate training label join digest mismatch")
 
 
-def verify_audit_ready(workspace: str | Path, output: str | Path, *, expected_config_sha256: str) -> dict[str, object]:
+def verify_audit_ready(
+    workspace: str | Path,
+    output: str | Path,
+    *,
+    expected_config_sha256: str,
+    study_id: str = DEFAULT_STUDY_ID,
+) -> dict[str, object]:
     root = Path(workspace).resolve()
-    output_dir = Path(output).resolve()
-    config, actual_config = load_config(root)
-    if actual_config != expected_config_sha256:
-        raise InvalidA2Source("A2 config hash changed after audit")
+    config, output_dir = validate_study_binding(
+        root,
+        output,
+        study_id=study_id,
+        config_sha256=expected_config_sha256,
+    )
+    actual_config = expected_config_sha256
     ready_path = output_dir / "audit-ready.json"
     sidecar = output_dir / "audit-ready.sha256"
     if not ready_path.is_file() or not sidecar.is_file():
@@ -1097,7 +1123,13 @@ def verify_audit_ready(workspace: str | Path, output: str | Path, *, expected_co
     if actual != expected:
         raise InvalidA2Source("AUDIT_READY report hash mismatch")
     report = _read_json(ready_path)
-    if not isinstance(report, dict) or report.get("status") != "AUDIT_READY" or report.get("config_sha256") != expected_config_sha256:
+    if (
+        not isinstance(report, dict)
+        or report.get("status") != "AUDIT_READY"
+        or report.get("study_id") != study_id
+        or report.get("study_output") != config["study_output"]
+        or report.get("config_sha256") != expected_config_sha256
+    ):
         raise InvalidA2Source("AUDIT_READY status/config identity mismatch")
     if report.get("a2_code_identity") != current_a2_code_identity(root):
         raise InvalidA2Source("A2 code changed after AUDIT_READY")
@@ -1106,7 +1138,12 @@ def verify_audit_ready(workspace: str | Path, output: str | Path, *, expected_co
     if not frozen_identity_path.is_file() or sha256_file(frozen_identity_path) != report.get("frozen_study_identity_sha256"):
         raise InvalidA2Source("pre-materialization A2/source identity manifest changed")
     frozen_identity = _read_json(frozen_identity_path)
-    if not isinstance(frozen_identity, dict) or frozen_identity.get("config_sha256") != actual_config:
+    if (
+        not isinstance(frozen_identity, dict)
+        or frozen_identity.get("study_id") != study_id
+        or frozen_identity.get("study_output") != config["study_output"]
+        or frozen_identity.get("config_sha256") != actual_config
+    ):
         raise InvalidA2Source("pre-materialization A2 identity does not match the frozen config")
     if frozen_identity.get("a2_code_identity") != report.get("a2_code_identity") or frozen_identity.get("source_hashes") != report.get("source_hashes"):
         raise InvalidA2Source("pre-materialization source/code hash binding differs from AUDIT_READY")
@@ -1153,15 +1190,15 @@ def verify_audit_ready(workspace: str | Path, output: str | Path, *, expected_co
     return report
 
 
-def load_audited_corpus(workspace: str | Path, output: str | Path):
+def load_audited_corpus(workspace: str | Path, output: str | Path, *, study_id: str = DEFAULT_STUDY_ID):
     """Load only authenticated A2 materialized inputs for the fit process."""
 
     from eating_event.a2.execution import A2Candidate, FeatureCorpus
 
     root = Path(workspace).resolve()
-    output_dir = Path(output).resolve()
-    config, config_sha = load_config(root)
-    report = verify_audit_ready(root, output_dir, expected_config_sha256=config_sha)
+    config, config_sha = load_config(root, study_id=study_id)
+    config, output_dir = validate_study_binding(root, output, study_id=study_id, config_sha256=config_sha)
+    report = verify_audit_ready(root, output_dir, expected_config_sha256=config_sha, study_id=study_id)
     materialized = output_dir / "materialized"
     role_rows = _read_json(materialized / "roles.json")
     if not isinstance(role_rows, list):

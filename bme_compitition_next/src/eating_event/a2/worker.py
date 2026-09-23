@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import sys
 
+from eating_event.a2.contracts import DEFAULT_STUDY_ID, load_config, validate_study_binding
+
 
 def main() -> int:
     request_path = Path(sys.argv[1])
@@ -15,36 +17,56 @@ def main() -> int:
     output = Path(request["output"]).resolve()
     response_path = Path(request["response"]).resolve()
     mode = request["mode"]
+    study_id = str(request.get("study_id", DEFAULT_STUDY_ID))
+    config_sha256 = str(request.get("config_sha256", ""))
     for variable in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "BLIS_NUM_THREADS"):
         if os.environ.get(variable) != "4":
             response = {"status": "INVALID", "reason": f"thread limit environment missing: {variable}"}
             response_path.write_text(json.dumps(response, sort_keys=True) + "\n", encoding="utf-8")
             return 2
     try:
+        config, output = validate_study_binding(
+            workspace,
+            output,
+            study_id=study_id,
+            config_sha256=config_sha256,
+        )
         if mode == "audit":
             from eating_event.a2.audit import run_audit
 
             result = run_audit(
                 workspace,
                 output,
-                config_sha256=request["config_sha256"],
+                config_sha256=config_sha256,
                 startup_resources=request.get("startup_resources"),
+                study_id=study_id,
             )
         elif mode == "run":
             from eating_event.a2.audit import load_audited_corpus
             from eating_event.a2.budget import FitAttemptLedger, StudyLedger
             from eating_event.a2.execution import execute_validation
 
-            corpus = load_audited_corpus(workspace, output)
-            ledger = StudyLedger(workspace / "artifacts", output)
+            corpus = load_audited_corpus(workspace, output, study_id=study_id)
+            ledger = StudyLedger(
+                workspace / "artifacts",
+                output,
+                limits=config["limits"],
+                study_id=study_id,
+                predecessor=config.get("predecessor"),
+                config_sha256=config_sha256,
+            )
             result = execute_validation(corpus, budget=FitAttemptLedger(ledger))
             result["status"] = "COMPLETE"
+            result["study_id"] = study_id
+            result["study_output"] = str(config["study_output"])
+            result["config_sha256"] = config_sha256
             result["environment"] = _environment_identity()
             result["fit_budget"] = {
                 "attempts": FitAttemptLedger(ledger).attempt_count(),
                 "fit_wall_seconds": FitAttemptLedger(ledger).fit_wall_seconds(),
             }
-            _write_run_manifest(workspace, output, corpus, result, request["config_sha256"])
+            _write_json(output / "metrics.json", result)
+            _write_run_manifest(workspace, output, corpus, result, config_sha256, study_id=study_id, config=config)
         else:
             result = {"status": "INVALID", "reason": "unknown private worker mode"}
     except Exception as exc:
@@ -59,6 +81,9 @@ def main() -> int:
         else:
             status = "INVALID"
         result = {"status": status, "reason": message}
+    result.setdefault("study_id", study_id)
+    result.setdefault("config_sha256", config_sha256)
+    result.setdefault("study_output", str(output))
     response_path.write_text(json.dumps(result, sort_keys=True, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return 0 if result.get("status") in {"AUDIT_READY", "COMPLETE"} else 2
 
@@ -74,13 +99,31 @@ def _environment_identity() -> dict[str, object]:
     }
 
 
-def _write_run_manifest(workspace: Path, output: Path, corpus: object, result: object, config_sha256: str) -> None:
+def _write_json(path: Path, value: object) -> None:
+    path.write_text(json.dumps(value, sort_keys=True, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _write_run_manifest(
+    workspace: Path,
+    output: Path,
+    corpus: object,
+    result: object,
+    config_sha256: str,
+    *,
+    study_id: str,
+    config: object,
+) -> None:
     from eating_event.a2.audit import current_a2_code_identity
     from eating_event.a2.inputs import sha256_file
 
     manifest = {
         "schema": "a2_run_manifest_v1",
         "status": "COMPLETE",
+        "study_id": study_id,
+        "study_output": str(config["study_output"]),
+        "budget_ledger_path": str(config.get("ledger_path", "artifacts/a2-study-budget.jsonl")),
+        "budget_lock_path": str(config.get("lock_path", "artifacts/a2-study-budget.lock")),
+        "predecessor": config.get("predecessor"),
         "a1_run_id": "a1-end-to-end-feasibility-v1-005",
         "a1_final_checksums_sha256": "0543791e90df9e1bcf93111dc45e80678089898409e6888b90584fd18c469025",
         "a2_config_sha256": config_sha256,
