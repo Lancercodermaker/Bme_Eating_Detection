@@ -2,13 +2,13 @@
 
 这是面向生物医学工程竞赛的腕戴设备进食事件检测项目。目标是从智能手表的 ACC/GYRO 惯性传感器数据中定位连续进食时段，并按竞赛规则评估事件级结果。PPG 数据已纳入数据质量审计和实验对照，但目前没有证据支持把它作为正式检测路线的必要输入。
 
-> **项目状态：**代码库已有数据处理、事件评估和模型实验原型；当前正式方案与 M5 验收规则已经冻结，但嵌套验证、全量训练和最终提交流程尚未全部完成。本地实验分数不是官方隐藏测试成绩。
+> **项目状态（README 更新于 2026-10-09）：**9 月 14 日的高 F1 方案只是后续开发的起点。此后完成了 A1 五折端到端可行性、A2 上下文验证器和 Route 3 目标改造等实验，也继续推进 Route 2 的执行隔离工程。可追溯的最佳完整 pooled event F1 为 A2-004 的 `0.623482`，但相关开发验收未通过；Route 2 截至最新记录（2026-10-02）仍未获实验授权。全量训练与生产提交保持阻塞，且没有官方隐藏测试成绩。
 
 ## 任务与当前方案
 
 竞赛以事件级 Precision、Recall、F1 为核心指标：预测区间与真实区间必须满足严格 `IoU > 0.25` 才算命中，同时报告正确匹配事件的起止时间 MAE。数据划分按 participant 进行，避免同一个人的 session 同时进入训练与验证；官方 test 不参与训练、阈值选择或模型选择。
 
-2026-09-14 的冻结方案将主路线定为 target-only IMU 检测：
+2026-09-14 设计记录中的初始高 F1 方案将主线设为 target-only IMU 检测：
 
 ```text
 官方训练数据
@@ -21,7 +21,9 @@
   → 严格 IoU 事件指标和分层验证报告
 ```
 
-窗口不能跨越真实时间缺口。PPG 保留质量标记，但不属于当前正式主路线；TCN、Transformer 和外部 FD 数据只作为受控实验或对照，不能进入最终 test 推理路径。完整 FD-I/FD-II 预训练没有通过预设收益门槛，因此当前决策为不纳入正式方案。
+窗口不能跨越真实时间缺口。PPG 保留质量标记，但不属于已验证的检测输入；TCN、Transformer 和外部 FD 数据只作为受控实验或对照，不能据此进入最终 test 推理路径。完整 FD-I/FD-II 预训练没有通过预设收益门槛。
+
+9 月 14 日之后，开发从方案设计继续进入数据资格复核、完整五折端到端验证、事件上下文验证器和候选区间匹配改造。9 月底起，重点转向 Route 2：验证候选区间融合规则，并补齐受控跨平台执行、输入隔离和资源记账。Route 2 的工程预检和合成测试不等于真实数据实验；当前完整 A+B 申请仍为 `NOT_EXPERIMENT_AUTHORIZED`。因此，9 月 14 日计划应作为路线历史阅读，不能再描述为最新冻结的已验收方案。
 
 ## 已有实现
 
@@ -36,24 +38,35 @@
 
 ## 实验结论与验收状态
 
-历史数据审计文档记录了一次 manifest 统计：1,161 个训练 session 文件、43 名参与者、281 个有效餐段和 326 个含餐段 session。该统计来自已有本地审计记录，并非本次重新扫描。
+历史数据审计记录包括 1,161 个训练 session 文件、43 名参与者、281 个标注餐段和 326 个含餐 session。后续资格审查将开发评价限定为 41 名参与者和 234 个 canonical eligible ground-truth 事件；两组统计的口径不同，不能直接互换。
 
-当前可引用的实验结果需要区分证据等级：
+早期模型结果仍有参考价值，但代表不同证据阶段：
 
-- 可信本地参照记录为 M0 q50 + GroupNorm，event F1 = `0.17284`；M1 IMU/PPG 融合结果为 `0.16867`，未超过该参照。正式计划仍要求生成并校验可复现的 baseline artifact。
-- 15 秒/7.5 秒候选加 HGB 事件验证器曾在一个有限的 participant-frozen split 上达到 event F1 = `0.7273`（TP/FP/FN = `4/0/3`）。这是探索性结果，样本与验证覆盖有限，不代表稳定泛化水平。
-- 同一阶段记录的最佳 candidate coverage recall 为 `0.8571`，低于正式要求的 `0.90`，因此候选覆盖 gate 尚未通过。
-- 外部预训练的完整 FD-I、平衡采样 FD-I 和 FD-II 结果分别未超过正式收益门槛或出现负迁移；bounded FD-I cohort 的局部正向结果不能外推为全量方案有效。
+- 本地可信参照为 M0 q50 + GroupNorm，event F1=`0.17284`；M1 IMU/PPG 融合为 `0.16867`，没有超过该参照。
+- 15 秒窗口、7.5 秒步长的候选模型曾在一个样本很小的 participant-frozen split 上达到 F1=`0.7273`（TP/FP/FN=`4/0/3`）。该探索结果和之后完整五折 pooled 指标的验证范围不同，不能作为整体泛化成绩。
+- 此前候选覆盖率最高记录为 `0.8571`；后续 A1/A2 的候选覆盖是 `213/234`，但“存在可匹配候选”不等于最终一对一匹配的 TP 数。
+- 完整 FD-I、平衡采样 FD-I 和 FD-II 预训练没有通过预设收益门槛或出现负迁移；bounded FD-I cohort 的局部结果不支持把外部预训练纳入正式检测路线。
 
-当前冻结计划规定：M5 只在 inner participant folds 上选择参数，selection seed 为 `20260910`；随后用 evaluation seeds `20260910`、`20260911`、`20260912` 做稳定性评估。种子和搜索范围已冻结，不表示该评估已经执行或通过。G1 至 G4 的正式门槛为：
+### 2026-09-14 之后的完整事件级结果
 
-- 每个 outer split 的 candidate coverage recall 至少 `0.90`；
-- participant OOF 无 all-participant fallback，且不存在 participant 交叉；
-- 验证器至少有 20 个正候选，来自至少 5 名参与者；
-- 五个 outer fold 的 median event F1 至少比可信 baseline 高 `0.02`，且至少 3/5 fold 不低于 baseline；
-- outer fold 的最大 long-FP fraction 不超过 `0.25`，最大边界 MAE 不超过 900 秒。
+下表为当前工作区检出的完整五折本地开发结果，均按 41 名开发参与者、234 个 eligible GT 和 participant-level one-to-one 匹配评估。它们是开发证据，不是独立参与者确认集，也不是官方测试成绩。
 
-只有这些门槛和资源检查通过后，计划才进入全量 target-only 训练及 test 推理隔离检查。竞赛隐藏测试标签和官方最终成绩目前均不可用于本地报告。
+| 实验 | pooled TP / FP / FN | pooled event F1 | 状态与解释 |
+|---|---:|---:|---|
+| A1 端到端可行性 v1-005（2026-09-22） | 153 / 136 / 81 | `0.585086` | 五折执行完成；最低及理想开发门槛均未通过，协议关闭 |
+| A2 上下文验证器 v1-004（2026-09-24） | 154 / 106 / 80 | `0.623482` | 相对 A1 提高 `0.038396`；仍未达到最低 pooled F1 或其他 stage 门槛，固定 26D 变体关闭 |
+| Route 3 matching-aware v1-003（2026-09-27） | 150 / 126 / 84 | `0.588235` | 较 A2 低 `0.035246`；四项 numeric/stage 门槛均未通过，该变体关闭 |
+
+在这些有完整指标文件对应的结果中，A2-004 是可追溯的最高 pooled event F1。A1 的 `outer-3` 单折 F1 为 `0.6494`，它不是 pooled F1。项目记录者提到另有一次约 `0.64` 的 pooled 探索结果；本次检查工作区内的完整结果报告与上述各次 `metrics.json` 后，没有找到可对应的 run ID 和指标产物，因此先保留为未归档的探索记录，不与可复核结果混记。找到该次运行的结果文件后，可再补齐其配置、分折和数据口径。
+
+后续实验沿用的本地最低/理想目标为 pooled F1 `0.66 / 0.80`；stage 最低门槛还要求至少 3/5 折 F1≥`0.66`、每折 long-FP fraction≤`0.25`，且匹配事件 start/end MAE 各≤`900` 秒。A1、A2-004 和 Route 3 v1-003 均未满足最低门槛。该门槛是本地开发合约，不应表述为已经满足竞赛官方评估协议。
+
+### 当前工程与实验准入状态
+
+- 数据资格和边界合约在 9 月中旬重新审查后，完整 A1、A2 与 Route 3 试验均已留下独立结果记录；A1、固定 26D A2 和 Route 3 v1-003 已关闭，不应把早期待执行方案写成当前仍在等待首次验证。
+- Route 2 的候选区间方案持续进行了 WSL/Linux 受控执行、隔离和资源控制开发。最新记录日期为 `2026-10-02`：跨平台 no-data 合成测试各有 203 项通过，但概率结果仍仅为部分数值匹配；完整实现复审仍为 `FAIL / NOT_APPROVAL_READY`，负责人批准尚未签发，故 Stage A/B 均未运行。
+- 当前整体状态仍为 Formal G1 `FAIL`、full training `BLOCKED`、production `UNCHANGED`。41 名参与者均已用于开发决策，现有五折结果不能当作独立参与者验证。
+- 没有可报告的官方隐藏测试成绩。全量训练、最终 test 推理及提交 runner 的生产验收均未完成；本地 F1 不能代替官方成绩。
 
 ## 项目结构
 
@@ -114,10 +127,10 @@ Get-Content docs/submission-runbook.md
 
 ## 文档导航
 
-以下 2026-09-14 设计与实施计划是当前正式路线的权威文档；更早的设计保留为决策历史，不能与最新方案混用：
+本 README 于 `2026-10-09` 更新；本次复核到的最新项目决策/证据记录日期为 `2026-10-02`。以下链接指向当前 `main` 中已跟踪的文档，其中 2026-09-14 设计和实施计划是路线历史基线，不代表当前实验已验收：
 
 - [`当前方案详细设计`](bme_compitition_next/docs/superpowers/specs/2026-09-14-high-f1-event-stack-detailed-design.md)
-- [`当前冻结实施计划`](bme_compitition_next/docs/superpowers/plans/2026-09-14-high-f1-event-stack-implementation.md)
+- [`2026-09-14 高 F1 实施计划`](bme_compitition_next/docs/superpowers/plans/2026-09-14-high-f1-event-stack-implementation.md)
 - [`实验日志`](bme_compitition_next/docs/experiment-log-2026-09-10.md)
 - [`数据与模型预检`](bme_compitition_next/docs/preflight-2026-09-10.md)
 - [`外部数据预检及 NO-GO 结论`](bme_compitition_next/docs/external-preflight-2026-09-11.md)
@@ -125,7 +138,7 @@ Get-Content docs/submission-runbook.md
 - [`旧版高 F1 方案设计`](bme_compitition_next/docs/superpowers/specs/2026-09-10-high-f1-event-stack-design.md) 与 [`旧版实施计划`](bme_compitition_next/docs/superpowers/plans/2026-09-10-high-f1-event-stack.md)
 - [`第一版基线设计`](docs/superpowers/specs/2026-08-31-smartwatch-eating-detection-baseline-design.md) 与 [`第一版实施计划`](docs/superpowers/plans/2026-09-01-smartwatch-eating-detection-implementation-plan.md)
 
-仓库根目录的 [`旧版接续摘要`](handoff-summary.md) 和 [`旧版接续提示`](resume-prompt.txt) 记录的是早期阶段，其中的代码进度、模型路线和路径信息已过时；当前项目状态以本 README 和上面的 2026-09-14 冻结设计/计划为准。
+9 月 15 日至 10 月 2 日的详细 A1/A2/Route 3 结果、Route 2 决策与执行证据目前保存在本地 `codex/high-f1-event-stack-execution` 开发工作树的 `bme_compitition_next/docs/` 和 `artifacts/` 中，尚未纳入当前 `main` 分支，因此 GitHub `main` 上不能直接打开这些后续文档或指标产物。本 README 已按该工作区记录更新摘要；后续如需在 GitHub 上审阅完整来源，应将相应文档与代码一起发布，不能只依赖此摘要。仓库根目录的 [`旧版接续摘要`](handoff-summary.md) 和 [`旧版接续提示`](resume-prompt.txt) 记录更早阶段，不能作为当前状态来源。
 
 ## 数据与合规
 
