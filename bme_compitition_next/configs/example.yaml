@@ -1,0 +1,13 @@
+# Copy to example.local.yaml and replace these paths with local directories.
+# Keep raw competition data outside the Git repository.
+repository_root: "C:/path/to/bme_compitition_next"
+raw_data_root: "D:/path/to/official_training_data"
+metadata_root: "D:/path/to/official_metadata"
+
+window_seconds: 240
+step_seconds: 15
+min_coverage: 0.8
+imu_grid_hz: 10
+max_gap_seconds: 2.0
+local_window_seconds: 15.0
+local_step_seconds: 7.5

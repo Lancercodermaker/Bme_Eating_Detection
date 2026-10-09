@@ -1,9 +1,5 @@
 # Competition data and generated caches
-official_test_dataset/Data/01_dataset/
-official_test_dataset/Data/02_traindataset/
-official_test_dataset/Data/03_papers/*.pdf
-official_test_dataset/Data/03_papers/*.txt
-official_test_dataset/Data/03_papers/*.md
+official_test_dataset/Data/
 data/
 artifacts/
 checkpoints/
@@ -11,6 +7,13 @@ outputs/
 cache/
 tmp/
 external-dataset/
+*.local.yaml
+*.local.yml
+
+# Credentials and local environment configuration
+.env
+.env.*
+!.env.example
 *.npy
 *.npz
 *.pt
@@ -28,6 +31,10 @@ __pycache__/
 venv/
 env/
 .conda/
+build/
+dist/
+*.egg-info/
+.ipynb_checkpoints/
 
 # IDE and OS files
 .vscode/
@@ -35,3 +42,4 @@ env/
 *.swp
 Thumbs.db
 Desktop.ini
+.DS_Store
