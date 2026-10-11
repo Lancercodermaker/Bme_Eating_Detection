@@ -1,0 +1,9 @@
+# Route2 identities are hashes of exact bytes. Preserve them across checkouts.
+src/eating_event/route2_candidate_overlap/** -text
+scripts/*route2*.py -text
+requirements/route2* -text
+docs/decisions/*route2* -text
+docs/evidence/*route2* -text
+docs/handoffs/*route2* -text
+docs/superpowers/specs/*route2* -text
+docs/superpowers/plans/*route2* -text
