@@ -1,0 +1,37 @@
+{
+  "schema": "route2-linux-dependency-identity-v1",
+  "study_id": "route2-candidate-overlap-v1-001",
+  "status": "PREPARATION_ONLY_NOT_EXPERIMENT_AUTHORIZED",
+  "runtime": {
+    "distro": "Ubuntu-22.04",
+    "machine": "x86_64",
+    "glibc": "2.35",
+    "python": "3.10.12",
+    "soabi": "cpython-310-x86_64-linux-gnu",
+    "python_realpath": "/opt/route2/snapshots/route2-candidate-overlap-v1-001/venv/bin/python",
+    "python_sha256": "a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+    "venv_path": "/opt/route2/snapshots/route2-candidate-overlap-v1-001/venv"
+  },
+  "requirements": {
+    "path": "requirements/route2-linux-cp310.lock",
+    "sha256": "c749dcb067a1b18bd53eedf26fb9d2f58589cf0dd55d9860407c949f699bdb76"
+  },
+  "wheelhouse": {
+    "path": "/home/sdrdev/.local/share/route2-prep/wheelhouse-cp310-20260929",
+    "wheels": [
+      {"file": "cloudpickle-3.1.2-py3-none-any.whl", "bytes": 22228, "sha256": "9acb47f6afd73f60dc1df93bb801b472f05ff42fa6c84167d25cb206be1fbf4a"},
+      {"file": "joblib-1.6.0-py3-none-any.whl", "bytes": 306115, "sha256": "3dbbf9f6e4b592a2357b854608e980fe6390d131d7a82f011a377ef2ebef7aba"},
+      {"file": "numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", "bytes": 16801050, "sha256": "fc7b73d02efb0e18c000e9ad8b83480dfcd5dfd11065997ed4c6747470ae8915"},
+      {"file": "pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", "bytes": 12769373, "sha256": "dd7478f1463441ae4ca7308a70e90b33470fa593429f9d4c578dd00d1fa78838"},
+      {"file": "psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl", "bytes": 155560, "sha256": "076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9"},
+      {"file": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl", "bytes": 229892, "sha256": "a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427"},
+      {"file": "pytz-2026.4-py2.py3-none-any.whl", "bytes": 506747, "sha256": "9d514388fbc89ca0833203464272ac485b8828568ab73532f5020f17e892a0ff"},
+      {"file": "pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", "bytes": 770293, "sha256": "9c7708761fccb9397fe64bbc0395abcae8c4bf7b0eac081e12b809bf47700d0b"},
+      {"file": "scikit_learn-1.7.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", "bytes": 9660938, "sha256": "7a58814265dfc52b3295b1900cfb5701589d30a8bb026c7540f1e9d3499d5ec8"},
+      {"file": "scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", "bytes": 37662964, "sha256": "9e2abc762b0811e09a0d3258abee2d98e0c703eee49464ce0069590846f31d40"},
+      {"file": "six-1.17.0-py2.py3-none-any.whl", "bytes": 11050, "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
+      {"file": "threadpoolctl-3.7.0-py3-none-any.whl", "bytes": 26362, "sha256": "cd8b60b5641b45c67bbf73c64c843235fc2d8a480c87389f52f5dbee893b86be"},
+      {"file": "tzdata-2026.4-py2.py3-none-any.whl", "bytes": 347494, "sha256": "c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81"}
+    ]
+  }
+}
