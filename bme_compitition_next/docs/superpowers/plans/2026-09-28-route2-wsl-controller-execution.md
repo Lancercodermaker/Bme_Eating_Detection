@@ -1634,3 +1634,620 @@ SOURCE范围12项及两readonly advisor、新30分钟预算UTC2026-10-11 03:24:3
 
 PREPARED_UNREVIEWED / FROZEN_ADMISSION=None / FAIL-001 FAIL / APPLICATION_BLOCKED / NOT_APPROVAL_READY / NOT_EXPERIMENT_AUTHORIZED保持，Stage A/B无合法运行和结果，Route3 v1-003合法COMPLETE/四门FAIL保持。沿用原唯一14项完整A+B卡，不新增卡或交接包；真实creator/物理封存/依赖/预算/启动退出/完整正式复审与冻结缺口仍按原卡拒绝。
 
+
+
+# B Component SOURCE Implementation Plan — 2026-10-11
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. One implementation agent per component stops writing before a fresh SPEC reviewer and a distinct fresh QUALITY reviewer. Steps use checkbox syntax. The owner has already selected this execution approach; do not ask again.
+
+**Goal:** Author and independently review the concrete SOURCE components for the selected sealed nonGT bank + CURRENT role generation architecture, preserving the original scientific protocol and every original admission rejection until its actual producer exists.
+
+**Architecture:** A trusted native Windows owner and a separate native Linux start parent establish original clocks/identities, caps and readonly execution before Python. The original controller owns bootstrap handoff, unique bank, synchronous current generation, same-FD publication/reader, exact worker surface, original GT sequence and independent poisoned cleanup. Signed terminal/exit observations join actual OS state; whole VM/service enforcement and last Windows-owner exit remain explicit conditional prerequisites until real supported producers prove them.
+
+**Tech Stack:** Existing Python stdlib SOURCE; four existing native C/H with separately guarded Windows seed/Linux native-start/device targets; Win32/Virtual Disk/Job APIs; Linux ext4/loop/device-mapper dm-verity/cgroup v2/pidfd/mount namespace APIs; WSL2 Ubuntu22.04/glibc2.35. No new test files or test commands. User prohibition overrides writing-plans/TDD testing steps; isolated stdlib AST/hash is the only current executable check.
+
+---
+
+This plan accompanies the original review's latest completed B architecture and original spec's latest contract. “NOW_SOURCE” means writing/reviewing source after this new candidate's fresh SPEC and distinct QUALITY, not loading it. No current plan step runs project imports, tests, native compile/link/load/call, helper/WSL/GT/scientific payload/production/Stage, or creates formal image/volume/study/ledger/lock/freeze objects. Existing .worktrees/high-f1-event-stack-execution/bme_compitition_next is the workspace; no new worktree is needed. Unrelated dirty/untracked work and the original eleven A2 staged entries are preserved. Root's feature branch commits/pushes are SOURCE snapshots; full runtime freeze remains in complete.
+
+#### Dependency DAG and component eligibility
+
+~~~text
+C00 native enforcement/final-witness primitive audit + exact fail-closed callpoints
+ └─ C01 native interfaces + original object/failure state
+ ├─ C02 Windows physical/storage/resource scope producer [SOURCE now; actual scope conditional]
+ ├─ C03 pre-load execution closure + native dual-clock/transport
+ │   └─ C04 retained early metadata -> original initial-volume handoff
+ └─ C05 unique nonGT bank creator [depends C02,C03]
+      └─ C06 CURRENT generation create/seal/teardown [depends C04,C05]
+           └─ C07 whole-directory v2 publisher + same-FD role consumer
+                ├─ C08 exact worker namespace/input/GT/write composition
+                └─ C09 original GT/phase integration + poisoned cleanup
+C02,C03,C04,C06,C07,C08,C09 -> C10 terminal/native close/Linux observer exit
+C02,C03,C10 -> C11 independent last-owner/kernel exit/durable join [conditional]
+C01..C11 -> C12 complete SOURCE assembly/equivalence/freeze eligibility review
+~~~
+
+C00 is the mandatory cheapest first task; no defensive role/publisher implementation precedes its scoped result. C01, C02's fail-closed OS producers, C03, C04, C05, C06, C07, C08, C09 and C10 can be authored as NOW_SOURCE in DAG order. C11's concrete raw-exit/trace consumer and rejection can be authored now; certifying a complete independent last-owner witness is conditionally blocked. C12 may author the complete integration source but cannot claim installability/admission before C02/C11's actual prerequisites, full formal review and full freeze. Actual C/AS/M0/R/thread count/allocated bytes/VM settings/fees are never supplied as default successful data. Passing AST/hash is only parse/hash evidence.
+
+#### Exact static command V and commit protocol G
+
+For each component use the following exact command, replacing ONLY the explicit argument line by that component's listed command line. It reads no test body, imports no target module, writes no file and does not compile native source. Use the actual workspace as cwd.
+
+~~~powershell
+@'
+import ast, hashlib, json, pathlib, sys
+py_count = 0
+native_count = 0
+for name in sys.argv[1:]:
+    path = pathlib.Path(name)
+    data = path.read_bytes()
+    if path.suffix == ".py":
+        ast.parse(data.decode("utf-8"), filename=name)
+        py_count += 1
+    elif path.suffix in {".c", ".h"}:
+        native_count += 1
+    else:
+        raise SystemExit("SOURCE_SCOPE_REJECT")
+    print(json.dumps({"path": name, "bytes": len(data), "lines": data.count(b"\n"),
+                      "sha256": hashlib.sha256(data).hexdigest()}, sort_keys=True))
+print("SOURCE_ONLY PY_AST_HASH=" + str(py_count) + " NATIVE_HASH=" + str(native_count))
+'@ | python -I -S -B - src/eating_event/route2_candidate_overlap/b_source_state.py
+~~~
+
+Expected for the shown C01 argument line: file rows with exact path/bytes/lines/SHA256 and terminal SOURCE_ONLY PY_AST_HASH=1 NATIVE_HASH=0. C01 includes native files in its own argument line below, so its expected terminal counts are1/2. A missing file/AST error/non-source suffix aborts; fix SOURCE and repeat only this static command. Never replace V by import all/compileall/pytest or a project CLI. Existing tests may be hashed by root without reading bodies; no task writes or runs them.
+
+G is exact-path staging and exact-path commit AFTER implementation stops, SPEC finds no scoped P1/P2, then distinct QUALITY finds no scoped P1/P2 and neither reports an in complete review. Record review scope/verdict and raw V output in the original plan append; do not create a separate handoff/card. Any P1/P2 produces one scoped fix, author stops, and reviewers re-examine changed scope; historical narrow PASS is not reused. Commit failure preserves the index and original working files; no reset/stash/delete/force/merge/pull/main mutation. Do not amend existing review IDs or pins silently.
+
+Before and after every G, compare the staged raw index rows for these exact eleven entries in memory:
+
+~~~powershell
+$route2ProtectedStaged = @(
+  'configs/a2-context-verifier-v1-003.json'
+  'configs/a2-context-verifier-v1-003.sha256'
+  'scripts/run_a2_context_verifier_003.py'
+  'src/eating_event/a2/audit.py'
+  'src/eating_event/a2/budget.py'
+  'src/eating_event/a2/contracts.py'
+  'src/eating_event/a2/control.py'
+  'src/eating_event/a2/worker.py'
+  'tests/test_a2_resource_equivalence.py'
+  'tests/test_a2_resource_recovery_namespace.py'
+  'tests/test_a2_resource_supervisor.py'
+)
+$route2StagedBefore = @(git diff --cached --raw -- $route2ProtectedStaged)
+# Execute exactly the component's git add -- paths and git commit --only -- paths.
+$route2StagedAfter = @(git diff --cached --raw -- $route2ProtectedStaged)
+if (Compare-Object $route2StagedBefore $route2StagedAfter) {
+  throw 'PROTECTED_STAGED_DRIFT: stop Git work and retain all files'
+}
+~~~
+
+This is names/modes/blob metadata, not test content. Each component below gives literal G commands. Never bare git commit, git commit -a or git add . . Keep .gitattributes's Route2 -text rules; global core.autocrlf=true must not alter exact native/Python input bytes. Push only codex/high-f1-event-stack-execution after source reviews; no main merge/force.
+
+### C00: Cheapest real native scope and last-witness prerequisite audit
+
+**Files:** Inspect only the existing windows_preparation_job.py:_prepare_fixed_worker/_KernelOwner._create_job/_birth_suspended, windows_non_e_monitor.py:_owner_binding/_resource_drift, windows_wall.py:_require_host_control_boundary, native/route2_mount_helper.c/.h and their official API documentation. Modify only native/route2_mount_helper.c/.h if an exact supported primitive/callpoint is established; otherwise append the exact SOURCE blocking result to the original plan. Do not create a generic proof-provider module or public allow flag. This is a source/API audit, not a machine probe.
+
+- [ ] 1 (2–5min): Build an exact scope-to-native-call table: associated-process commit/CPU/process count from SetInformationJobObject/QueryInformationJobObject; actual thread identities from native thread snapshot enumeration; WSL compute-system/service/kernel association; physical carrier/header/control-volume cap; final original owner's exit and post-exit durable writer timing. Mark process-count != thread-count and committed-memory != RSS/VM. For every missing hard control write its exact pre-birth callpoint and VM_SERVICE_SCOPE_UNPROVEN or E_PHYSICAL_CAP_UNPROVEN outcome. Do not infer that monitoring is enforcement.
+- [ ] 2 (2–5min): Audit whether the exact supported OS/kernel primitive can govern original VM/service/task-thread lifetime and independently witness last-owner durable exit inside the fixed scopes. For the final owner, distinguish kernel Process Stop from post-exit durable-flush evidence and identify every live witness/writer. Absence of a concrete callable primitive records OWNER_EXIT_JOIN_UNPROVEN; no substitute callback/schema/self-receipt is selected.
+- [ ] 3 (2–5min): If a concrete primitive exists, specify its exact native signature, SDK/header/build requirements, original owner/callpoint, queried effective scope and raw failure/stop/cleanup facts in the original plan before implementing that branch. If it does not, retain the existing refusal and permit only independent lower-level SOURCE authoring; dependent deployment and whole-runner architecture compliance remains blocked. This bounded result is meaningful progress even when it cannot certify runtime feasibility.
+- [ ] 4 (2–5min): Run V only for any changed native .c/.h, expected0/2; if no source changed record NO_SOURCE_DELTA and omit G. Fresh SPEC and distinct QUALITY must accept scope/primitive evidence and exact rejection before moving to C01. No retry/reset of budget or broad new platform search follows an unchanged unsupported result.
+- [ ] 5 (2–5min): Only if native SOURCE actually changed and both reviews completed, use G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+git commit --only -m "route2: bind native scope prerequisites to real OS callpoints" -- src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+~~~
+
+### C01: Original B state, failure ownership and separate native targets
+
+**Files:** Create src/eating_event/route2_candidate_overlap/b_source_state.py. Modify src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h and .c. Existing route2_mount_helper_describe_v1 and four mount wrappers keep the 40-byte Linux ABI and their one-syscall errno behavior. Separate Windows seed/Linux-start/device builds use explicit compilation selectors; the SOURCE plan does not execute a build.
+
+- [ ] 1 (2–5min): Add complete common state/error types with no public authority factory. Code contract:
+
+~~~python
+from dataclasses import dataclass
+from enum import Enum, auto
+
+class GenerationStep(Enum):
+    RESERVED = auto()
+    DATA_RW = auto()
+    DATA_COPIED = auto()
+    DATA_CLEAN_UNMOUNTED = auto()
+    FORMATTER_REAPED = auto()
+    DATA_RW_RELEASED = auto()
+    TREE_RW = auto()
+    TREE_DURABLE = auto()
+    ALL_RW_RELEASED = auto()
+    INODES_PROTECTED = auto()
+    DEVICES_RO_VERIFIED = auto()
+    ROLE_PUBLISHED = auto()
+    LEASED = auto()
+    CONSUMERS_DRAINED = auto()
+    ROLE_UNPUBLISHED = auto()
+    DM_REMOVED = auto()
+    LOOPS_ABSENT = auto()
+    BACKING_DELETED = auto()
+    COMPLETE = auto()
+    POISONED = auto()
+    RESIDUE_RETAINED = auto()
+
+@dataclass(frozen=True, slots=True)
+class NativeFault:
+    operation: str
+    error_number: int
+    object_serial: int
+    descriptor: int | None
+
+@dataclass(slots=True)
+class OwnedDescriptor:
+    serial: int
+    fd: int
+    device: int
+    inode: int
+    mount_id: int
+    consumed: bool = False
+
+class BFailure(Exception):
+    def __init__(self, primary: BaseException, secondary: tuple[NativeFault, ...]):
+        super().__init__("original B operation failed; retained primary and native secondary facts")
+        self.primary = primary
+        self.secondary = secondary
+~~~
+
+Descriptor identity is actual producer output, never approval. Registry retains original descriptor objects, consumed status and raw preallocated errors before recording/raising. Component owner main-thread/invocation/guard/assembly references remain private; no public constructor accepts paths, callbacks, free-form receipt or a caller success flag.
+
+- [ ] 2 (2–5min): Put platform includes behind explicit native target guards. Reject simultaneous Windows-seed/Linux-start/library selectors at preprocessing; keep glibc2.35/x86_64/UAPI checks for Linux library/start. Declare these concrete new header contracts separately from v1:
+
+~~~c
+#include <stdint.h>
+#include <stddef.h>
+enum r2_scope_result {
+    R2_SCOPE_PROVEN = 0,
+    R2_VM_SERVICE_SCOPE_UNPROVEN = 1,
+    R2_E_PHYSICAL_CAP_UNPROVEN = 2,
+    R2_OWNER_EXIT_JOIN_UNPROVEN = 3
+};
+struct r2_native_error_v2 {
+    uint32_t operation;
+    int32_t native_error;
+    uint64_t object_serial;
+    int64_t descriptor;
+};
+struct r2_birth_v2 {
+    uint32_t abi, size;
+    uint64_t original_monotonic_ns, original_available_bytes;
+    uint64_t external_qpc_ticks, qpc_frequency;
+    uint64_t stop_deadline_ns, cleanup_deadline_ns;
+    int32_t pid, pidfd, start_memfd, transport_fd;
+};
+struct r2_verity_spec_v2 {
+    uint32_t abi, size, data_block_bytes, hash_block_bytes;
+    uint64_t data_blocks, hash_start_block, generation;
+    int32_t data_fd, tree_fd, target_dir_fd;
+    uint8_t root_sha256[32], salt[32];
+};
+struct r2_verity_result_v2 {
+    uint32_t abi, size, error_count, reserved;
+    uint64_t object_serial, data_loop_number, tree_loop_number;
+    uint64_t dm_device, mount_id;
+    int32_t data_loop_fd, tree_loop_fd, dm_block_fd, dm_control_fd;
+    struct r2_native_error_v2 errors[32];
+};
+int route2_native_seed_main_v2(void);
+int route2_native_linux_start_main_v2(void);
+int route2_verity_publish_v2(const struct r2_verity_spec_v2 *,
+                           struct r2_verity_result_v2 *);
+int route2_verity_remove_v2(struct r2_verity_result_v2 *,
+                          uint64_t original_cleanup_deadline_ns);
+~~~
+
+These are native OS primitive contracts; all FDs/results including partial failure are original caller-owned objects. The v2 provider rechecks actual FD/FS/device/namespace identities and never mints study approval. No guessed syscall numbers, C constructors, automatic dlopen target, or fallback mount. Implement individual bodies in the dependent components below.
+
+- [ ] 3 (2–5min): Define serial consumption before each close, partial-creation result retention and errno/Win32 GetLastError capture before any Python/JSON/report operation. Fail slot exhaustion explicitly while retaining original primary/objects; no swallowing cleanup faults.
+- [ ] 4 (2–5min): Run V with arguments b_source_state.py native/route2_mount_helper.h native/route2_mount_helper.c under the full directory prefix. Expected PY_AST_HASH=1 NATIVE_HASH=2. SPEC examines type/ABI/guard/error continuity; QUALITY independently examines no new execution/authority and exact legacy ABI preservation.
+- [ ] 5 (2–5min): After both reviews, G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/b_source_state.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c
+git commit --only -m "route2: define original B native and lifecycle source contracts" -- src/eating_event/route2_candidate_overlap/b_source_state.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c
+~~~
+
+### C02: Native Windows preparation, physical cap and actual resource-scope admission
+
+**Files:** Create src/eating_event/route2_candidate_overlap/windows_b_preparation.py. Modify windows_preparation_job.py:_prepare_fixed_worker/_KernelOwner._kernel_lifecycle; windows_non_e_monitor.py:_install_for_original_owner/_new_work_guard; native/route2_mount_helper.c/.h Windows target. This component consumes no study/GT; physical operations remain dormant SOURCE.
+
+- [ ] 1 (2–5min): Implement fixed native seed first-entry QPC/frequency/host available-RAM sampling, original process/file/volume handles and fixed suspended child creation with exact inherited handle list. Use CreateProcessW absolute ApplicationName, PROC_THREAD_ATTRIBUTE_HANDLE_LIST and job association before ResumeThread; retain raw process/thread creation times, effective QueryInformationJobObject limits, wait/exit and handles. Pre-association allocations are separately accounted.
+- [ ] 2 (2–5min): Implement CreateVirtualDisk full-physical-allocation preparation, fixed original E volume GUID/path resolution, GetVirtualDiskPhysicalPath/GetVirtualDiskInformation and FileStandardInfo AllocationSize checks, actual format/attach/import/register state transitions and original cleanup. Each state is NEW→CAP_OWNER_HELD→ALLOCATED→FORMATTED→REGISTERED→BASELINE_RECORDED or FAILURE_RETAINED. Fixed native operation entry points:
+
+~~~c
+struct r2_windows_scope_v2 {
+    uint32_t abi, size;
+    uint64_t original_qpc_ticks, qpc_frequency;
+    uint64_t carrier_allocated_bytes, external_e_allocated_bytes;
+    uint64_t guest_baseline_bytes, host_control_allocated_bytes;
+    uint64_t job_commit_peak_bytes, associated_threads, associated_processes;
+    uint64_t vm_system_charge_bytes, service_charge_bytes;
+};
+int route2_windows_prepare_fixed_v2(struct r2_windows_scope_v2 *);
+int route2_windows_observe_original_scope_v2(struct r2_windows_scope_v2 *);
+int route2_windows_stop_original_scope_v2(uint64_t original_qpc_deadline);
+~~~
+
+All unknown raw values have distinct unproved status, never0. E30/carrier24/guest20/externalE6/control64+16 include headers/FS/history; per-study2→4 remains separate. Hard-cap producer must bind exact filesystem/quota/physical volume and all native/service metadata writers; a MaximumSize or ACL cannot satisfy it.
+
+- [ ] 3 (2–5min): Implement actual supported Job commit/CPU/associated-process enforcement and actual thread/VM/service enumeration: held original process handles, native thread snapshot identities, compute-system/distro identity, original guest cgroup and service attribution. The Windows OS APIs do not promise a Job-wide thread cap or automatic WSLVM association. If no installed native/kernel control proves those precise scopes before birth/new work, emit VM_SERVICE_SCOPE_UNPROVEN and refuse _prepare_fixed_worker. Preserve functioning raw producers; do not manufacture a field/callback to remove rejection. This is the precise prerequisite for future actual supported enforcement, not a claimed platform PASS/NO-GO.
+- [ ] 4 (2–5min): Bind the fixed native nonE observer to the same original owner before preparation. Account actual AllocationSize and service/pagefile/registry/eventlog/history. Latch384MiB stop-new; cleanup retains128 nominal and overshootUNKNOWN. Monitor itself counts toward512MiB/100%/4threads/6000. Prep4GiB/200%/4threads/1800 and external scope are distinct, sequential with study; every stop uses original QPC deadline.
+- [ ] 5 (2–5min): Implement windows_b_preparation's private consumer using exact native original registry/file/process/epoch references; no API accepts a successful dict. Replace _prepare_fixed_worker refusal only when native producer really returns proven original scope; all unsupported scope branches retain explicit reject before any persistent/new work.
+- [ ] 6 (2–5min): Run V with windows_b_preparation.py windows_preparation_job.py windows_non_e_monitor.py native/route2_mount_helper.c native/route2_mount_helper.h (full prefix), expected3/2. SPEC examines physical hierarchy/budget/epoch/all-writer coverage; QUALITY examines Job≠VM/thread/RSS and partial creation/failure/no bypass.
+- [ ] 7 (2–5min): G exact files:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/windows_b_preparation.py src/eating_event/route2_candidate_overlap/windows_preparation_job.py src/eating_event/route2_candidate_overlap/windows_non_e_monitor.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+git commit --only -m "route2: add native preparation and physical scope source producers" -- src/eating_event/route2_candidate_overlap/windows_b_preparation.py src/eating_event/route2_candidate_overlap/windows_preparation_job.py src/eating_event/route2_candidate_overlap/windows_non_e_monitor.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+~~~
+
+### C03: Readonly PRE-LOAD closure, native Linux birth and original authenticated QPC
+
+**Files:** Create src/eating_event/route2_candidate_overlap/linux_b_runtime_closure.py. Modify native/route2_mount_helper.c/.h; scripts/route2_preimport_launcher.py:_require_actual_start_origin/main; linux_start_clock.py:_require_actual_start_origin/_claim_once/consume_preimport_start_clock; windows_control_identity.py:Windows Readonly Execution Lease; production_runner.py:_load_authenticated_outer_qpc. Python validators run after interpreter loading and cannot substitute for this native task.
+
+- [ ] 1 (2–5min): Implement native bounded PE import/delay-import/TLS and ELF PT_INTERP/DT_NEEDED/RPATH/RUNPATH closure parsing before executing/initializing user code. Use fixed installed readonly closure images; reject unresolved/ambient mutable dependency/search path and application constructors/TLS. Enumerate exact interpreter/stdlib/project/helper/crypto/transitive files with full manifests, not69/93 subset. Trust the explicit protected system OS loader boundary while retaining its unknown costs.
+- [ ] 2 (2–5min): Implement native Linux parent's fixed CLOCK_MONOTONIC/MemAvailable capture before controller clone, original unit/cgroup effective memory/swap/cpu/pids/AS placement, atomic pidfd parent/child liveness, fixed charged replay claim and sealed original start memfd. Native parent remains charged outside study. Controller birth must not depend on future Python start data. Contract:
+
+~~~c
+int route2_capture_original_linux_birth_v2(struct r2_birth_v2 *);
+int route2_verify_preload_closure_fixed_v2(void);
+int route2_exec_original_controller_fixed_v2(struct r2_birth_v2 *);
+~~~
+
+The native source captures original PID/start/boot/time/mount/cgroup identities, original QPC transport frame and deadlines. Memfd seal bytes/FD/OFD and O_EXCL claim are actual facts; HMAC alone is not prebirth proof.
+- [ ] 3 (2–5min): Implement fixed bounded pipe framing/nonces/signed canonical domain and original process-handle continuity. No keys/timestamps/paths are accepted through arbitrary argv/env. Close transport/backing/signing FDs before any scientific exec. The actual signer provider gets its separate native readonly runtime closure before import. Authentication failure burns the original attempt.
+- [ ] 4 (2–5min): Replace launcher/start-clock/production QPC refusals only with private exact native installation/start consumption. Preserve original _ISSUED_START/claim/boot/time/namespace/guard/bootstrap continuity; never accept ExecMainStartTimestampMonotonic alone or rebase epoch. windows_control_identity revalidates PE/delay/system dependency closure against original held handles.
+- [ ] 5 (2–5min): Run V with linux_b_runtime_closure.py linux_start_clock.py windows_control_identity.py production_runner.py scripts/route2_preimport_launcher.py native/route2_mount_helper.c native/route2_mount_helper.h, expected5/2. SPEC checks pre-load ordering, start/M0/deadlines and source type joins; QUALITY checks initializer race/import-before-proof/transport replay/error preservation. Actual ABI/loader support stays UNKNOWN.
+- [ ] 6 (2–5min): G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/linux_b_runtime_closure.py src/eating_event/route2_candidate_overlap/linux_start_clock.py src/eating_event/route2_candidate_overlap/windows_control_identity.py src/eating_event/route2_candidate_overlap/production_runner.py scripts/route2_preimport_launcher.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+git commit --only -m "route2: define native preload birth and QPC continuity" -- src/eating_event/route2_candidate_overlap/linux_b_runtime_closure.py src/eating_event/route2_candidate_overlap/linux_start_clock.py src/eating_event/route2_candidate_overlap/windows_control_identity.py src/eating_event/route2_candidate_overlap/production_runner.py scripts/route2_preimport_launcher.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+~~~
+
+### C04: Same original healthy early-metadata handoff to study creation
+
+**Files:** Modify linux_native_path_map.py:_Owner/_install_original_metadata_path_map/_identity/_close_original_path_map; linux_initial_volume.py:LinuxInitialVolumeCreator.create_stage_a_volume, namespace gate around433–435; linux_production_controller.py:prepare_volume/assemble_production_owners.
+
+- [ ] 1 (2–5min): Extend the existing original owner with actual retained metadata O_PATH/readonly source/ancestor descriptors and kernel identity frames; retain same original _Owner object and full map bytes/entry objects. Ensure factory failure owns every acquired FD before cleanup and leaves no public retry.
+- [ ] 2 (2–5min): Create private handoff methods with exact existing guard/assembly references. Interface contract:
+
+~~~text
+linux_native_path_map._retain_original_bootstrap_mount(guard)
+  -> original _Owner's held metadata/ancestor resources
+linux_native_path_map._require_original_bootstrap_mount_for_volume(guard, mount_rows)
+  -> accepts only exact healthy original metadata mount; rejects all others
+linux_native_path_map._close_original_bootstrap_mount(guard, original_cleanup_deadline_ns)
+  -> consumes each original FD once; failures retain identities
+~~~
+
+These methods resolve private _ORIGINAL/_ASSEMBLIES/_ISSUED_START/_ISSUED_BOOTSTRAP and never accept caller resource objects or allow flags. All105 target directories are created before ancestor-frame capture in preparation; fresh statx mount/device/ns/readonly/frame matches are required at the original initial-volume gate.
+- [ ] 3 (2–5min): Refactor only the blanket /run/route2-input namespace gate to the exact held-owner matcher. Continue rejection of all occupied role/worker targets, foreign stacks, changed ancestors and writable metadata. Preserve same-invocation dual8GiB/native backing proof and original physical2GiB creator.
+- [ ] 4 (2–5min): Connect prepare_volume and terminal/failure retention to this original handoff; owner resources survive guard.start and close only through original normal/emergency authority. No per-file dummy receipts or a source identity reconstructed from paths.
+- [ ] 5 (2–5min): V linux_native_path_map.py linux_initial_volume.py linux_production_controller.py, expected3/0. SPEC checks original handoff/timing/namespace exactness; QUALITY checks open-versus-mounted identity race and single-close/failed factory behavior.
+- [ ] 6 (2–5min): G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/linux_native_path_map.py src/eating_event/route2_candidate_overlap/linux_initial_volume.py src/eating_event/route2_candidate_overlap/linux_production_controller.py
+git commit --only -m "route2: retain original bootstrap mount into study creation" -- src/eating_event/route2_candidate_overlap/linux_native_path_map.py src/eating_event/route2_candidate_overlap/linux_initial_volume.py src/eating_event/route2_candidate_overlap/linux_production_controller.py
+~~~
+
+Changing the inherited c6b4c574… linux_native_path_map pin requires new component reviews, new exact hash and complete eventual freeze; old narrow SOURCE PASS does not automatically apply.
+
+### C05: One real noGT bank creator
+
+**Files:** Create src/eating_event/route2_candidate_overlap/linux_bank_creator.py. Modify windows_b_preparation.py and linux_b_runtime_closure.py preparation consumption; native/route2_mount_helper.c/.h device/format support.
+
+- [ ] 1 (2–5min): Install _install_original_bank_creator only from the same charged native preparation/start registry, no arguments for paths/input receipts. Resolve exact registered unique(logical_path,SHA) nonGT objects; reject GT phases/providers/keys/history and differing map identity before copy.
+- [ ] 2 (2–5min): Implement held guest carrier openat/O_EXCL/NOFOLLOW/fallocate, pinned formatter(pidfd/wait/reap/status), complete unique byte-copy using fixed buffer and same-FD hashes, file/parent/fs fsync and clean unmount. Preserve actual source bytes and complete creation/deletion/failure history.
+- [ ] 3 (2–5min): Implement bank dataRO→treeRW→treefsync/allRWclose→bothinodeprotection→realROloop/dm→clean readonly ext4. Use exact native C01 verity contract; validate authenticatedroot/device/table; privileged aliases belong only to original creator/cleanup. No tree sealing while empty or detached writable data.
+- [ ] 4 (2–5min): Account actual bank image/tree/FS/header/history under guest baseline<=8 and original preparation1800. Count formatter actual threads; reject unsupported cap/root/dm/loop/immutable or unknown costs. Bank mount is read-only input for the later generation creator; there is no worker-facing GT surface.
+- [ ] 5 (2–5min): V linux_bank_creator.py windows_b_preparation.py linux_b_runtime_closure.py native/route2_mount_helper.c native/route2_mount_helper.h, expected3/2. SPEC checks complete unique input/seal ordering/baseline; QUALITY checks writable raw aliases/formatter failure/copy races/GT separation.
+- [ ] 6 (2–5min): G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/linux_bank_creator.py src/eating_event/route2_candidate_overlap/windows_b_preparation.py src/eating_event/route2_candidate_overlap/linux_b_runtime_closure.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+git commit --only -m "route2: add unique sealed nonGT bank source creator" -- src/eating_event/route2_candidate_overlap/linux_bank_creator.py src/eating_event/route2_candidate_overlap/windows_b_preparation.py src/eating_event/route2_candidate_overlap/linux_b_runtime_closure.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+~~~
+
+### C06: Synchronous CURRENT generation OS creator and complete teardown registry
+
+**Files:** Create src/eating_event/route2_candidate_overlap/linux_role_generation.py. Modify native/route2_mount_helper.c/.h and linux_production_controller.py:assemble_production_owners/prepare_volume/current_snapshot. Uses C01 types and C05 original bank; does not reuse initial-volume creator as role creator.
+
+- [ ] 1 (2–5min): Implement private _install_original_role_generation(guard) resolving exact original assembly/early-owner/start/bank/ledger. Reserve uint64 monotonicgeneration before mkdir/open, retain full ordered creation/deletion history and latch overflow/unknown previous deletion. At most one undeletedgeneration and no other-role/cache/prefetch/thread.
+- [ ] 2 (2–5min): Implement the exact data/tree paths via held study dir; derive complete role file set from original entry objects/all three phases. Query real allocated headroom before fallocate; preserve max257 leaves as complete input facts, not scratchscan/cap. Builder mount fixed /run/route2-builder/role outside study tree; all writes and formatter are charged to same2→4 image and original clock.
+- [ ] 3 (2–5min): Implement C01 GenerationStep transition checks and data copy/clean-unmount/formatter-reap/RW-close/tree-from-dataRO/allRW-close/immutable/readonlyloop/dm/table/ext4 ordering. Interface and ownership contract:
+
+~~~text
+linux_role_generation._begin_original_generation(guard, role_id)
+  -> original private generation object, including partial failure objects
+linux_role_generation._seal_original_generation(guard)
+  -> same object after actual RO device/mount proof
+linux_role_generation._drain_original_generation(guard)
+  -> same object only after all consumer references absent
+linux_role_generation._remove_original_generation(guard, original_cleanup_deadline_ns)
+  -> actual dm/loop/backing absence or retained residue, never a caller receipt
+~~~
+
+Each function resolves the native original registry and consumes original descriptors; no constructor/path/callback is exposed. Actual loop ioctls are configured and queried; actual DM create/load/resume/status/table and authenticatedroot are checked. No ignore_corruption/check_at_most_once.
+- [ ] 4 (2–5min): Implement normal teardown consumers/mounts→DMblock/queryclose→DMremove/queryabsence→loopheld/queryclose→associationabsence→identity/protectionclear/unlinkat/parentfsync. Keep DM control FD until actual remove query; retain backingRO/parent as needed before their once-close. Delayed loop removal uses remaining original deadline, never implicitsuccess. Unknown leaves RESIDUE_RETAINED and blocks nextrole.
+- [ ] 5 (2–5min): Add actual outermost acquire/generation attempt/publish/delete/copybyte/depth/deadline counters, distinct from retained scientific arrays. Do not prepopulateR from105+105/callsite topology. current_snapshot reports actual inner allocated usage/residue alongside original main imagecapacity, avoiding doublecount.
+- [ ] 6 (2–5min): V linux_role_generation.py linux_production_controller.py native/route2_mount_helper.c native/route2_mount_helper.h, expected2/2. SPEC checks states/complete phase set/accounting/registry; QUALITY checks raw writer capabilities, remove-before-close, FD reuse, failure residue and controller+formatterTasks2.
+- [ ] 7 (2–5min): G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/linux_role_generation.py src/eating_event/route2_candidate_overlap/linux_production_controller.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+git commit --only -m "route2: add current role generation lifecycle source" -- src/eating_event/route2_candidate_overlap/linux_role_generation.py src/eating_event/route2_candidate_overlap/linux_production_controller.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+~~~
+
+### C07: Whole-directory publication and original same-FD v2 role reader
+
+**Files:** Create src/eating_event/route2_candidate_overlap/linux_role_publication.py. Modify path_map.py:open_verified/lease_role_view/close; linux_native_path_map.py:_require_original_registered/_require_original_registered_batch; production_runner.py:_require_native_nested_producers.
+
+- [ ] 1 (2–5min): Implement private _install_original_role_publication(guard) bound to original healthy early owner/full map and C06 generation. Publish WHOLE directory to exact stable hashedrole target via native open_tree/mount_setattr/move_mount; query publisheddirectory mountID/device/root/readonly/private flags and exact complete aliases/perleafidentities. Do not populate a per-file Mount Receipt collection for one directory mount.
+- [ ] 2 (2–5min): Preserve metadata routing only for __study__/preflight_metadata and use real current role owner for nonGTrolefiles. Private interfaces:
+
+~~~text
+linux_role_publication._lease_original_role(path_map, role_id)
+  -> context sharing one generation only for same original thread and role
+linux_role_publication._open_original_role(path_map, logical_path, sha256, role_id, phase)
+  -> context yielding stream for one held O_RDONLY FD
+linux_role_publication._require_original_role_closed(guard)
+  -> verifies original generation history and actual absence
+~~~
+
+Open uses heldpublishedparent + exactrelativealias/NOFOLLOW, fstat/statx mount/device/inode/size/nlink regularchecks, sameFDhash,seek0,yield,post frame/map/mount/generationcheck,healthyonceclose. Consumer error primary,post/close errors secondary. Removed/replaced FDnumber neverreused.
+- [ ] 3 (2–5min): Wire v2 maplease depth; same-role nesting shares, otherrole/threadrejects. Keep inputs._RoleLease/_enter_lease nestingprohibition unchanged. IncrementrealR on outermost acquire and decrease depth; only actual complete teardown permitsnextgeneration.
+- [ ] 4 (2–5min): _require_native_nested_producers validates installed original bank/generation/publisher/reader/controller/phase identities; keep拒绝 ifanyproducerunimplemented/unhealthy. Manifest/hash/boolean does not satisfy gate. Close delegates original normal/emergencyowner withoutresettingmapfailure.
+- [ ] 5 (2–5min): V linux_role_publication.py path_map.py linux_native_path_map.py production_runner.py, expected4/0. SPEC checks map/alias identity/all3phases/nesting/dispatch; QUALITY checks sameFD TOCTOU, directoryreceipts, primary/secondary close and faultedlease continuation.
+- [ ] 6 (2–5min): G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/linux_role_publication.py src/eating_event/route2_candidate_overlap/path_map.py src/eating_event/route2_candidate_overlap/linux_native_path_map.py src/eating_event/route2_candidate_overlap/production_runner.py
+git commit --only -m "route2: publish whole role directories and same-FD readers" -- src/eating_event/route2_candidate_overlap/linux_role_publication.py src/eating_event/route2_candidate_overlap/path_map.py src/eating_event/route2_candidate_overlap/linux_native_path_map.py src/eating_event/route2_candidate_overlap/production_runner.py
+~~~
+
+### C08: Complete actual worker namespace and write-surface composition
+
+**Files:** Modify native/route2_phase_spawn.c/.h:child_main/route2_phase_spawn; linux_child_launch.py:_native/_run_private_phase/_reap_success; linux_phase_publication.py:_install_original_phase_input_publisher/_tree; phase_worker_entry.py:_main. Scientific execute_phase_operation semantics remain fixed.
+
+- [ ] 1 (2–5min): Materialize exact fixed source tree mount composition through original creator before existing phasepublication/spawn: readonly runtime/source/currentnonGTrole where needed, releasedGTview/optionalhistoricalrow,readonly empty/readonly,minimumprivateproc/dev. Every fixedplaceholder and ancestor is prepared beforeframecapture. Noambient/tmp/home/cache/host/GPU/interop/signing/backingFD.
+- [ ] 2 (2–5min): Keep existing UID/GID65534,groups/caps/no_new_privs/private namespaces/parentpidfd/READY-permit/resource/seccomp contract. Add explicit complete composition verification beforeREADY from original parent. Child reopenedrootmountidentity must matchdetached publishedroot, notinherited stalevfsmount. Additional native header contract:
+
+~~~c
+struct r2_phase_surface_v2 {
+    uint32_t abi, size;
+    uint64_t runtime_mount_id, source_mount_id, role_mount_id;
+    uint64_t gt_mount_id, historical_mount_id, approved_scratch_mount_id;
+    uint64_t original_stop_deadline_ns, original_cleanup_deadline_ns;
+};
+int route2_phase_surface_verify_v2(const struct r2_phase_surface_v2 *);
+~~~
+
+Values come fromoriginalpublisher; native checks actual mount/ns/readonly/source objects. Optionalabsentmounts requireactualabsence, not0treatedassuccess.
+- [ ] 3 (2–5min): Explicitly enumerate approved write paths. Preserve phaseworkerRLIMIT_FSIZE0 and readonly environment for currentIPC-only phase. Where existingotherworkerapproval permits scratch/log, allow only exact.worker mount and existing4096history/256scan/nlink1; no capexpansion. Strictno-network/no-device/no-newtask filters, original AS/C/cgroup restrictions remain. Undefinedlibrarysyscall need exact scopedreview before allow.
+- [ ] 4 (2–5min): Verify childoriginalpid/start/cgroup/UID/GID/ns/fd/maps/cwd/root/actual threads and original deadline before permit. Capture partialclone/native failure object beforePythonreport; unreapedchildregistry cannotberemoved. Formatter isreapedbeforeworkerbirth.
+- [ ] 5 (2–5min): V linux_child_launch.py linux_phase_publication.py phase_worker_entry.py native/route2_phase_spawn.c native/route2_phase_spawn.h, expected3/2. SPEC checks complete surfaces/GT/write counts; QUALITY checks inheritedFD/mount/privilege escape, READYvsPythonbirth and wait/reap/failure. No actual sandbox run.
+- [ ] 6 (2–5min): G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/linux_child_launch.py src/eating_event/route2_candidate_overlap/linux_phase_publication.py src/eating_event/route2_candidate_overlap/phase_worker_entry.py src/eating_event/route2_candidate_overlap/native/route2_phase_spawn.c src/eating_event/route2_candidate_overlap/native/route2_phase_spawn.h
+git commit --only -m "route2: specify complete native worker input and write surface" -- src/eating_event/route2_candidate_overlap/linux_child_launch.py src/eating_event/route2_candidate_overlap/linux_phase_publication.py src/eating_event/route2_candidate_overlap/phase_worker_entry.py src/eating_event/route2_candidate_overlap/native/route2_phase_spawn.c src/eating_event/route2_candidate_overlap/native/route2_phase_spawn.h
+~~~
+
+### C09: One GT broker sequence and original poisoned cleanup authority
+
+**Files:** Create src/eating_event/route2_candidate_overlap/linux_failure_cleanup.py. Modify linux_phase_runner.py:_install_original_phase_runner/_execute_original_phase; linux_phase_publication.py:publish/close; linux_gt_history.py:install_original_gt_broker/_revoke_mount; linux_production_controller.py:abort_owned_startup/abort_startup; linux_child_launch.py:_run_private_phase retained registry. Normal revoke still rejects poisonedstate.
+
+- [ ] 1 (2–5min): Install original cleanup owner beforefirstacquisition, with exact original invocation/guard/controller/thread/absolutecleanupdeadline. RegistereveryactualissuedFD/OFD/pidfd/mountID/device/loop/dm/backing/parent serial atissuancebeforefailurecouldoccur. Privateemergencyentry:
+
+~~~text
+linux_failure_cleanup._install_original_failure_cleanup(guard)
+linux_failure_cleanup._register_original_issued_object(guard, owned_object)
+linux_failure_cleanup._cleanup_original_failure(guard, primary_exception)
+linux_failure_cleanup._require_original_cleanup_complete(guard)
+~~~
+
+owned_object is C01's original registry object, validatedsameissuer; no caller reconstructedpaths/receipts. Last entry rejectsuncertainresidue andneverconvertsfailuretosuccess.
+- [ ] 2 (2–5min): Preserve normalgrant→publish→child outcome→drain→phase close→brokernormalrevoke, including20GT-backed/GT-free21st/pooledGT0. No generationcopy uses GT; historicalfinalmatchrow remainsoriginalsourceframe-preserving phaseclone with fivefieldprojection.
+- [ ] 3 (2–5min): Replace controller's “preserved without teardown” branch by independent originalemergencyowner entry afterinlineprimarycapture. Failedphase's publisher/broker remainsfailed; do notcallnormalrevoke orclearfailedflags. Freezepermits/newwork first; pidfdkill/wait/reaporiginalchildren then reference/mountdrain, exact phase/roleunpublish, C06devices/backing cleanup.
+- [ ] 4 (2–5min): Retainrawprimary+all secondary syscall/wait/unmount/close/remove/delete/ledgerfaults. ConsumedFD ismarkedbeforeclose andneverretried. Anyunknownreap/removal/deletion keeps original registry/residue/cost, blockingnextrole/terminalPASS. EmergencyGTviewremoval is separate failure fact, nothealthygt_phase_view_revoked.
+- [ ] 5 (2–5min): V linux_failure_cleanup.py linux_phase_runner.py linux_phase_publication.py linux_gt_history.py linux_production_controller.py linux_child_launch.py, expected6/0. SPEC checks originalgrant/revoke/cleanupownership/scientific counts; QUALITY checks poisonedhealthyinterfaces, unreapedchildretention, signalidentity/closedFDreuse/partialteardown/primaryshadowing.
+- [ ] 6 (2–5min): G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/linux_failure_cleanup.py src/eating_event/route2_candidate_overlap/linux_phase_runner.py src/eating_event/route2_candidate_overlap/linux_phase_publication.py src/eating_event/route2_candidate_overlap/linux_gt_history.py src/eating_event/route2_candidate_overlap/linux_production_controller.py src/eating_event/route2_candidate_overlap/linux_child_launch.py
+git commit --only -m "route2: add original poisoned cleanup without normal revoke" -- src/eating_event/route2_candidate_overlap/linux_failure_cleanup.py src/eating_event/route2_candidate_overlap/linux_phase_runner.py src/eating_event/route2_candidate_overlap/linux_phase_publication.py src/eating_event/route2_candidate_overlap/linux_gt_history.py src/eating_event/route2_candidate_overlap/linux_production_controller.py src/eating_event/route2_candidate_overlap/linux_child_launch.py
+~~~
+
+Changing inherited linux_gt_history1ca884d5… requires fresh exact hash/reviews; old SOURCE review doesnotcoverdelta. StageBmatched-GT/execution.finalize repairsareinheritedandnotredone.
+
+### C10: Actual terminal close, signed Linux exit and Windows child/VM join
+
+**Files:** Modify terminal_observation.py:before_owned_terminal_close/after_owned_terminal_close/read_owned_terminal_close; linux_quiescence.py:require_linux_terminal_quiescence; linux_native_close_handoff.py:_require_actual_observer_runtime_closure/issue_native_close/issue_linux_exit; linux_post_exit.py:LinuxPostExitWitness; windows_wall.py:WindowsQpcWallInvocation; windows_native_close_handoff.py:verify_launch/verify_pair; windows_b_preparation.py original stop producer.
+
+- [ ] 1 (2–5min): Bind terminal to C04heldmetadata,C06rolehistory,C09normal/emergencyobjects, original ledger/lockFDclosedfact and actual reference/cgroupquiescence. Terminal status COMPLETE/INCOMPLETE_RESOURCE andqualitygates remainseparate; unknowncleanupcannotclaimCOMPLETE.
+- [ ] 2 (2–5min): Sign native close only after actual close andoriginalkernelchannelpeerproof. Observer's ownpreloadclosure fromC03 is required before provider import; replace _require_actual_observer_runtime_closure only with actual original native identity. Join exact closed ledger/OFD/source role/budget/unit/PID/pidfd to signatures.
+- [ ] 3 (2–5min): Linuxwitness actualunitinactive/rawcgroupempty/controller exit/backing/FD/mount/history, then signedpostexit; close observer resources/exit. No observer signatureclaimsitsownfinalexit.
+- [ ] 4 (2–5min): Different original Windows owner waitsoriginalWSLtransport/observerprocesshandles, retainsrawGetExitCodeProcess/QPC andsignedpair, requestsauthorizedexclusiveWSLshutdown andrequiresactualVM/compute-system/service disappearance plusfinalallocation. No wslexit/no-running-distro substitute. FlushfixedexternalEanchor through held file/volume, recordafterflushnativeQPC andcloseexecutionhandles once.
+- [ ] 5 (2–5min): Leave Windows owner remaining work/exit charged and in complete scope untilC11; enforce original external deadline throughout. Anyjoin/flush/exit unknown returns preciseblockedoutcome,residueandprimary/secondary.
+- [ ] 6 (2–5min): V terminal_observation.py linux_quiescence.py linux_native_close_handoff.py linux_post_exit.py windows_wall.py windows_native_close_handoff.py windows_b_preparation.py, expected7/0. SPEC checks terminal→sign→postexit→observer exit→VM→durableQPC ordering; QUALITY independently checks selfreceipt/cgroup/OFD/source identity/flush failure.
+- [ ] 7 (2–5min): G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/terminal_observation.py src/eating_event/route2_candidate_overlap/linux_quiescence.py src/eating_event/route2_candidate_overlap/linux_native_close_handoff.py src/eating_event/route2_candidate_overlap/linux_post_exit.py src/eating_event/route2_candidate_overlap/windows_wall.py src/eating_event/route2_candidate_overlap/windows_native_close_handoff.py src/eating_event/route2_candidate_overlap/windows_b_preparation.py
+git commit --only -m "route2: join actual terminal observer VM and durable child exit" -- src/eating_event/route2_candidate_overlap/terminal_observation.py src/eating_event/route2_candidate_overlap/linux_quiescence.py src/eating_event/route2_candidate_overlap/linux_native_close_handoff.py src/eating_event/route2_candidate_overlap/linux_post_exit.py src/eating_event/route2_candidate_overlap/windows_wall.py src/eating_event/route2_candidate_overlap/windows_native_close_handoff.py src/eating_event/route2_candidate_overlap/windows_b_preparation.py
+~~~
+
+### C11: Independent last Windows-owner exit and kernel/durable-writer prerequisite
+
+**Files:** Create src/eating_event/route2_candidate_overlap/windows_final_owner_join.py. Modify windows_wall.py and native/route2_mount_helper.c/.h Windows target. Concrete producer SOURCE/rejectcanbeauthorednow; full physicalwitness supportremainsconditional, neveraPASSbydesign.
+
+- [ ] 1 (2–5min): Implement raw original process handle/creationidentity/exit status joinfromadifferentchargedowner, with nativeQPCclockprovenance. Noownexitselfsignature. Exact interface:
+
+~~~c
+struct r2_final_owner_join_v2 {
+    uint32_t abi, size, result, reserved;
+    uint64_t owner_creation_identity, raw_exit_qpc_ticks;
+    uint64_t final_durable_qpc_ticks, original_qpc_frequency;
+    uint64_t writer_original_identity, writer_exit_qpc_ticks;
+};
+int route2_final_owner_join_fixed_v2(struct r2_final_owner_join_v2 *);
+~~~
+
+Result R2_OWNER_EXIT_JOIN_UNPROVEN preserves unknown raw fields distinctly andblockswholeexternalscopeclosure.
+- [ ] 2 (2–5min): Implement original kernel trace identity/evidence consumer for actual Process Stop withpinnedPID/creationtime/startnonce/clock and boundedrecordingbuffers. Source identifiesnativeETWStartTrace/ControlTrace and process-eventprovider pins, actual writer/file/volumehandles andloss/overflow detection. Kernel Process Stop is rawexit evidence only; it cannot byitselfdeclarepost-exit durable flush,complete fees orthreadcap.
+- [ ] 3 (2–5min): Require a concrete independently operated native/kernel final flush/timing producer that continues after last owner exit. Identifyitsoriginalwriter/service/process lifetime, all charged external/whole resources and bounded cleanup. If unavailable/unsupported/unaccounted, keep source rejection beforeexperiment admission. Do notaddanunchargedparent,signselfexit orrecursivelyrenameanobserver. This is an exact unproved platform prerequisite; source/static checks cannot prove it.
+- [ ] 4 (2–5min): Join C10child/VM durableQPC with raw last owner/writer exit and after flush clock. Only supported actual proof permitsfull external closed status; failuresretainartifacts andoriginalbudget charges. windows_final_owner_join private consumer acceptsnativeoriginalregistry only,not public receipt/path.
+- [ ] 5 (2–5min): V windows_final_owner_join.py windows_wall.py native/route2_mount_helper.c native/route2_mount_helper.h, expected2/2. SPEC checks independent producer/complete actorbudget/clock/flush semantics; QUALITY checks circularwitness/newfreeancestor/kerneltraceoverclaim. No actual trace/session/processstarted.
+- [ ] 6 (2–5min): G:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/windows_final_owner_join.py src/eating_event/route2_candidate_overlap/windows_wall.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+git commit --only -m "route2: keep final owner exit join tied to native kernel proof" -- src/eating_event/route2_candidate_overlap/windows_final_owner_join.py src/eating_event/route2_candidate_overlap/windows_wall.py src/eating_event/route2_candidate_overlap/native/route2_mount_helper.c src/eating_event/route2_candidate_overlap/native/route2_mount_helper.h
+~~~
+
+### C12: Complete SOURCE assembly and future review/freeze admission
+
+**Files:** Modify production_runner.py:assemble_production_bindings/_require_data_bindings_before_preflight/_require_native_nested_producers/main; linux_production_controller.py:assemble_production_owners/prepare_volume; scripts/run_route2_candidate_overlap_wsl.py fixed entry only. Append original three docs for actual component results; no separateauthorization/handoff/freezecreatednow. Existing source_snapshot/runtime_identity/admission_bootstrap are referenced byexactsymbols andlaterexecutionagentmayinspecttheirfullsourcewithinnewscope.
+
+- [ ] 1 (2–5min): Wire fixedproduction entry to originalnativeinstalledcontext,C03start,C04metadata,C05bank,C06generation,C07reader,C08worker,C09cleanup,C10terminal,C11join. Keep all scientific adapters complete, notpartialproducercheck. Native/Windows source cannotbeaccepted merelybecausePythonobjects exist; unsupportedC02/C11conditionalproof remains rejecting.
+- [ ] 2 (2–5min): SOURCE trace actual scientific role lease topology withoutreadingpayload: inputs._RoleLease/open_identity_index, references.open_role, Stage A reference/treatment call sites and stage_b._read_candidate_role/innertraining/heldout/outerfit/controlreferences. Retainedmaterializedarraysoutliveleaseswithoutkeepinggenerationalive; only actualoutermostmapacquisitioncountsR. Preserveloadernonnestingandoriginalscientificfunctions.
+- [ ] 3 (2–5min): Pin fixed105reference→105treatment,25fitattempts/25predict/65decode/20GT-backed+GT-free21st/pooledGTreads0,strictpositiveoverlap versus300000ms alone,symmetrictolerance/discreteexactandfinalmatchedGTgain/loss; do notrerunRoute3orcreateautomaticmodelbranches. Existingexecution.finalize repairedprimary+secondarylogic remains unchanged.
+- [ ] 4 (2–5min): Definefutureactualpreparationevidence gates: C02physical/all-service/thread scopes;C03actualreadonlyclosure/native birth/transport;C05bank<=8baseline;C06actualimage/headroom/R/cost/deletion;C08sandbox/worker facts;C09OOM/crash/quarantine;C10/C11actualterminal/cgroup/service/VM/final durable exit;completecrossOSequivalence. No native build/preparation/experiment commands are executable current SOURCE steps.
+- [ ] 5 (2–5min): Full future freeze must use source_snapshot._tree_files/build_source_manifest overthe COMPLETE registered source/runtime tree, includingdirty/untrackedrequireddependencies wherelegitimate; runtime_identity._require_linux_runtime/admission_bootstrap._verify_runtime_execution arepost-load validatorsanddo notreplaceC03. All source/runtime/input/map/launcher-worker-controller/protocol/budgetactualidentitiesnewreviewID andFrozenAdmissionmustbindsamecompleteinstalledrunner. 69/93fileGitevidenceisnotfullfreeze.
+- [ ] 6 (2–5min): V production_runner.py linux_production_controller.py scripts/run_route2_candidate_overlap_wsl.py, expected3/0. FreshSPECcheckscoverageall14originalgatesandnohiddenbypass;freshQUALITYcheckscompletecallgraph/stopownership/final unknowns/unchangedscienceandnoTEST/native execution. Record SOURCE_ONLY eligibilityseparatelyfromformalruntimefullreview.
+- [ ] 7 (2–5min): Gsourcefilesonly:
+
+~~~powershell
+git add -- src/eating_event/route2_candidate_overlap/production_runner.py src/eating_event/route2_candidate_overlap/linux_production_controller.py scripts/run_route2_candidate_overlap_wsl.py
+git commit --only -m "route2: assemble complete B source chain with actual admission gates" -- src/eating_event/route2_candidate_overlap/production_runner.py src/eating_event/route2_candidate_overlap/linux_production_controller.py scripts/run_route2_candidate_overlap_wsl.py
+~~~
+
+- [ ] 8 (2–5min): Aftercomponentresultsaredurablyappendedandfreshdocumentreviewscomplete,checkpointoriginal3only:
+
+~~~powershell
+git add -- docs/decisions/2026-09-27-route2-design-review.md docs/superpowers/specs/2026-09-27-route2-candidate-interval-validation-design.md docs/superpowers/plans/2026-09-28-route2-wsl-controller-execution.md
+git commit --only -m "docs: record independently reviewed B component source results" -- docs/decisions/2026-09-27-route2-design-review.md docs/superpowers/specs/2026-09-27-route2-candidate-interval-validation-design.md docs/superpowers/plans/2026-09-28-route2-wsl-controller-execution.md
+git push origin codex/high-f1-event-stack-execution
+~~~
+
+No Git command proves runtime/freeze/experiment permission. The existing upstream branch is used; main remains unchanged.
+
+#### Semantic requirement → component coverage (all fourteen original gates)
+
+| Original gate / requirement | Concrete SOURCE producers/tasks | Future actual acceptance / stop |
+|---:|---|---|
+|1 complete runner/authorization/FrozenAdmission |C01,C02,C03,C12 exactoriginalassembly |Full independent review/newID/freeze; no publicapprovalflag; untilthenfullFAILunchanged.|
+|2 fixedscience/currentnestedcrossOS105+105 |C07sameFD,C08surface,C12scientificcallgraph |Lawfulcurrentfullnestednumeric+discreteequivalence, no oldpartialPASS.|
+|3 actualallrolecreator/reader/history |C04heldhandoff,C05bank,C06generation,C07reader |RealOScreator/seal/complete aliases/lifecycle; unknownorresidueblocks.|
+|4 ledger25/25/65/20+1/D_A/N/M/S/B/R |C06actualcounters,C09GTsequence,C12integration |Oneenforcingledger,actualStageAcounts/capacity and legalStageBsameimageexpansion.|
+|5 matchedGTactualgain/loss/historyprojection |C08exacthistoricalrow,C09sourcepreservingpublisher,C12 |LegalA2-004history/canonicalGT/fivefieldprojection; preservepriorrepairs.|
+|6 isolation/scratch4096/256/nlink1 |C08actualnativeworker,C09cleanup |ActualUID/ns/IPC/cgroup/FD/maps/paths/thread facts; noinputmix/capexpand.|
+|7 E30/carrier24/guest20/dual8/study hard cap |C02nativephysicalcreator,C04nativefree/handoff,C06inneraccount |Actualphysicalcaps/header/allocation/baseline/reserve; E_PHYSICAL_CAP_UNPROVEN stops.|
+|8 nativeM0/t0/C/AS/CPU/tasks/clocks/GPU |C02scope,C03birth,C08worker,C10deadline |Actualeffectiveconfiguration/enforcement/peaks, no environment-onlyPASS.|
+|9 prep/external/control/fullVMservicesfees |C02scope/accounting,C03actors,C05bank,C11writer |Actual all writer/service/thread scope; VM_SERVICE_SCOPE_UNPROVEN stops.|
+|10 nonE512MONITORED/384stop/128nominal |C02originalnativeobserver,C10finalsampling |Original whole-taskAllocationSize/history/stoplatch; overshootUNKNOWNretained.|
+|11 readonlypreload/dualclock/authtransport |C03nativepreloadbeforePythonandobserverprovider |ActualcompletePE/ELF/transitive closure;postloadvalidatorsnotreplacement.|
+|12 primary/secondary/poison/terminal/exit |C01errors,C06teardown,C09emergency,C10join,C11lastowner |Actualreap/remove/delete/VM/observer/last owner/durable join; UNKNOWNretainresidue.|
+|13 fresh review/full review/full freeze |EveryC'sSPECthenfreshQUALITY,C12fullmanifest |ScopedSOURCEreviews!=formalimplementationID/full freeze/admission.|
+|14 legalRoute2terminal/quality/finalF1goal |C12scientificinvariantsandterminalreport |Legalearlystoporfull5foldStageB,qualitygatesseparate;F1>=.66deliveryopen.|
+
+#### Conditional execution evidence — explicit remaining work, no current run
+
+Native compilation/ABI/testing, actual preparation/import/WSL/deployment/runtime/GT/Stage are not currently authorized by this document. Before any such operation the execution agent must read the original actual preparation contract and prove the original budget, enforcement, readonly toolchain and scope; tests are prohibited, including new ones. Whenconditionsareclosedandoriginalauthorizationactuallypermits,actualevidenceproducersmustrecordaboveOSfacts,all historical/future fees and original stop deadline. Missing capability, writer scope or last witness returns the named blocking outcome and retains residue. Do not expand budgets or call the platform infeasible without proof.
+
+Plan SOURCE acceptance is concrete: all component paths, symbols, interfaces, states, OS actions, error owners, dependencies, static counts and Git commands are present. Fresh candidate SPEC and distinct QUALITY are pending until author stop. The execution agent starts C00 after the candidate's scoped dual review. It proceeds to C01 and independent C02/C03 SOURCE parts after the required C00 component reviews; unsupported primitive results block complete enforcement/deployment, rather than silently selecting an abstract factory. This does not remove any actual runtime gate.
+
+PREPARED_UNREVIEWED / FROZEN_ADMISSION=None / route2-ab-full-implementation-review-2026-09-29-FAIL-001 FAIL / APPLICATION_BLOCKED / NOT_APPROVAL_READY / NOT_EXPERIMENT_AUTHORIZED remain. Route2legalA/B/results0;Route3v1-003legitimateCOMPLETE/fourgatesFAIL. No new handoff, authorization card or freeze object is created. Only the original review's one final14-item table updates this turn's full minimum conditions.
+
+
+### 2026-10-11 SPEC round 1 errata: authoritative G and C00 eligibility
+
+Fresh /root/b_component_plan_spec_review finished its first pass and stopped reading, finding two scoped P2 issues: abbreviated staged-index comparison and ambiguous continuation after an unsupported C00 result. This append repairs both. Fresh SPEC second pass is required before distinct fresh QUALITY; no clean verdict is claimed. This author changed no SOURCE, ran no Git/tests/native/WSL/GT/formal-object operation and read no additional SOURCE body.
+
+#### G correction: complete original staged identities
+
+This supersedes G's git diff --cached --raw comparison. Cwd is E:/bme_compitition/.worktrees/high-f1-event-stack-execution/bme_compitition_next. Retain the selected component's existing literal exact-path git add and git commit --only pair. Insert this complete metadata guard before staging and after EACH commit; never bare commit/add-all.
+
+~~~powershell
+$route2ProtectedStaged = @(
+  'configs/a2-context-verifier-v1-003.json'
+  'configs/a2-context-verifier-v1-003.sha256'
+  'scripts/run_a2_context_verifier_003.py'
+  'src/eating_event/a2/audit.py'
+  'src/eating_event/a2/budget.py'
+  'src/eating_event/a2/contracts.py'
+  'src/eating_event/a2/control.py'
+  'src/eating_event/a2/worker.py'
+  'tests/test_a2_resource_equivalence.py'
+  'tests/test_a2_resource_recovery_namespace.py'
+  'tests/test_a2_resource_supervisor.py'
+)
+function Read-Route2ProtectedIndex {
+  $route2Rows = @(& git ls-files --stage -- $route2ProtectedStaged)
+  if ($LASTEXITCODE -ne 0) { throw 'PROTECTED_INDEX_READ_FAILED: preserve state' }
+  if ($route2Rows.Count -ne 11) { throw 'PROTECTED_INDEX_COUNT_DRIFT' }
+  $route2Seen = @{}
+  foreach ($route2Row in $route2Rows) {
+    if ($route2Row -notmatch '^([0-7]{6}) ([0-9a-f]{40}|[0-9a-f]{64}) 0\t(.+)$') {
+      throw 'PROTECTED_INDEX_IDENTITY_REJECT: full mode/SHA/stage/path required'
+    }
+    $route2Path = $Matches[3]
+    if ($route2Path -cnotin $route2ProtectedStaged -or $route2Seen.ContainsKey($route2Path)) {
+      throw 'PROTECTED_INDEX_PATH_DRIFT'
+    }
+    $route2Seen.Add($route2Path, $route2Row)
+  }
+  foreach ($route2Path in $route2ProtectedStaged) {
+    if (-not $route2Seen.ContainsKey($route2Path)) { throw 'PROTECTED_INDEX_PATH_MISSING' }
+  }
+  [Array]::Sort($route2Rows, [StringComparer]::Ordinal)
+  return $route2Rows
+}
+function Assert-Route2ProtectedIndexUnchanged {
+  param([string[]]$BeforeRows, [string[]]$AfterRows)
+  if (-not [String]::Equals(
+      ($BeforeRows -join [Environment]::NewLine),
+      ($AfterRows -join [Environment]::NewLine),
+      [StringComparison]::Ordinal)) {
+    throw 'PROTECTED_INDEX_DRIFT: stop; preserve index and working files'
+  }
+}
+$route2StagedBefore = @(Read-Route2ProtectedIndex)
+# Run ONLY the selected component's existing literal git add -- exact paths.
+# If add fails, compare protected rows and stop; preserve state.
+# Run ONLY the component's literal git commit --only -- the same exact paths.
+$route2ComponentCommitExit = $LASTEXITCODE
+$route2StagedAfter = @(Read-Route2ProtectedIndex)
+Assert-Route2ProtectedIndexUnchanged -BeforeRows $route2StagedBefore -AfterRows $route2StagedAfter
+if ($route2ComponentCommitExit -ne 0) {
+  throw 'COMPONENT_COMMIT_FAILED: preserve index and working files'
+}
+~~~
+
+Expected: exactly eleven unique original stage0 rows, each full six-digit mode/full40-or64-hex object ID/stage/path. Compare complete rows ordinally before staging and after EACH exact-path commit, including failure. Only Git metadata is read; test bodies remain unopened. Any count/stage/mode/SHA/path/read/compare/commit failure stops and preserves current state.
+
+#### C00 correction: mandatory result → SOURCE eligibility
+
+This table overrides all earlier broad NOW_SOURCE/continuation sentences, including C00 step3 and the final eligibility statement. C00 scoped dual review cannot convert an unsupported/unselected/unproven native prerequisite into a satisfied prerequisite.
+
+| C00 result | Eligible SOURCE work | Mandatory stop |
+|---|---|---|
+| NOT_AUDITED, incomplete audit, or incomplete C00 review | C00 only. | No C01–C12 implementation. |
+| Any required VM_SERVICE_SCOPE, E_PHYSICAL_CAP or OWNER_EXIT primitive unsupported, unselected or unproven | After complete C00 component SPEC and distinct QUALITY, ONLY independent C01 interface/error/rejection declarations without an actual producer claim; C02 already known native Job/raw original identity/observation/named-rejection parts; C03 already known native prebirth capture/bounded preload parsing/transport-rejection SOURCE parts independent of the missing primitive. | STOP dependent C04–C12 bootstrap handoff, bank, generation, publisher/reader, worker, GT, cleanup, terminal/witness and assembly implementation. Do not implement an undefined producer or the full conditional stack even as SOURCE. |
+| All required exact native primitives supported and selected with concrete signature, owner, OS callpoint, effective scope and failure/stop semantics; C00 scoped dual review complete | Continue C01–C12 SOURCE in the DAG with component SPEC then distinct QUALITY. | Actual installed/runtime facts remain UNKNOWN until actual producers operate legally; no compile/link/load/call, preparation, WSL/GT/production/Stage or formal-object permission follows. |
+
+Current result is NOT_AUDITED: this document author did not execute C00 or establish the missing native controls/witness. The earlier “completed architecture” title/claims are superseded by **conditional B architecture and SOURCE task plan**; full architecture feasibility is not complete. A complete conditional task description is not a selected or installed complete enforcement mechanism.
+
+
+### 2026-10-11 最终限定双审收尾
+fresh SPEC 第二轮与不同的 fresh QUALITY 均已实际完成、READSTOPPED，结论均为 NO_REMAINING_SCOPED_P1_P2 / DOCUMENT_SOURCE_PLAN_REVIEW_ONLY；仅审最新文档候选及 errata，无 SOURCE body/运行/修改。第一轮两项 P2 经一次 append-only 修订关闭。
+当前 C00=NOT_AUDITED，仅 C00 可启动；unsupported/unselected/unproven 时按权威表 STOP C04–C12 even SOURCE，C00 组件双审后也仅允许已枚举独立 C01–C03 部分。完整架构可行性及实际强制/实体/退出证明仍 UNKNOWN，所有原准入拒绝与零合法 A/B 保持；最终 Git 文档提交与远端核由 root 随后完成，本记录不提前宣称推送。
