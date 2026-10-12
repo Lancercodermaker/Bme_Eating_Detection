@@ -1839,3 +1839,16 @@ Three real mechanisms remain missing/unselected, with no local impossibility pro
 Manual coverage totals six agents: C00 SPEC two rounds plus QUALITY one; C01 SPEC one plus different QUALITY one. No separate recorder or handoff file was created; this append is the sole final-record writer, with root owning the subsequent documentation Git checkpoint; that future receipt is not invented here.
 Root's original soft deadline UTC 11:38:32 is near; if final receipt/Git close crosses it, that is the necessary fact-preserving close within C01 component budget end UTC 11:40:22, with no budget reset or implementation continuation.
 All states remain PREPARED_UNREVIEWED, FROZEN_ADMISSION=None, full FAIL001FAIL, APPLICATION_BLOCKED, NOT_APPROVAL_READY, NOT_EXPERIMENT_AUTHORIZED; lawful Route 2A/B/results and payload accesses remain zero. Route 3 v1-003 COMPLETE/four-gate FAIL is not rerun; saved scores/model26D threshold/decoder/matcher, strict overlap versus 300 seconds, 105-reference future Stage A, and open F1>=0.66 remain unchanged.
+
+### 2026-10-12 三机制最新边界（限定文档复核待做）
+
+规范性细化见[原review本轮唯一14门卡与三机制证据](../../decisions/2026-09-27-route2-design-review.md#route2-three-mechanism-boundary-20261012)。
+新增 pinned WSL creator/GUID/config 顺序只证明公开 VM 部分；whole service/kernel/thread/费用 producer仍缺，installed version UNKNOWN。
+新增 finite physical extent 仅条件设计；E30是预留，L_C实际物理backing/guest hosting FS双8GiB门与carrier reserve分开，所有metadata/overhead/control内计原24/20/6。
+未选择layout/creator/formatter/全raw写者闭合；无磁盘操作，E_PHYSICAL_CAP_UNPROVEN保持。
+windows_wall最后postflush QPC由活着的owner采样；它不是own-exit证明，也不是seal里已经落盘的最后采样。
+final coordinator可继续存活、4tasks-threads范围、physical extent选择三个问题均PENDING；推荐不能作答复，acceptance后收费/写入边界不能填零。
+VM_SERVICE_SCOPE_UNPROVEN / E_PHYSICAL_CAP_UNPROVEN / OWNER_EXIT_JOIN_UNPROVEN，完整机制NOT_COMPLETE/UNPROVEN，数值/科学/B/独占WSL决定不变。
+C00 AUDITED_UNPROVEN；C01仅声明切片SOURCE双审完成，whole C01不完整；C02/C03 NOT_STARTED，仅原独立切片下一步合法，C04–C12 STOP even SOURCE。
+PREPARED_UNREVIEWED/FROZEN_ADMISSION=None/full FAIL001FAIL/APPLICATION_BLOCKED/NOT_APPROVAL_READY/NOT_EXPERIMENT_AUTHORIZED；合法Route2结果0，F1≥.66仍open，Route3v1-003 COMPLETE/四门FAIL不重跑。
+本轮SOURCE delta/运行期实验0；唯一原三文档append完成即STOP ALL WRITES，再fresh SPEC→不同fresh QUALITY；限定复核PENDING，不是full review/freeze/PASS。

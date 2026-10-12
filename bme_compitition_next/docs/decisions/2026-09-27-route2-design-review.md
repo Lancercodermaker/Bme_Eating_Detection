@@ -2750,3 +2750,82 @@ Three real mechanisms remain missing/unselected, with no local impossibility pro
 Manual coverage totals six agents: C00 SPEC two rounds plus QUALITY one; C01 SPEC one plus different QUALITY one. No separate recorder or handoff file was created; this append is the sole final-record writer, with root owning the subsequent documentation Git checkpoint; that future receipt is not invented here.
 Root's original soft deadline UTC 11:38:32 is near; if final receipt/Git close crosses it, that is the necessary fact-preserving close within C01 component budget end UTC 11:40:22, with no budget reset or implementation continuation.
 All states remain PREPARED_UNREVIEWED, FROZEN_ADMISSION=None, full FAIL001FAIL, APPLICATION_BLOCKED, NOT_APPROVAL_READY, NOT_EXPERIMENT_AUTHORIZED; lawful Route 2A/B/results and payload accesses remain zero. Route 3 v1-003 COMPLETE/four-gate FAIL is not rerun; saved scores/model26D threshold/decoder/matcher, strict overlap versus 300 seconds, 105-reference future Stage A, and open F1>=0.66 remain unchanged.
+
+<a id="route2-three-mechanism-boundary-20261012"></a>
+### 2026-10-12 三机制边界细化：具体证据、条件方案与负责人待决项
+
+本节回应补齐三机制的目标；结果是可审阅的条件方案，完整生产机制仍 NOT_COMPLETE / UNPROVEN。新的公开创建链和有限几何证据允许缩小缺项，没有证明本机部署可行或不可行。已选 B、独占 WSL 窗口、科学协议及原数值预算保持；以下新增边界未选择、未实施。
+
+#### 本轮有界工作与复核顺序
+
+- root 本轮起止软预算为 UTC 2026-10-12 11:48:17→12:48:17（60分钟）；workflow_path=RESEARCH，Recommendation=REDESIGN，execution_mode=PARALLEL_SUBAGENT，loaded_profiles=generic。目标仍是完整可执行 Route2 机制诊断及最终深度学习 event F1≥0.66。
+- 新证据具体涉及 WSL VM 创建身份、物理 extent 与最后写者边界；因此明确重评为两个只读 researcher＋唯一文档作者＋fresh SPEC＋不同 fresh QUALITY 共五个角色，超过默认三个角色的软指引但仍在同一原预算内。不是 C00 重试、研究门或预算重置；无运行期实验。
+- 实际两个 researcher 已结束；root 本轮只读一个项目 body windows_wall.py。本作者只读原三文档尾部并追加其 suffix；SOURCE delta=0。新证据由 researcher 提供，本作者没有另读项目/API body 或本机探测。
+- 成功标准是把 producer、全写者、有限额度和最后验收边界逐项说明；缺项保留拒绝。安装版本、实际几何、基线、全部历史/未来费用和 token 账目均 UNKNOWN_NOT_ZERO，不能填零。
+- 作者停止全部写入后才开始 fresh SPEC；SPEC 收敛后再由不同 fresh QUALITY 复核。当前两项均 PENDING，只有本节限定文档复核资格，没有完整实现 review ID 或 PASS。
+
+#### 机制一：WSL 创建身份与整任务资源边界
+
+公开源码固定为 Microsoft/WSL commit `449a7eb5c98638bb35cd4d9b4717d090b15ba271`（2026-10-03）。它是外部版本证据，已安装本机版本 UNKNOWN。
+
+- [LxssUserSession.cpp](https://raw.githubusercontent.com/microsoft/WSL/449a7eb5c98638bb35cd4d9b4717d090b15ba271/src/windows/service/exe/LxssUserSession.cpp) 的 `_CreateVm` 先 `CoCreateGuid(vmId)`，再 `WslCoreVm::Create`，之后才 `OnVmStarted`；这给出确切 creator 顺序，插件不是出生前限额者。
+- [WslCoreVm.cpp](https://raw.githubusercontent.com/microsoft/WSL/449a7eb5c98638bb35cd4d9b4717d090b15ba271/src/windows/service/exe/WslCoreVm.cpp) 将 GUID 存为 `m_machineId`，生成 `Memory.SizeInMB`、`Processor.Count` 与 terminate-on-last-handle 配置，并核 HCS `RuntimeId` 相等；VM guest 配置机制真实存在。
+- 同一路径创建 host collector/init/callback 线程及 wslhost/wslrelay Job；VM destruction 后还有 host threads join 与 helper/file/access cleanup。VM 退出不能代表全部 Windows 工作已经退出或收费结束。
+- [common/hcs.cpp](https://raw.githubusercontent.com/microsoft/WSL/449a7eb5c98638bb35cd4d9b4717d090b15ba271/src/windows/common/hcs.cpp) 的 `CreateComputeSystem` 调用 `HcsCreateComputeSystem` 后 `HcsWaitForOperationResult(INFINITE)`；调用方有限等待不能推出 service 内部有限终止。公共 [HcsCreateComputeSystem](https://learn.microsoft.com/en-us/virtualization/api/hcs/reference/hcscreatecomputesystem) 也不自动提供原 WSL 全服务归属。
+- WslService 为 SYSTEM/session0，用户会话按 Windows account 建立；[内部 COM IDL](https://raw.githubusercontent.com/microsoft/WSL/449a7eb5c98638bb35cd4d9b4717d090b15ba271/src/windows/service/inc/wslservice.idl) 明示 internal/non-stable。[WslPluginApi.h](https://raw.githubusercontent.com/microsoft/WSL/449a7eb5c98638bb35cd4d9b4717d090b15ba271/src/windows/inc/WslPluginApi.h) / [官方插件文档](https://learn.microsoft.com/en-us/windows/wsl/wsl-plugins) 的出生后 callback 得到 DWORD SessionId/token/SID，运行在 service 地址空间；没有 HCS GUID/held handle 或出生前全 service/thread 硬界。
+
+条件方案只能继续匹配实际 pinned 本机 creator、原 GUID/handle、host service/thread/kernel charge 与清场所有者；尚未选出支持原整任务 scope 的 producer。即使负责人将 4tasks-threads 明确为应用线程，Windows 应用的四 TID 出生硬界、whole RAM16GiB/VRAM8GiB 和服务全部计费仍须另外证明。Job 四进程不等于四线程，commit 不等于 RSS。结果保持 VM_SERVICE_SCOPE_UNPROVEN；不作全局或本机 WSL 不可能的结论。
+
+#### 机制二：有限物理 extent 包含所有文件系统写者
+
+E30GiB 是任务预留，不是现有 E 卷总长30GiB。新增候选是可信 Windows layout owner 在任务专用物理 extent 上持有有限几何，并排除未归属 raw alias/resize 权限；有限 backing FS 使所有正常数据/FS metadata 写入共享同一真实容量边界。布局、实际介质和 owner 均未选择，没有创建分区。
+
+- 物理 carrier backing FS 的 extent `L_C<24GiB`，剩余 carrier 额度扣除任务 disk/partition metadata；物理 external extent `L_X<6GiB`，FS 与 host control≤16MiB 全部内计。dynamic carrier VHDX 放在 L_C 内；其中有限 guest-backing NTFS FS 承载 dynamic guest VHDX，guest VHDX/该层 FS metadata 合计内计 guest20GiB，虚拟 guest size 须扣 overhead 后小于20；guest control≤64MiB 内计20。全部 overhead/格式支持与实际 cohort 仍 UNKNOWN，尤其 host16MiB 格式可行性未证明。
+- 若选此新布局，literal physical backing volume GUID/free floor 必须指实际承载 carrier VHDX 的 L_C，不能采原较大的 E 根或虚拟 carrier NTFS。formal study image 前同一 invocation 核 guest hosting FS 与该实际物理 backing volume 分别 free≥8GiB；carrier 只保留增长/清场 reserve，不加第三个8GiB门。
+- 因此 L_C 接近24时，当前 carrier allocation＋host FS 必须≤L_C−8（约16GiB）。dynamic guest baseline≤8 可能容纳但仍 UNKNOWN；近20GiB fixed nested guest 会拒绝这个新几何方案，不代表原较大 E 布局一概失败。
+- 未来原 Windows owner 用 held `CreateFileW` device/volume 与 `DeviceIoControl` 核 [VOLUME_GET_VOLUME_DISK_EXTENTS](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-ioctl_volume_get_volume_disk_extents)、[GET_DRIVE_LAYOUT_EX](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-ioctl_disk_get_drive_layout_ex)、DISK_GET_LENGTH_INFO；[SET_DRIVE_LAYOUT_EX](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-ioctl_disk_set_drive_layout_ex) 只写已选任务 layout。CREATE_DISK 只可初始化任务所有的新 disk，不能初始化现有 E。
+- [MSFT_Volume.Format](https://learn.microsoft.com/en-us/windows-hardware/drivers/storage/format-msft-volume) 的未来 `IWbemServices::ExecMethod` transport HRESULT 与 formatter ReturnValue/ExtendedStatus 分开验证；formatter/service 费用 UNKNOWN。FSCTL_GET_NTFS_VOLUME_DATA 是几何/计数查询，不是 hard cap。[GROW_PARTITION](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-ioctl_disk_grow_partition) 可在线增长；[LOCK_VOLUME](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_lock_volume) 有 open files 时失败，不提供使用期几何封锁。必须由原可信 layout owner 保持几何并排除所有越界写入口。
+- [GetStorageDependencyInformation](https://learn.microsoft.com/en-us/windows/win32/api/virtdisk/nf-virtdisk-getstoragedependencyinformation) 核全 held backing chain；GetVirtualDiskPhysicalPath 返回 attached device，不代替实际物理卷 free；GetDiskFreeSpaceEx 必须采确切物理卷。未来清场依次 inner writers stop/join→inner flush/quiesce/close/detach→carrier flush/lock/dismount/close/detach→physical backing/external flush。
+
+所有查询和写者闭合尚未实现；提交异步请求、timeout 或 attempt 标志不证明 rollback/delete/durable exit。原文件 carrier 仍保留未闭合状态，新 physical extent 候选需负责人选择且单独完成 creator/formatter/加载前与预算 producer。E_PHYSICAL_CAP_UNPROVEN 保持。
+
+#### 机制三：最终 durable QPC 的最后验收边界
+
+root 本轮实际读到 `windows_wall._persist_owned`：core/seal 写入、flush/readback→held volume/root close→identity verify→execution lease close→final QPC→返回 ExternalExitObservation，此刻 Windows writer owner 仍活着。
+
+[WaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject) 等原 process handle signal 可证明对应 process 真退出；[FlushFileBuffers](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers) 对 held writable file/admin volume 的完成是 durability 事实。两者都不能证明调用者自己的未来退出；seal 写入前的 QPC 与最后 postflush QPC 也不能混作磁盘里的同一采样。
+
+若逐字要求每个最终 durable writer 都有退出之后的另一个 durable writer，有限 process-writer 链没有最后边界；这是对该要求的条件推理，不是硬件/kernel 全局不可能性证明。尚未选择独立 kernel/hardware final producer。
+
+条件替代是允许一个最终可信外部 coordinator 在 acceptance 后继续存活：它用原 held 身份观察 task controller/worker/observer/VM/service 全部退出，flush 固定 E control receipt，再采 native QPC，给出 live acceptance fact，不声明自己的退出。直到 acceptance 的所有成本进入原预算；acceptance 后寿命、后续任务写入与计费边界必须明确，不能写零。协议、加载前边界、预算与实际 producer 仍未选择/实现，OWNER_EXIT_JOIN_UNPROVEN 保持。
+
+#### 三个已发出的负责人问题仍 PENDING
+
+1. 是否允许最终可信监督者在验收后继续存活，且运行期费用全部计入原 scope；验收后寿命/计费/剩余写入如何明确？
+2. 原4tasks-threads 是否仅限制任务应用线程，还是包含全部基础设施 actor；整任务 RAM16GiB/VRAM8GiB 与全部费用仍保持？
+3. 是否选择任务专用物理 extent 方案，还是保留原文件 carrier 方案；当前选择只涉及设计，不授权磁盘变更？
+
+推荐选项不是答复；未收到负责人答案/授权，不能绑定任何新边界、重解释 cap、修改原申请卡或启动实施。
+
+#### 本轮唯一完整14门卡更新（旧卡原字节保留）
+
+| 门 | 已知/固定事实 | 仍须闭合的缺项 |
+| --- | --- | --- |
+| 1 | 原 registration/safe projection PREPARED_UNREVIEWED；负责人委托补齐，原申请卡/prompt保持。 | 同一完整可安装 runner、实际身份/费用、完整独立审与可消费 FrozenAdmission；full FAIL 保持。 |
+| 2 | saved scores/model26D/阈值.10,.25,.50、decoder600秒/min180、matcher/五折、strict positive overlap vs300秒固定；对称atol1e-12/rtol1e-10及离散exact。 | 合法105 reference＋105 treatment、完整记录/窗口/来源与当前完整nested跨OS等价；旧 PARTIAL_MATCH_ONLY 不足，不能提前运行。 |
+| 3 | early metadata/batch/GT两leaf SOURCE继承；C00公开创建链事实新增但 AUDITED_UNPROVEN；C01声明切片双审完成，whole C01不完整。 | 实际 bank/role creator/publisher、全create-delete/history/无可写别名、same-FD consumer/完整nested与部署；三必要producer尚缺。 |
+| 4 | 25 fit attempts/25 predict/65 decode/20GT评价＋第21次GT-free归并、pooledGTreads0；D_A=2GiB strict V2，同image2→4GiB。 | 唯一实际 enforcing ledger、Stage A N/M/S/B/R、合法Stage B投影/实体扩容及全部容量生命周期费用；非2+4累计。 |
+| 5 | 原 control/treatment final matched-GT新增/丢失与finalize修复SOURCE继承，candidate coverage另列。 | A2-004合法final matched-pair来源、五字段隔离投影、actual canonical GT/commitment与逐role/phase release/revoke；本轮GT payload零读取。 |
+| 6 | WSL2/Ubuntu22.04/glibc2.35、可信Windows owner、原spawn/pidfd/READY/wait/reap/status/UID/namespace/IPC继承；B和独占窗口已选。 | actual GUID/SID/UID/namespace/IPC/FD/mount/cgroup/thread与全部写路径/清场；4096历史/256scan/nlink1不能承接19894 alias/max257输入。 |
+| 7 | E预留30=carrier24含guest20＋external6；guest实际baseline≤8；同invocation guest hosting FS/实际物理 backing各free≥8，无第三8门。 | physical extent仅条件候选；owner/全writers/finite geometry、creator/format/import/register、三层actual usable/allocated/header/headroom/history/余额与fresh floor均未闭合。 |
+| 8 | 1200/3600/900秒均内计60收尾；C=min(4GiB,floor(3×首次原M0/5))、LimitAS=C/2、swap0、CPU200%、TasksMax2含controller；whole RAM16/VRAM8GiB。 | prebirth t0/M0、实际VM8GB/swap0/2CPU/gui=false应用、cgroup/AS/CPU/thread/GPU硬界及全部峰值/费用；4线程范围问题PENDING。 |
+| 9 | guestcontrol64MiB内计20，hostcontrol16MiB只内计external6；prep＋compile/ABI=4GiB/200%/4tasks-threads/1800秒；external全部observer/helper/launcher/bridge=512MiB/100%/4tasks-threads/6000秒，均内计60收尾。 | VM/kernel/services全归属、全部历史/未来/准备/控制/ABI/observer费用和三层baseline/余额UNKNOWN_NOT_ZERO；应用范围答复也不能自动证明整任务cap。 |
+| 10 | nonE新增512MiB MONITORED；384MiB停新增，128MiB名义收尾，负责人接受在途超额UNKNOWN。 | fixed whole-task observer、全部Windows writers/AllocationSize/history/收费/stop；旧PS28–29线程不满足4tasks，pagefile回落/删除不归零，128不是实体reserve或超额上界。 |
+| 11 | 原13-wheel lock/ABI/venv、4 native C/H、受限ELF/40-byte ABI与conditional seed/dual clock/transport SOURCE任务继承。 | 任何constructor/import/dlopen前 readonly PE/ELF/interpreter/stdlib/project/native/transitive/provider闭包、原Windows QPC认证/Linux prePython-prespawn连续性/host kill；本轮零compile/link/load/call。 |
+| 12 | 原primary/secondary、pidfd/OFD/READY/status/wait/reap/once-close/poison清场SOURCE继承；live postflush样本因果澄清。 | 全backing delete/GT revoke、OOM/crash/quarantine、terminal签名join/raw cgroup/VM/service/observer真实退出、最终durable external QPC及最后writer边界；监督者存活问题PENDING。 |
+| 13 | C00 SOURCE_API_AUDIT_ONLY及C01_DECLARATIONS_SOURCE_ONLY实际双审仅限原scope；本轮唯一作者文档追加后fresh SPEC→不同QUALITY待做。 | 本轮限定文档双审、完整可安装正式review ID、source/runtime/input/rolemap/launcher/worker/controller/protocol/budget全部冻结；无新full PASS。 |
+| 14 | Route3v1-003合法COMPLETE/四门FAIL不重跑；科学四门pooledF1≥.66、≥3/5折F1≥.66、每折longFP≤.25、start/endMAE≤900秒及实际matched-GT报告保持。 | 零合法Route2 A/B/results；须合法预声明早停或完整五折Stage B，COMPLETE与质量门分别报告。深度学习event F1≥.66仍未交付，不自动启动三模型方向。 |
+
+C00仍 AUDITED_UNPROVEN；C01声明SOURCE切片已闭合但whole C01不完整；C02/C03 NOT_STARTED，仅原erratum枚举的独立 C02 known Job/raw identity/observation/rejection 与 C03 known prebirth/preload-parser/transport-rejection 下一步合法。C04–C12继续 STOP even SOURCE；本节不是解除研究门或生产授权。
+
+PREPARED_UNREVIEWED / FROZEN_ADMISSION=None / route2-ab-full-implementation-review-2026-09-29-FAIL-001 FAIL / APPLICATION_BLOCKED / NOT_APPROVAL_READY / NOT_EXPERIMENT_AUTHORIZED保持。无新source/native/runtime/input/protocol/budget冻结，无实现/准入PASS。本作者仅原三文档append、UTF8无BOM保留旧prefix；无额外对象、测试/test body、project import、helper/native/WSL/API probe、GT、生产/Stage/正式对象或Git操作。完成append与prefix核后停止全部写入，root负责实际fresh SPEC→不同QUALITY与后续收据；未知收费不计零。

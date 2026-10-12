@@ -2431,3 +2431,20 @@ Three real mechanisms remain missing/unselected, with no local impossibility pro
 Manual coverage totals six agents: C00 SPEC two rounds plus QUALITY one; C01 SPEC one plus different QUALITY one. No separate recorder or handoff file was created; this append is the sole final-record writer, with root owning the subsequent documentation Git checkpoint; that future receipt is not invented here.
 Root's original soft deadline UTC 11:38:32 is near; if final receipt/Git close crosses it, that is the necessary fact-preserving close within C01 component budget end UTC 11:40:22, with no budget reset or implementation continuation.
 All states remain PREPARED_UNREVIEWED, FROZEN_ADMISSION=None, full FAIL001FAIL, APPLICATION_BLOCKED, NOT_APPROVAL_READY, NOT_EXPERIMENT_AUTHORIZED; lawful Route 2A/B/results and payload accesses remain zero. Route 3 v1-003 COMPLETE/four-gate FAIL is not rerun; saved scores/model26D threshold/decoder/matcher, strict overlap versus 300 seconds, 105-reference future Stage A, and open F1>=0.66 remain unchanged.
+
+### 2026-10-12 三机制证据收敛与执行边界
+
+当前事实及本轮唯一完整14门卡以[原review最新边界](../../decisions/2026-09-27-route2-design-review.md#route2-three-mechanism-boundary-20261012)为准；原计划body不改。
+root本轮60分钟UTC11:48:17→12:48:17，RESEARCH/REDESIGN/PARALLEL_SUBAGENT；新具体证据重评为2只读researcher＋1作者＋fresh SPEC＋不同QUALITY共5角色，同预算，不是reset。
+两个researcher已结束；root项目body仅windows_wall.py，本作者仅三文档尾部/append；全部token/资源收费UNKNOWN_NOT_ZERO，runtime实验0。
+先保留pinned WSL `_CreateVm`→GUID/config/HCS→出生后callback真实顺序，再补原本机version/held身份/全服务线程kernel归属；没有选出complete producer。
+physical extent候选必须由原trusted layout owner闭合全raw aliases/resize，三层metadata/headers/overhead内计；L_C literal physical backing与guest hosting FS同invocation各free≥8。
+原carrier无第三8GiB门；near20 fixed nested在near24 L_C里可能触发拒绝，是该条件布局冲突，不签本机全局不可能。
+finite extent、formatterAPI和依赖查询都仅未来设计；不运行CreateDisk/partition/format/import/register，不因源码出处或owner权限放行。
+windows_wall live postflushQPC与owner未来exit分开；允许final trusted coordinator存活需真实负责人答复及acceptance后收费/写入协议，未实施。
+三问题PENDING：最后监督者存活/原4线程scope/新物理extent选择；没有答案时不选择推荐，不改原cap/卡/prompt。
+作者STOP ALL WRITES后fresh SPEC；实际收敛后不同fresh QUALITY。本轮新限定文档双审PENDING，不能复用C00/C01 verdict代替。
+C00 AUDITED_UNPROVEN；C01声明切片已双审、whole C01不完整；C02/C03 NOT_STARTED。下一SOURCE仅原erratum C02 known Job/raw identity/observation/rejection、C03 known prebirth/preload-parser/transport-rejection独立部分。
+三UNPROVEN必要机制未闭合前C04–C12 STOP even SOURCE；无provider/wrapper/receipt替代缺失producer，完整架构NOT_COMPLETE/UNPROVEN。
+PREPARED_UNREVIEWED/FROZEN_ADMISSION=None/route2-ab-full-implementation-review-2026-09-29-FAIL-001 FAIL/APPLICATION_BLOCKED/NOT_APPROVAL_READY/NOT_EXPERIMENT_AUTHORIZED；合法Route2 A/B/results0，F1≥.66 open，Route3v1-003 COMPLETE/四门FAIL不重跑。
+本作者仅三原文档UTF8无BOMappend与raw-prefix核，无SOURCE/Git/额外对象/测试/testbody/projectimport/helper/native/WSL/probe/GT/生产/Stage/正式对象；实际bytes/time单独报告root，不预造full-review或Git收据。
