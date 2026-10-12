@@ -1861,3 +1861,13 @@ PREPARED_UNREVIEWED/FROZEN_ADMISSION=None/full FAIL001FAIL/APPLICATION_BLOCKED/N
 ### 2026-10-12 三项负责人答复已绑定
 
 [原 review 直接答复及边界](../../decisions/2026-09-27-route2-design-review.md#route2-three-mechanism-owner-decisions-20261012)：最终外部验收者可存活；4tasks-threads 约束应用执行组、基础设施完整计费；专用真实实体 extent 设计已选择。此前 PENDING 快照保留，答复只绑定设计，不是磁盘操作授权或 producer/部署/预算/准入 PASS。原数值/科学、三机制 UNPROVEN 和所有阻塞保持。
+
+### 2026-10-12 Selected mechanism protocol delta (DOCUMENT ONLY)
+
+Normative concrete ordering/callpoints and refusal rules are in [selected architecture](../../decisions/2026-09-27-route2-design-review.md#route2-selected-mechanism-architecture-20261012); the existing scientific protocol and complete14-gate card remain unchanged.
+Physical storage retains actual L_C<24/L_X<6 with all metadata inside30, guest-hosting region<=20 and controls64/16MiB inside20/6; new actual backing GUID plus guest-hosting filesystem each pass8GiB in one quiescent invocation. Layout/formatter/alias trust and16MiB control-format feasibility are UNPROVEN; no disk action is authorized.
+Final coordinator uses original process/thread HANDLE exits, exact creator-owned HCS VM exit and service/callback joins before q_exit_durable is written/flushed to fixed E receipt. q_accept_live is sampled after final flush/close and is live only; durable receipt alone cannot synthesize it. Failure/crash/replay/poison or missing joins/handoff refuses normal acceptance.
+Coordinator survival is readonly handoff/once-close/exit within original external6000 and includedcleanup60, with all measured/reserved/actual tail charges under original caps; no postseal experiment/E writes or zero-cost tail. Deadline owner, complete exit/billing producer and native installed support remain missing.
+Physical installedDRAM16GiB plus complete disjoint dedicated physical accelerator8GiB inventory is a conditional hardware enclosure, not actual selected-host proof or a total-allocation/commit/billing cap. Owner hardware facts and Windows MONITORED answer are PENDING; four original application TIDs remain HARD and Job4processes is insufficient.
+C00 AUDITED_UNPROVEN; only independent C02 known Job/identity/observation/rejection and C03 known prebirth/preload-parser/transport-rejection SOURCE slices are eligible next. C04-C12 STOP even SOURCE; all three mechanisms, architecture/admission/fullFAIL/refusal states persist; F1>=0.66 open and Route3 COMPLETE/fourFAIL unchanged.
+SOURCE/runtime/GT/disk delta0; sole author appends original3 and stops before new fresh SPEC -> different fresh QUALITY, currently PENDING. Actual prefix/hash/time receipt is reported to root, with no new Git or review success invented.
