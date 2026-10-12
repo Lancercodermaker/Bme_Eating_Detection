@@ -2829,3 +2829,25 @@ root 本轮实际读到 `windows_wall._persist_owned`：core/seal 写入、flush
 C00仍 AUDITED_UNPROVEN；C01声明SOURCE切片已闭合但whole C01不完整；C02/C03 NOT_STARTED，仅原erratum枚举的独立 C02 known Job/raw identity/observation/rejection 与 C03 known prebirth/preload-parser/transport-rejection 下一步合法。C04–C12继续 STOP even SOURCE；本节不是解除研究门或生产授权。
 
 PREPARED_UNREVIEWED / FROZEN_ADMISSION=None / route2-ab-full-implementation-review-2026-09-29-FAIL-001 FAIL / APPLICATION_BLOCKED / NOT_APPROVAL_READY / NOT_EXPERIMENT_AUTHORIZED保持。无新source/native/runtime/input/protocol/budget冻结，无实现/准入PASS。本作者仅原三文档append、UTF8无BOM保留旧prefix；无额外对象、测试/test body、project import、helper/native/WSL/API probe、GT、生产/Stage/正式对象或Git操作。完成append与prefix核后停止全部写入，root负责实际fresh SPEC→不同QUALITY与后续收据；未知收费不计零。
+
+<a id="route2-three-mechanism-review-receipt-20261012"></a>
+### 2026-10-12 三机制限定文档双审收据与中断恢复
+
+原设计作者追加的 +79/+13/+17 行已按原字节保留；三机制仍是条件方案，SOURCE delta=0。先前独立 SPEC 实际结果为 NO_REMAINING_SCOPED_P1_P2 / CONDITIONAL_MECHANISM_DOCUMENT_REVIEW_ONLY，READ_STOPPED UTC 12:23:56；此为恢复既有报告，没有重新执行 SPEC 的声称。
+原 QUALITY 调用未取得可恢复结果；root 于 UTC 16:13:14 恢复时没有存活子 agent，实际派发不同 fresh QUALITY。其 UTC 16:15:15→16:16:06，51 秒内只读 review 2753–2831、spec 1842–1854、plan 2434–2450 与限定 numstat；结果同为 NO_REMAINING_SCOPED_P1_P2 / CONDITIONAL_MECHANISM_DOCUMENT_REVIEW_ONLY。P3 仅要求本事实收据纠正作者时点的 PENDING 快照。二者不是完整实现、三机制、运行期、冻结或准入 PASS；旧正文不改。
+恢复记录中的原作者软截止 UTC 12:18:00，实际全部写入停止 12:19:43，超出 103 秒，仅 append/prefix 收尾，不能称软截止通过。root 原 11:48:17→12:48:17 窗口在恢复时已过；中断期间活动/资源账目未完整观测，不填零，不称预算通过。用户“继续工作”只使必要复核及版本留存继续，没有回答三项边界选择，也没有重置三机制研究/准备/实验预算。
+恢复为 REVIEW_ONLY / 实际 collaboration.spawn_agent，generic；一次 fresh QUALITY，新增实验/因果假说零。UTC 16:19:05 为剩余事实收据及限定 Git 收尾设置 10 分钟软目标 16:29:05；这不是生产授权或重开研究循环。没有独立 telemetry recorder；沿用原三文档人工记录，费用/token 及全部历史/未来准备成本仍 UNKNOWN_NOT_ZERO。
+root 只读恢复基线为 403 个 Git-listed 文件原字节 hash、三文档对 HEAD 045b2ea 的完整原 prefix、11 项完整 mode/blob/stage/path。原 GT 两文件 SHA256 仍为 c6b4c57437f87b5e8b695a747467100df2094d49240e6a1da1ecf4e104994bd2、1ca884d50b7e700c0fde4d30b82b755b26539f0b0008d832d6c982bd6988b143；原申请卡及授权 prompt hash 保持。raw hash 不解释 test body，也不是 runtime/source 冻结。
+实际文档提交 9fb9bb16738df2ea7abe18e17834080299caf1fe 仅原三文档条件方案 suffix，109 行增加、无删除；exact-path add 与 commit --only 前后逐次核对 11 项完整 staged 身份一致，提交后仍只余原 11 staged。限定 diff --check（cr-at-eol）退出 0，三文档 text=unset，现有 hooks 无活动文件；没有运行测试。只读远程核对原分支 045b2ea0c8b159d31601fea2339b0ca6295fdab7、main dd05aa128f8d62a85c20a83f8af72fe13fcfa27b；收据提交/非 force push/最终保留核尚未发生，不预填。
+本收据首次写入时 PowerShell stdin 将非 ASCII 转为问号；root 读回发现，仅修复自身未提交的收据 suffix，核原 9fb9bb1 prefix 字节及当前坏 suffix 的准确 hash 后，用 ASCII JSON Unicode escape 向隔离 stdlib 传参并编码 UTF8。既有文档、设计 suffix、其他 dirty/staged 内容未覆盖；这是本次事实收据的编码修复，不重开组件实现或复审结论。
+三项负责人问题仍 PENDING：最终监督者验收后存活/后续费用边界，4tasks-threads 的应用/基础设施范围，真实有限 physical extent 设计。数值预算、WSL2/Ubuntu22.04/glibc2.35、B 与科学合同保持；C00 AUDITED_UNPROVEN，whole C01 不完整，C02/C03 NOT_STARTED 且只允许既有独立切片，C04–C12 STOP even SOURCE。VM_SERVICE_SCOPE_UNPROVEN / E_PHYSICAL_CAP_UNPROVEN / OWNER_EXIT_JOIN_UNPROVEN 保持；本机可行或不可行未证明。
+PREPARED_UNREVIEWED / FROZEN_ADMISSION=None / full FAIL001 FAIL / APPLICATION_BLOCKED / NOT_APPROVAL_READY / NOT_EXPERIMENT_AUTHORIZED 保持；合法 Stage A/B/Route2 结果零，F1≥0.66 开放，Route3 v1-003 COMPLETE/四门 FAIL 不重跑。本收据 root 唯一写入，仅记录实际事实，未增加设计/组件实现或再造完整14门卡；无测试/test body、project import、native/helper/WSL/机器探测/GT/生产/Stage、正式对象或其他工作树改写。
+
+<a id="route2-three-mechanism-owner-decisions-20261012"></a>
+### 2026-10-12 三项负责人答复：绑定设计边界
+
+负责人逐项明确选择：①“采用外部监督者作为最终验收者（推荐）”；②“约束任务应用执行组，基础设施另行完整计费（推荐）”；③“采用专用实体卷/extent 设计（推荐）”。此前 PENDING 是答复到达前的事实快照，现由本追加绑定以上三项；“继续工作”没有代替具体答复。
+最终可信监督者可在验收后继续存活，先观察实验进程及 WSL/VM 服务全部真实退出、持久化 E 回执后验收；截至验收费用全进原 scope，验收后禁止实验写入，其后生命周期/收费边界仍须具体闭合。无需再以另一进程证明最终验收者自己的退出。原 4tasks-threads 约束准备及外部控制的任务应用执行组，基础设施全计费，whole RAM16GiB/VRAM8GiB 不变；Windows 四 TID 出生硬界仍缺，不改称四进程。真实有限实体 extent 选为设计，24/20/6 与全部元数据内计、actual physical backing GUID 与双8GiB门保持；没有授权分区/格式化/磁盘修改。
+三答复使条件分支被选择，没有证明实际 producer、部署、预算或准入。C00 AUDITED_UNPROVEN、whole C01 未完、C02/C03 NOT_STARTED、C04–C12 STOP even SOURCE 保持；原三机制 UNPROVEN、全部冻结/准入阻塞和完整 FAIL 保持。先前限定双审只覆盖原条件文本；本追加记录直接答复，不冒充新的完整设计审或实现审。
+UTC 16:31:10 明确重评：workflow_path=RESEARCH / Recommendation=REDESIGN / execution_mode=SUBAGENT / generic；三项明确新答复降低原 scope 歧义，选一次 6 分钟有界原生整任务资源可行性复核，截止16:37:10。最多两条因果候选：原 HCS/Job 组合，或真实物理 RAM/VRAM 包络（另区分 OS boot trim/outer VM 父层费用）；不扩大范围、不运行实验，缺实际整基础设施 hard producer 即停止源码实施并给具体残余。新增源码/准备/实验预算均未发号。
+原收尾目标16:29:05已过；16:31:10重评时仍未完成收据 Git 收尾，不能称软目标通过或用新证据抹去该事实。本收据只续记实际事实；所有费用仍 UNKNOWN_NOT_ZERO。新只读研究不得写文件，root 暂只完成原文档收据/版本留存，不启动受阻组件。

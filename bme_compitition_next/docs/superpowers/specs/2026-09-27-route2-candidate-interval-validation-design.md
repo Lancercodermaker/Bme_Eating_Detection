@@ -1852,3 +1852,12 @@ VM_SERVICE_SCOPE_UNPROVEN / E_PHYSICAL_CAP_UNPROVEN / OWNER_EXIT_JOIN_UNPROVEN�
 C00 AUDITED_UNPROVEN；C01仅声明切片SOURCE双审完成，whole C01不完整；C02/C03 NOT_STARTED，仅原独立切片下一步合法，C04–C12 STOP even SOURCE。
 PREPARED_UNREVIEWED/FROZEN_ADMISSION=None/full FAIL001FAIL/APPLICATION_BLOCKED/NOT_APPROVAL_READY/NOT_EXPERIMENT_AUTHORIZED；合法Route2结果0，F1≥.66仍open，Route3v1-003 COMPLETE/四门FAIL不重跑。
 本轮SOURCE delta/运行期实验0；唯一原三文档append完成即STOP ALL WRITES，再fresh SPEC→不同fresh QUALITY；限定复核PENDING，不是full review/freeze/PASS。
+
+### 2026-10-12 三机制限定文档复核收据
+
+[原 review 实际双审与中断恢复收据](../../decisions/2026-09-27-route2-design-review.md#route2-three-mechanism-review-receipt-20261012)记录 SPEC UTC 12:23:56、不同 fresh QUALITY UTC 16:16:06 停止；二者均 NO_REMAINING_SCOPED_P1_P2 / CONDITIONAL_MECHANISM_DOCUMENT_REVIEW_ONLY，作者时点的 PENDING 仅在限定文档范围内收敛。
+三项负责人选择仍 PENDING；真实机制仍 UNPROVEN，无完整实现/运行期/冻结/准入 PASS。root 只追加实际收据，并修复自身未提交收据的 stdin 编码问题；原数值/科学协议、全部拒绝状态及旧 prefix 保持。未启动 C02/C03 或任何受阻组件。
+
+### 2026-10-12 三项负责人答复已绑定
+
+[原 review 直接答复及边界](../../decisions/2026-09-27-route2-design-review.md#route2-three-mechanism-owner-decisions-20261012)：最终外部验收者可存活；4tasks-threads 约束应用执行组、基础设施完整计费；专用真实实体 extent 设计已选择。此前 PENDING 快照保留，答复只绑定设计，不是磁盘操作授权或 producer/部署/预算/准入 PASS。原数值/科学、三机制 UNPROVEN 和所有阻塞保持。
