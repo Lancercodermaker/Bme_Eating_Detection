@@ -1772,3 +1772,35 @@ Corrected G reads git ls-files --stage for exactly eleven unique original stage0
 ### 2026-10-11 最终限定双审收尾
 /root/b_component_plan_spec_review 第二/最终轮及不同的 /root/b_component_plan_quality_review 均实际返回 NO_REMAINING_SCOPED_P1_P2 / DOCUMENT_SOURCE_PLAN_REVIEW_ONLY、READSTOPPED；审查仅最新文档候选+errata，非实现/运行/完整架构 PASS。
 C00=NOT_AUDITED，仅 C00 可执行 SOURCE 审查；unsupported/unselected/unproven 则依原 plan 权威表停止 C04–C12 even SOURCE，仅经 C00 组件双审后的已枚举独立 C01–C03 部分可续行。VM/service/thread hard control、physical E cap、final-owner durable witness 未闭合；原 full FAIL/FrozenAdmission=None/NOT_EXPERIMENT_AUTHORIZED 与零合法 A/B 不变，F1≥.66目标仍未交付。
+
+
+### 2026-10-12 C00 clarification - factual audit complete, prerequisites unproven
+
+C00=**AUDITED_UNPROVEN / DONE_WITH_CONCERNS / NO_SOURCE_DELTA**, with its fresh SPEC and distinct fresh QUALITY pending after author stop. The original plan's latest C00 audit supplies exact five-file SOURCE facts/hashes, API signatures/build requirements/raw failures/stop semantics, existing-versus-missing pre-birth callpoints and all required witness/writer cost scopes.
+
+Job process count != actual thread count; committed memory != RSS/whole VM. Thread snapshots are observations. Generic HCS APIs do not select original WSL/service/kernel/thread ownership enforcement. Virtual size/full allocation/file allocation queries/per-user quotas do not select an all-writer physical cap. Process signal/ETW End is not post-exit durable flush. A final witness cannot sign its own final exit. Required complete primitives remain **VM_SERVICE_SCOPE_UNPROVEN / E_PHYSICAL_CAP_UNPROVEN / OWNER_EXIT_JOIN_UNPROVEN**. _prepare_fixed_worker and _require_host_control_boundary refusals remain unchanged. No producer/callback/schema/allow/success receipt is selected or implemented. Public support and local capability remain separate; all installed/runtime facts UNKNOWN, costs/counts UNKNOWN_NOT_ZERO, no global impossibility claim.
+
+Authoritative eligibility is unchanged: incomplete C00 reviews -> C00 only; both complete with current blockers -> independent C01 interface/error/named rejection, C02 known Job/raw-original-identity/observation/rejection and C03 known prebirth/bounded preload parsing/transport rejection only. Recommended C01_DECLARATIONS_ONLY contains plain value/error/state/named-rejection and dormant v2 header/target declarations preserving v1, no registry/provider/success gate or whole C01 PASS. STOP dependent C04-C12 even SOURCE, including C11 witness and full assembly; no wrapper advertising an absent complete producer.
+
+A future clean review is SOURCE_API_AUDIT_ONLY; no native execution/machine probe/preparation/WSL/GT/Stage/formal-object/experiment permission follows. PREPARED_UNREVIEWED / FROZEN_ADMISSION=None / original full FAIL / APPLICATION_BLOCKED / NOT_APPROVAL_READY / NOT_EXPERIMENT_AUTHORIZED, zero lawful Route2 results and fixed science remain. Original card/prompt unchanged. Only original3 appended; author stop=2026-10-12 10:56:37 UTC, READSTOPPED / WRITESTOPPED. Fresh SPEC then different fresh QUALITY remain root's next steps.
+
+
+### 2026-10-12 C00 SPEC first-pass P2 contract repair
+
+Fresh /root/c00_spec first pass stopped with one P2, no P1/otherP2. Sole author appended the original plan's "C00 SPEC round 1 P2 repair" with UpdateProcThreadAttribute/CreateProcessW/GetThreadTimes/GetExitCodeProcess exact signatures, requirements/access/failure/owned callpoints/cleanup and explicit wait/flush/trace minimum-version floors. These targeted official docs complete the missing contract evidence; no new platform selection or source/native/Git/runtime operation occurred.
+
+Normative fixed final preflight field is **Recommendation = REDESIGN**: stop dependent complete SOURCE until necessary concrete producers are selected; confirmed B/WSL/science/budgets unchanged, no local/global impossibility claim. VM_SERVICE_SCOPE_UNPROVEN / E_PHYSICAL_CAP_UNPROVEN / OWNER_EXIT_JOIN_UNPROVEN and NO_SOURCE_DELTA remain. Original admission refusals/zero lawful results remain. Second SPEC then different fresh QUALITY pending, no guessed PASS. Author stop=2026-10-12 11:08:01 UTC; READSTOPPED / WRITESTOPPED.
+
+
+C00 first-pass P2 repair also appends the original plan's QPC timing-contract supplement: exact QueryPerformanceCounter/QueryPerformanceFrequency signature/header/lib/DLL/minimum/failure/provenance, no new producer. Recommendation=REDESIGN and all three UNPROVEN blockers/NO_SOURCE_DELTA unchanged. Final repair author stop=2026-10-12 11:09:06 UTC; READSTOPPED / WRITESTOPPED; second SPEC and distinct QUALITY pending.
+
+
+### 2026-10-12 C00 actual scoped dual-review and preservation receipt
+
+Fresh SPEC /root/c00_spec second/final pass completed READSTOPPED with NO_REMAINING_SCOPED_P1_P2 / C00_SOURCE_API_AUDIT_ONLY; its first-pass single P2 contract omission was repaired. Different fresh QUALITY /root/c00_quality actually completed READSTOPPED/WRITESTOPPED at UTC11:17:36 (5m36s), with the same scoped verdict. C00 factual SOURCE/API audit scoped dual review is complete; result remains AUDITED_UNPROVEN / DONE_WITH_CONCERNS / NO_SOURCE_DELTA. VM_SERVICE_SCOPE_UNPROVEN / E_PHYSICAL_CAP_UNPROVEN / OWNER_EXIT_JOIN_UNPROVEN persist. Reviews establish scoped audit completeness, not selected complete controls, architecture feasibility or runtime PASS.
+
+Root verified current preservation:402 Git-listed project files, only original3 append changes with no additions/deletions and old raw prefixes intact;69 Route2 source/launcher/requirements working bytes exactly match HEAD; protected11 full mode/blob/stage/path entries unchanged. Baseline origin feature HEAD67311c0d4a7fdda5ffb544074b5508c3c7cf4c40 and main dd05aa128f8d62a85c20a83f8af72fe13fcfa27b were verified read-only. Exact original3 Git checkpoint is still pending root action after this author stops; no new commit/push hash or success is invented.
+
+C01_DECLARATIONS_ONLY is next eligible independent SOURCE slice, not whole C01 completion: plain value/error/state/named rejection and dormant v2 header/target declarations preserving v1; no registry/provider/success gate or wrapper claiming missing scope. STOP dependent C04-C12 even SOURCE. PREPARED_UNREVIEWED / FROZEN_ADMISSION=None / route2-ab-full-implementation-review-2026-09-29-FAIL-001 FAIL / APPLICATION_BLOCKED / NOT_APPROVAL_READY / NOT_EXPERIMENT_AUTHORIZED and zero lawful Route2 A/B/results remain. Original B/WSL/science/budgets/card/prompt unchanged; no runtime authorization. This receipt does not start another component, reset C00's gate/root budget, or claim original budget completion. Root's original soft deadline remains UTC11:38:32.
+
+Sole author appended original3 only, with no SOURCE read/mutation, search, tests, Git or runtime operation. Receipt author stop=2026-10-12 11:18:53 UTC; READSTOPPED / WRITESTOPPED after prefix verification.
