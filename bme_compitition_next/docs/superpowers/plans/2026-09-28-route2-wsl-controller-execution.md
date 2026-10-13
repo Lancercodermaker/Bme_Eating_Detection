@@ -2710,3 +2710,8 @@ The user's E-directory permission binds E:\Route2AdmissionPrep_20261013 as propo
 
 
 Final condition-document verification receipt: independent SPEC /root/c02_a_fresh_spec START08:57:45/ALL_DOCUMENT_READ_STOP08:58:49 UTC (64s within4min), followed by DIFFERENT QUALITY /root/c02_a_fresh_quality START08:59:50/STOP_ALL_DOCUMENT_READS09:00:54 (64s within4min), both NO_REMAINING_SCOPED_P1_P2 / C02_A_FINAL_CONDITION_DOCUMENT_ONLY. They read only the final original3 delta; no implementation/API/runtime/Git operation. This administrative receipt adds no scope, full formal review, freeze, budget PASS or approval; exact-path Git/remote receipt remains pending.
+
+
+### C02-A exact-path Git preservation receipt (2026-10-13)
+
+[Actual source checkpoint017c372 and remote/main/full-index preservation receipt](../../decisions/2026-09-27-route2-design-review.md#c02-a-exact-path-git-preservation-receipt-2026-10-13) records the scoped source/document checkpoint. This later administrative original3-only commit gets its own HEAD/final remote confirmation from Git/final reporting. No full mechanism/runtime/budget/freeze/admission closure follows; the final fourteen-condition delta and all UNPROVEN/blocked states remain unchanged.
