@@ -25,7 +25,7 @@
 #include <linux/mount.h>
 #define ROUTE2_EXPORT __attribute__((visibility("default")))
 #else
-/* Windows seed has no implemented exports or platform-header dependency. */
+/* Windows raw component uses ordinary native declarations; loader UNKNOWN. */
 #define ROUTE2_EXPORT
 #endif
 
@@ -51,7 +51,7 @@ ROUTE2_EXPORT int route2_move_mount(int from_dfd, const char *from_path,
 ROUTE2_EXPORT int route2_umount2(const char *path, int flags);
 #endif
 
-/* SOURCE_ONLY v2 result names; no provider emits these declarations.
+/* SOURCE_ONLY scope names; C02-B1 emits only named UNPROVEN refusals.
  * R2_SCOPE_PROVEN is a contract value, never evidence of support.
  */
 enum r2_scope_result {
@@ -102,4 +102,116 @@ int route2_verity_publish_v2(const struct r2_verity_spec_v2 *spec,
 int route2_verity_remove_v2(struct r2_verity_result_v2 *result,
                            uint64_t original_cleanup_deadline_ns);
 
+
+#if defined(R2_TARGET_WINDOWS_SEED)
+/* C02-B1 raw component IMPLEMENTED_BUT_UNCOMPILED / SOURCE_ONLY.
+ * These statuses are NOT r2_scope_result and never admit an application.
+ * Exact native size/ABI only; this memory record is not a transport schema.
+ */
+enum r2_win_raw_status {
+    R2_WIN_RAW_UNKNOWN = 0,
+    R2_WIN_RAW_SAMPLE_COMPLETE = 1,
+    R2_WIN_RAW_BAD_ARGUMENT = 2,
+    R2_WIN_RAW_API_FAILED = 3,
+    R2_WIN_RAW_INVARIANT_FAILED = 4,
+    R2_WIN_RAW_EXIT_RACED = 5
+};
+
+enum r2_win_raw_field_state {
+    R2_WIN_RAW_FIELD_UNKNOWN = 0,
+    R2_WIN_RAW_FIELD_VALID = 1,
+    R2_WIN_RAW_FIELD_FAILED = 2
+};
+
+enum r2_win_raw_sample_kind {
+    R2_WIN_RAW_SAMPLE_UNKNOWN = 0,
+    R2_WIN_RAW_LIVE_AT_BOTH_POLLS = 1,
+    R2_WIN_RAW_EXITED_BEFORE_FIRST_POLL = 2,
+    R2_WIN_RAW_EXITED_BETWEEN_POLLS = 3
+};
+
+enum r2_win_raw_operation {
+    R2_WIN_RAW_OP_ARGUMENT = 1,
+    R2_WIN_RAW_OP_QPC_FREQUENCY = 2,
+    R2_WIN_RAW_OP_QPC_BEGIN = 3,
+    R2_WIN_RAW_OP_BORROWED_PID = 4,
+    R2_WIN_RAW_OP_DUPLICATE = 5,
+    R2_WIN_RAW_OP_DUPLICATE_PID = 6,
+    R2_WIN_RAW_OP_WAIT_BEFORE = 7,
+    R2_WIN_RAW_OP_TIMES_BEFORE = 8,
+    R2_WIN_RAW_OP_WAIT_AFTER = 9,
+    R2_WIN_RAW_OP_TIMES_AFTER = 10,
+    R2_WIN_RAW_OP_EXIT_CODE = 11,
+    R2_WIN_RAW_OP_CLOSE = 12,
+    R2_WIN_RAW_OP_QPC_END = 13
+};
+
+enum r2_win_raw_fault_kind {
+    R2_WIN_RAW_FAULT_ARGUMENT = 1,
+    R2_WIN_RAW_FAULT_WIN32 = 2,
+    R2_WIN_RAW_FAULT_INVARIANT = 3
+};
+
+enum r2_win_raw_invariant {
+    R2_WIN_RAW_NULL_PROCESS = 1,
+    R2_WIN_RAW_INVALID_OR_CURRENT_PSEUDO = 2,
+    R2_WIN_RAW_FREQUENCY_NONPOSITIVE = 3,
+    R2_WIN_RAW_PID_CHANGED = 4,
+    R2_WIN_RAW_WAIT_UNEXPECTED = 5,
+    R2_WIN_RAW_SIGNAL_REGRESSED = 6,
+    R2_WIN_RAW_CREATION_CHANGED = 7,
+    R2_WIN_RAW_QPC_REGRESSED = 8
+};
+
+struct r2_win_raw_u32_v1 { uint32_t value, state; };
+struct r2_win_raw_u64_v1 { uint64_t value; uint32_t state; };
+struct r2_win_raw_i64_v1 { int64_t value; uint32_t state; };
+
+struct r2_win_raw_fault_v1 {
+    uint32_t operation, kind, code;
+    uint32_t win32_error, win32_error_valid; /* all DWORD bits, even zero */
+};
+
+#define R2_WIN_RAW_FAULT_CAPACITY 3
+struct r2_win_raw_process_observation_v1 {
+    uint32_t abi, size, status, sample_kind;
+    uint32_t duplicate_state, close_state, fault_count;
+    struct r2_win_raw_fault_v1 faults[R2_WIN_RAW_FAULT_CAPACITY];
+    struct r2_win_raw_u32_v1 borrowed_pid, duplicate_pid;
+    struct r2_win_raw_u32_v1 wait_before, wait_after, exit_code;
+    struct r2_win_raw_u64_v1 creation_before_100ns, creation_after_100ns;
+    struct r2_win_raw_u64_v1 kernel_cpu_before_100ns, user_cpu_before_100ns;
+    struct r2_win_raw_u64_v1 kernel_cpu_after_100ns, user_cpu_after_100ns;
+    struct r2_win_raw_u64_v1 exit_filetime_100ns;
+    struct r2_win_raw_i64_v1 qpc_frequency, qpc_begin, qpc_end;
+};
+
+/* Caller supplies a REAL borrowed process HANDLE value via uintptr_t, with
+ * QUERY_INFORMATION or QUERY_LIMITED_INFORMATION and SYNCHRONIZE rights.
+ * Keep original open/stable through duplication; own/exclusively retain out
+ * through return. Neither input nor these facts certify creator membership.
+ * NULL/INVALID_HANDLE_VALUE/current-process pseudo input is BAD_ARGUMENT.
+ * Other unsupported pseudo/object input is GetProcessId raw failure.
+ * out must be non-NULL and size exactly sizeof(*out); bad out returns
+ * BAD_ARGUMENT without writing. Successful duplicate is privately owned
+ * only through this call and receives one close attempt on every later path.
+ * A close failure is FAILED, never retried or hidden. Caller is never closed.
+ * FIELD_VALID means the API produced this raw fact, not scope acceptance.
+ * Timeout describes that poll only. A racing exit is incomplete/STOP_NEW.
+ * Live exit FILETIME/exit code remain UNKNOWN. Signaled code 259 is retained.
+ * Process CPU covers all its threads only; do not add thread CPU again.
+ * FILETIME 100ns and signed64 QPC ticks/frequency remain separate units.
+ * Window includes private once-close, excludes earlier frequency/startup.
+ * No original join/once-close history, final fees, whole liveness/hard limit,
+ * epoch/M0, durable handoff, admission or native-controller proof is returned.
+ */
+enum r2_win_raw_status route2_win_raw_process_observe_v1(
+    uintptr_t borrowed_process,
+    struct r2_win_raw_process_observation_v1 *out, size_t size);
+
+/* Actual named refusal bodies; none can return R2_SCOPE_PROVEN. */
+enum r2_scope_result route2_win_refuse_vm_service_scope_v1(void);
+enum r2_scope_result route2_win_refuse_e_physical_cap_v1(void);
+enum r2_scope_result route2_win_refuse_owner_exit_join_v1(void);
+#endif
 #endif
