@@ -920,3 +920,229 @@ enum r2_win_job_raw_status route2_win_raw_job_capsule_copy_report_v1(
 #undef R2_JOB_I64
 #undef R2_JOB_FAILED
 #endif
+
+#if defined(R2_TARGET_LINUX_START)
+/* C03 independent bounded parser; no original capture/producer is supplied. */
+_Static_assert(sizeof(struct r2_linux_memavailable_parse_v1) == 32,
+               "MemAvailable parser record must be 32 bytes");
+_Static_assert(_Alignof(struct r2_linux_memavailable_parse_v1) == 8,
+               "MemAvailable parser record must align to 8 bytes");
+_Static_assert(offsetof(struct r2_linux_memavailable_parse_v1, abi) == 0 &&
+               offsetof(struct r2_linux_memavailable_parse_v1, size) == 4 &&
+               offsetof(struct r2_linux_memavailable_parse_v1, status) == 8 &&
+               offsetof(struct r2_linux_memavailable_parse_v1, value_valid) == 12 &&
+               offsetof(struct r2_linux_memavailable_parse_v1, memavailable_kib) == 16 &&
+               offsetof(struct r2_linux_memavailable_parse_v1, memavailable_bytes) == 24,
+               "MemAvailable parser record offsets changed");
+_Static_assert(sizeof(size_t) == 8 && sizeof(uintptr_t) == 8,
+               "MemAvailable parser requires the existing LP64 target");
+
+static uint32_t r2_linux_meminfo_result_v1(
+    struct r2_linux_memavailable_parse_v1 *out, uint32_t status, uint64_t kib)
+{
+    uint32_t valid = status == R2_LINUX_MEMINFO_PARSED;
+    out->abi = 1;
+    out->size = 32;
+    out->status = status;
+    out->value_valid = valid;
+    out->memavailable_kib = valid ? kib : 0;
+    out->memavailable_bytes = valid ? kib * UINT64_C(1024) : 0;
+    return status;
+}
+
+/* Every input dereference passes this length/line/ASCII check first. */
+static uint32_t r2_linux_meminfo_peek_v1(
+    const uint8_t *bytes, size_t length, size_t cursor, size_t line_start,
+    uint8_t *ch)
+{
+    if (cursor >= length) {
+        return R2_LINUX_MEMINFO_TRUNCATED;
+    }
+    if (cursor - line_start >= R2_LINUX_MEMINFO_LINE_MAX_BYTES) {
+        return R2_LINUX_MEMINFO_LINE_TOO_LONG;
+    }
+    *ch = bytes[cursor];
+    if (*ch != '\t' && *ch != '\n' && (*ch < 32 || *ch > 126)) {
+        return R2_LINUX_MEMINFO_INVALID_BYTE;
+    }
+    return R2_LINUX_MEMINFO_PARSED;
+}
+
+static int r2_linux_meminfo_alpha_v1(uint8_t ch)
+{
+    return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
+}
+
+static int r2_linux_meminfo_digit_v1(uint8_t ch)
+{
+    return ch >= '0' && ch <= '9';
+}
+
+static int r2_linux_meminfo_hspace_v1(uint8_t ch)
+{
+    return ch == ' ' || ch == '\t';
+}
+
+uint32_t route2_linux_parse_memavailable_v1(
+    const uint8_t *bytes, size_t length,
+    struct r2_linux_memavailable_parse_v1 *out, size_t out_size)
+{
+    const uint8_t target[] = "MemAvailable";
+    uintptr_t input_first, input_last, output_first, output_last;
+    size_t cursor = 0;
+    uint64_t found_kib = 0;
+    int found = 0;
+
+    if (out == NULL || out_size != sizeof(*out)) {
+        return R2_LINUX_MEMINFO_BAD_ARGUMENT;
+    }
+    output_first = (uintptr_t)out;
+    if (output_first % _Alignof(struct r2_linux_memavailable_parse_v1) != 0 ||
+        output_first > UINTPTR_MAX - (sizeof(*out) - 1)) {
+        return R2_LINUX_MEMINFO_BAD_ARGUMENT;
+    }
+    output_last = output_first + (sizeof(*out) - 1);
+    if (bytes == NULL || length == 0) {
+        return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_BAD_ARGUMENT, 0);
+    }
+    input_first = (uintptr_t)bytes;
+    if (length - 1 > UINTPTR_MAX - input_first) {
+        return R2_LINUX_MEMINFO_BAD_ARGUMENT;
+    }
+    input_last = input_first + (length - 1);
+    if (input_first <= output_last && output_first <= input_last) {
+        return R2_LINUX_MEMINFO_BAD_ARGUMENT;
+    }
+    if (length > R2_LINUX_MEMINFO_INPUT_MAX_BYTES) {
+        return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_INPUT_TOO_LARGE, 0);
+    }
+
+    while (cursor < length) {
+        size_t line_start = cursor, key_start = cursor, key_length, index;
+        uint32_t status;
+        uint64_t value = 0;
+        unsigned int digits = 0;
+        uint8_t ch;
+        int is_target, has_unit = 0;
+
+        status = r2_linux_meminfo_peek_v1(bytes, length, cursor, line_start, &ch);
+        if (status != R2_LINUX_MEMINFO_PARSED) {
+            return r2_linux_meminfo_result_v1(out, status, 0);
+        }
+        if (!r2_linux_meminfo_alpha_v1(ch)) {
+            return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+        }
+        while (r2_linux_meminfo_alpha_v1(ch) || r2_linux_meminfo_digit_v1(ch) ||
+               ch == '_' || ch == '(' || ch == ')') {
+            if (cursor - key_start >= R2_LINUX_MEMINFO_KEY_MAX_BYTES) {
+                return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+            }
+            ++cursor;
+            status = r2_linux_meminfo_peek_v1(bytes, length, cursor, line_start, &ch);
+            if (status != R2_LINUX_MEMINFO_PARSED) {
+                return r2_linux_meminfo_result_v1(out, status, 0);
+            }
+        }
+        if (ch != ':') {
+            return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+        }
+        key_length = cursor - key_start;
+        is_target = key_length == sizeof(target) - 1;
+        for (index = 0; is_target && index < key_length; ++index) {
+            if (bytes[key_start + index] != target[index]) {
+                is_target = 0;
+            }
+        }
+        if (is_target && found) {
+            return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_DUPLICATE_MEMAVAILABLE, 0);
+        }
+        ++cursor;
+        status = r2_linux_meminfo_peek_v1(bytes, length, cursor, line_start, &ch);
+        if (status != R2_LINUX_MEMINFO_PARSED) {
+            return r2_linux_meminfo_result_v1(out, status, 0);
+        }
+        if (!r2_linux_meminfo_hspace_v1(ch)) {
+            return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+        }
+        do {
+            ++cursor;
+            status = r2_linux_meminfo_peek_v1(bytes, length, cursor, line_start, &ch);
+            if (status != R2_LINUX_MEMINFO_PARSED) {
+                return r2_linux_meminfo_result_v1(out, status, 0);
+            }
+        } while (r2_linux_meminfo_hspace_v1(ch));
+        if (!r2_linux_meminfo_digit_v1(ch)) {
+            return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+        }
+        do {
+            uint64_t digit = (uint64_t)(ch - '0');
+            if (digits == R2_LINUX_MEMINFO_DECIMAL_MAX_BYTES) {
+                return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+            }
+            if (value > (UINT64_MAX - digit) / UINT64_C(10)) {
+                return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_VALUE_OUT_OF_RANGE, 0);
+            }
+            value = value * UINT64_C(10) + digit;
+            ++digits;
+            ++cursor;
+            status = r2_linux_meminfo_peek_v1(bytes, length, cursor, line_start, &ch);
+            if (status != R2_LINUX_MEMINFO_PARSED) {
+                return r2_linux_meminfo_result_v1(out, status, 0);
+            }
+        } while (r2_linux_meminfo_digit_v1(ch));
+        if (ch != '\n' && !r2_linux_meminfo_hspace_v1(ch)) {
+            return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+        }
+        while (r2_linux_meminfo_hspace_v1(ch)) {
+            ++cursor;
+            status = r2_linux_meminfo_peek_v1(bytes, length, cursor, line_start, &ch);
+            if (status != R2_LINUX_MEMINFO_PARSED) {
+                return r2_linux_meminfo_result_v1(out, status, 0);
+            }
+        }
+        if (ch != '\n') {
+            if (ch != 'k') {
+                return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+            }
+            ++cursor;
+            status = r2_linux_meminfo_peek_v1(bytes, length, cursor, line_start, &ch);
+            if (status != R2_LINUX_MEMINFO_PARSED) {
+                return r2_linux_meminfo_result_v1(out, status, 0);
+            }
+            if (ch != 'B') {
+                return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+            }
+            ++cursor;
+            status = r2_linux_meminfo_peek_v1(bytes, length, cursor, line_start, &ch);
+            if (status != R2_LINUX_MEMINFO_PARSED) {
+                return r2_linux_meminfo_result_v1(out, status, 0);
+            }
+            while (r2_linux_meminfo_hspace_v1(ch)) {
+                ++cursor;
+                status = r2_linux_meminfo_peek_v1(bytes, length, cursor, line_start, &ch);
+                if (status != R2_LINUX_MEMINFO_PARSED) {
+                    return r2_linux_meminfo_result_v1(out, status, 0);
+                }
+            }
+            if (ch != '\n') {
+                return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+            }
+            has_unit = 1;
+        }
+        if (is_target) {
+            if (!has_unit) {
+                return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_MALFORMED_LINE, 0);
+            }
+            if (value > UINT64_MAX / UINT64_C(1024)) {
+                return r2_linux_meminfo_result_v1(out, R2_LINUX_MEMINFO_VALUE_OUT_OF_RANGE, 0);
+            }
+            found = 1;
+            found_kib = value;
+        }
+        ++cursor; /* Consume the checked LF; the next line begins here. */
+    }
+    return r2_linux_meminfo_result_v1(out,
+        found ? R2_LINUX_MEMINFO_PARSED : R2_LINUX_MEMINFO_MISSING_MEMAVAILABLE,
+        found_kib);
+}
+#endif

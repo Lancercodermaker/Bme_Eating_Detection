@@ -324,3 +324,57 @@ enum r2_win_job_raw_status route2_win_raw_job_capsule_copy_report_v1(
     struct r2_win_job_raw_report_v1 *out, size_t size);
 #endif
 #endif
+
+/* C03 independent byte parser: SOURCE_ONLY / IMPLEMENTED_BUT_UNCOMPILED.
+ * A parsed value proves no original M0, prebirth, ownership or admission.
+ */
+#if defined(R2_TARGET_LINUX_START)
+#ifndef R2_LINUX_MEMAVAILABLE_PARSE_V1_DECLARED
+#define R2_LINUX_MEMAVAILABLE_PARSE_V1_DECLARED
+#define R2_LINUX_MEMINFO_INPUT_MAX_BYTES 16384u
+#define R2_LINUX_MEMINFO_LINE_MAX_BYTES 512u
+#define R2_LINUX_MEMINFO_KEY_MAX_BYTES 64u
+#define R2_LINUX_MEMINFO_DECIMAL_MAX_BYTES 20u
+
+enum r2_linux_memavailable_parse_status_v1 {
+    R2_LINUX_MEMINFO_PARSED = 0,
+    R2_LINUX_MEMINFO_BAD_ARGUMENT = 1,
+    R2_LINUX_MEMINFO_INPUT_TOO_LARGE = 2,
+    R2_LINUX_MEMINFO_INVALID_BYTE = 3,
+    R2_LINUX_MEMINFO_LINE_TOO_LONG = 4,
+    R2_LINUX_MEMINFO_TRUNCATED = 5,
+    R2_LINUX_MEMINFO_MALFORMED_LINE = 6,
+    R2_LINUX_MEMINFO_MISSING_MEMAVAILABLE = 7,
+    R2_LINUX_MEMINFO_DUPLICATE_MEMAVAILABLE = 8,
+    R2_LINUX_MEMINFO_VALUE_OUT_OF_RANGE = 9
+};
+
+/* Exact native memory layout only: not a wire frame or capture receipt. */
+struct r2_linux_memavailable_parse_v1 {
+    uint32_t abi, size, status, value_valid;
+    uint64_t memavailable_kib, memavailable_bytes;
+};
+
+/* Caller owns accessible input and an exclusively writable output object.
+ * NULL/wrong-size/unaligned/wrapped output, wrapped nonempty input ranges and
+ * input/output overlap return BAD_ARGUMENT without output writes. With an
+ * accepted output, NULL/empty input and every parsing failure write abi=1,
+ * size=32, failure status, validity=0 and both numeric fields=0.
+ * Complete LF-terminated input only: 1..16384 bytes; each line <=512 bytes
+ * including LF. KEY is [A-Za-z][A-Za-z0-9_()]* (<=64 bytes), then ':',
+ * one or more ASCII spaces/HT, then 1..20 digits. The suffix grammar is
+ * DECIMAL [ HSPACE+ "kB" ] HSPACE* LF, where HSPACE is space or HT.
+ * Brackets make the whole unit group optional; a present unit requires
+ * at least one separating space/HT. Other keys may omit the unit;
+ * MemAvailable requires exact 'kB'. Blank lines, CR/NUL/non-ASCII, signs and extra tokens
+ * reject. Exactly one case-sensitive MemAvailable is required. Decimal and
+ * KiB*1024 must fit uint64. Leading zeros and a raw zero value are allowed.
+ * Range preconditions precede writes; parsing detects errors as it consumes
+ * bytes from left to right. A second target key rejects at its colon.
+ * No I/O, allocation, globals, once claim, errno access or authority output.
+ */
+uint32_t route2_linux_parse_memavailable_v1(
+    const uint8_t *bytes, size_t length,
+    struct r2_linux_memavailable_parse_v1 *out, size_t out_size);
+#endif
+#endif
