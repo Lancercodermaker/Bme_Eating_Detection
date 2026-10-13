@@ -214,4 +214,113 @@ enum r2_scope_result route2_win_refuse_vm_service_scope_v1(void);
 enum r2_scope_result route2_win_refuse_e_physical_cap_v1(void);
 enum r2_scope_result route2_win_refuse_owner_exit_join_v1(void);
 #endif
+
+#if defined(R2_TARGET_WINDOWS_SEED)
+/* C02-A COMPONENT_SOURCE_IMPLEMENTED_UNCOMPILED: independent raw Job ABI.
+ * This is neither r2_scope_result nor authenticated transport/approval.
+ */
+enum r2_win_job_raw_status {
+    R2_WIN_JOB_RAW_UNKNOWN = 0, R2_WIN_JOB_RAW_OK = 1,
+    R2_WIN_JOB_RAW_BAD_ARGUMENT = 2, R2_WIN_JOB_RAW_BAD_STATE = 3,
+    R2_WIN_JOB_RAW_API_FAILED = 4, R2_WIN_JOB_RAW_INVARIANT_FAILED = 5,
+    R2_WIN_JOB_RAW_EXIT_RACED = 6, R2_WIN_JOB_RAW_BUSY = 7
+};
+enum r2_win_job_raw_state {
+    R2_WIN_JOB_NEW = 0, R2_WIN_JOB_ORIGINAL_HELD = 1,
+    R2_WIN_JOB_LIMITS_READBACK = 2, R2_WIN_JOB_PROCESS_ASSIGNED = 3,
+    R2_WIN_JOB_POISONED = 4, R2_WIN_JOB_HANDLES_CONSUMED = 5
+};
+enum r2_win_job_raw_field_state {
+    R2_WIN_JOB_FIELD_UNKNOWN = 0, R2_WIN_JOB_FIELD_VALID = 1,
+    R2_WIN_JOB_FIELD_FAILED = 2
+};
+enum r2_win_job_raw_fault_kind {
+    R2_WIN_JOB_FAULT_ARGUMENT = 1, R2_WIN_JOB_FAULT_WIN32 = 2,
+    R2_WIN_JOB_FAULT_INVARIANT = 3, R2_WIN_JOB_FAULT_API_NO_ERROR = 4
+};
+enum r2_win_job_raw_operation {
+    R2_WIN_JOB_OP_STATE = 1, R2_WIN_JOB_OP_CREATE = 2,
+    R2_WIN_JOB_OP_GROUPS = 3, R2_WIN_JOB_OP_COUNT = 4,
+    R2_WIN_JOB_OP_AFFINITY = 5, R2_WIN_JOB_OP_SET_LIMITS = 6,
+    R2_WIN_JOB_OP_SET_CPU = 7, R2_WIN_JOB_OP_QUERY_LIMITS = 8,
+    R2_WIN_JOB_OP_QUERY_CPU = 9, R2_WIN_JOB_OP_QUERY_ACCOUNTING = 10,
+    R2_WIN_JOB_OP_BORROWED_PID = 11, R2_WIN_JOB_OP_SELF_PID = 12,
+    R2_WIN_JOB_OP_DUPLICATE = 13, R2_WIN_JOB_OP_PID_BEFORE = 14,
+    R2_WIN_JOB_OP_WAIT_BEFORE = 15, R2_WIN_JOB_OP_TIMES_BEFORE = 16,
+    R2_WIN_JOB_OP_ASSIGN = 17, R2_WIN_JOB_OP_MEMBERSHIP = 18,
+    R2_WIN_JOB_OP_PID_AFTER = 19, R2_WIN_JOB_OP_TIMES_AFTER = 20,
+    R2_WIN_JOB_OP_WAIT_AFTER = 21, R2_WIN_JOB_OP_CLOSE_PROCESS = 22,
+    R2_WIN_JOB_OP_CLOSE_JOB = 23
+};
+enum r2_win_job_raw_invariant {
+    R2_WIN_JOB_BAD_LIFECYCLE = 1, R2_WIN_JOB_NULL_OR_PSEUDO = 2,
+    R2_WIN_JOB_SELF_PROCESS = 3, R2_WIN_JOB_BAD_TOPOLOGY = 4,
+    R2_WIN_JOB_BAD_LENGTH = 5, R2_WIN_JOB_LIMITS_CHANGED = 6,
+    R2_WIN_JOB_CPU_CHANGED = 7, R2_WIN_JOB_PID_CHANGED = 8,
+    R2_WIN_JOB_CREATION_CHANGED = 9, R2_WIN_JOB_EXIT_OBSERVED = 10,
+    R2_WIN_JOB_BAD_WAIT = 11, R2_WIN_JOB_MEMBERSHIP_ABSENT = 12,
+    R2_WIN_JOB_NEGATIVE_ACCOUNTING = 13
+};
+struct r2_win_job_raw_u32_v1 { uint32_t value, state; };
+struct r2_win_job_raw_u64_v1 { uint64_t value; uint32_t state, reserved; };
+struct r2_win_job_raw_i64_v1 { int64_t value; uint32_t state, reserved; };
+struct r2_win_job_raw_fault_v1 {
+    uint32_t operation, kind, code, win32_error, win32_error_valid;
+};
+struct r2_win_job_raw_snapshot_v1 {
+    uint32_t limits_readback_state, cpu_readback_state, accounting_state, reserved;
+    struct r2_win_job_raw_u32_v1 limit_flags, active_process_limit;
+    struct r2_win_job_raw_u64_v1 affinity, job_commit_limit, process_commit_limit;
+    struct r2_win_job_raw_u64_v1 peak_process_commit, peak_job_commit;
+    struct r2_win_job_raw_u32_v1 cpu_control_flags, cpu_rate;
+    struct r2_win_job_raw_i64_v1 total_user_100ns, total_kernel_100ns;
+    struct r2_win_job_raw_i64_v1 period_user_100ns, period_kernel_100ns;
+    struct r2_win_job_raw_u32_v1 page_faults, total_processes;
+    struct r2_win_job_raw_u32_v1 active_processes, terminated_by_limits;
+};
+#define R2_WIN_JOB_RAW_FAULT_CAPACITY 3
+struct r2_win_job_raw_report_v1 {
+    uint32_t abi, size, status, lifecycle;
+    uint32_t poisoned, fault_count, assignment_attempted, cleanup_attempted;
+    uint32_t job_acquire_state, duplicate_acquire_state;
+    uint32_t job_consumed, duplicate_consumed, job_close_state, duplicate_close_state;
+    uint32_t set_limits_state, set_cpu_state, assign_state, reserved;
+    struct r2_win_job_raw_fault_v1 faults[R2_WIN_JOB_RAW_FAULT_CAPACITY];
+    struct r2_win_job_raw_u32_v1 processor_groups, processor_count;
+    struct r2_win_job_raw_u64_v1 allowed_affinity, system_affinity, selected_affinity;
+    struct r2_win_job_raw_u32_v1 borrowed_pid, current_pid, duplicate_pid_before;
+    struct r2_win_job_raw_u32_v1 duplicate_pid_after, wait_before, wait_after, membership;
+    struct r2_win_job_raw_u64_v1 creation_before_100ns, creation_after_100ns;
+    struct r2_win_job_raw_snapshot_v1 configured, latest_query;
+};
+
+/* One native capsule per loaded component. C11 atomic_flag serializes all
+ * calls; concurrent/reentrant calls return BUSY without capsule access.
+ * No recreate/reset; first primary fault is sticky, then only copy/cleanup.
+ * One existing real process association, not atomic prebirth or run approval.
+ * Borrowed stays open/stable until successful private SAME_ACCESS duplicate.
+ * Needs SET_QUOTA|TERMINATE, QUERY_INFORMATION or LIMITED_INFORMATION, and
+ * SYNCHRONIZE. NULL/INVALID/current pseudo and real self process are refused;
+ * other pseudo/nonprocess input fails GetProcessId before duplication.
+ * Private original Job/duplicate never cross a Python/HANDLE conversion.
+ * close consumes both before either one-time attempt, retaining both errors.
+ * Failed duplicate output never owned; borrowed/container never closed.
+ * KILL last-close requests termination, supplies no observed exit or join.
+ * copy requires exclusively writable valid native out of exact sizeof;
+ * NULL/size mismatch returns BAD_ARGUMENT without modifying private history.
+ * A successful copy returns OK even when copied report records a fault.
+ * UNKNOWN/FAILED values are unusable; VALID is a raw native fact only.
+ * configured preserves create readback; latest_query is replaced per query
+ * attempt (unqueried fields UNKNOWN); no complete query/membership history.
+ * Commit is not RSS/whole RAM/VM; four processes not TIDs; interval CPU cap
+ * is not instantaneous wallclock, nested CPU quota can be stricter.
+ * No scope PASS, MONITORED4, full fees, budget, authority or durable join.
+ */
+enum r2_win_job_raw_status route2_win_raw_job_capsule_create_fixed_v1(void);
+enum r2_win_job_raw_status route2_win_raw_job_capsule_assign_borrowed_v1(uintptr_t);
+enum r2_win_job_raw_status route2_win_raw_job_capsule_query_v1(void);
+enum r2_win_job_raw_status route2_win_raw_job_capsule_close_once_v1(void);
+enum r2_win_job_raw_status route2_win_raw_job_capsule_copy_report_v1(
+    struct r2_win_job_raw_report_v1 *out, size_t size);
+#endif
 #endif
