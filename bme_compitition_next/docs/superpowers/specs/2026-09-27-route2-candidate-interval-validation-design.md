@@ -1948,3 +1948,7 @@ Only after the binding concrete complete A+B final approval may the same lawful 
 ### C00 re-audit actual scoped dual-review receipt
 
 [Actual SPEC repair verification and DIFFERENT fresh QUALITY](../../decisions/2026-09-27-route2-design-review.md#c00-reaudit-actual-scoped-review-receipt-20261013) completed NO_REMAINING_SCOPED_P1_P2 / C00_PERMISSION_AWARE_DOCUMENT_API_AUDIT_ONLY. Full original3 restoration is complete. The scoped ID is not full implementation/runtime review; all original three UNPROVEN mechanisms, NOT_APPROVAL_READY/NOT_EXPERIMENT_AUTHORIZED/FROZEN_ADMISSION=None, fourteen-gate incompleteness and original UNKNOWN_NOT_ZERO budgets remain. Effective preparation permission is retained, but actual original clock/group/fees/pre-load/cleanup contract is missing. No runtime/GT/Stage or new production SOURCE occurred; Git receipts follow separately.
+
+### C00 re-audit Git preservation receipt
+
+[Actual exact-three-document commit/non-force push/remote preservation](../../decisions/2026-09-27-route2-design-review.md#c00-reaudit-exact-path-git-receipt-20261013) records the scoped audit checkpoint. This later administrative receipt is a separate small commit; its own HEAD is read from Git/final report. Mechanism/runtime/full-review/admission gaps and all original budgets/states remain unchanged.
