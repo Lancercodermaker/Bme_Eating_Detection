@@ -1986,3 +1986,8 @@ Final condition-document verification receipt: independent SPEC /root/c02_a_fres
 
 
 Scoped recording-review receipt: route2-historical-session-metadata-record-review-2026-10-13-001 covers HISTORICAL_SESSION_METADATA_RECORD_ONLY. Fresh SPEC /root/historical_receipt_fresh_spec START12:22:20/ALL_READ_STOP12:25:13 UTC (173s within6min), followed by DIFFERENT fresh QUALITY /root/historical_receipt_fresh_quality START12:27:16/ALL_READ_STOP12:27:35/final STOP12:28:30 (74s within6min), both NO_REMAINING_SCOPED_P1_P2. They read only the original3 recovery suffixes against supplied facts, not archives/implementation/API/runtime. Optional P3 precision is recorded here by append: the two projectors had configured30-second maxima, with reported inner-loop elapsed0.01579s and0.25848s respectively, not actual30-second runs or complete source/loader fees. No interval or process duration becomes native original budget evidence. Root confirmed all403 original identities/full171 index/original11 complete staged rows unchanged before append; old original3 prefixes match baseline ddea3ca. Exact-path retention and actual remote receipt remain pending; no complete formal review, budget/freeze/admission PASS or new run follows.
+
+
+### Historical receipt recovery Git preservation receipt (2026-10-13)
+
+[Actual historical-record checkpoint d72b15f and exact-path/index/remote/main receipt](../../decisions/2026-09-27-route2-design-review.md#historical-receipt-recovery-git-preservation-receipt-2026-10-13) records source-only evidence retention. This later administrative original3 checkpoint receives its own HEAD from Git/final report; no whole budget/mechanism/freeze/review/admission closure or invocation is implied.
