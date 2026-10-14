@@ -378,3 +378,152 @@ uint32_t route2_linux_parse_memavailable_v1(
     struct r2_linux_memavailable_parse_v1 *out, size_t out_size);
 #endif
 #endif
+
+/* C03 real raw Linux capture: SOURCE_IMPLEMENTED / UNCOMPILED.
+ * The preceding parser, C02 components and dormant v2 declarations are intact.
+ */
+#if defined(R2_TARGET_LINUX_START)
+#ifndef R2_LINUX_START_CAPTURE_V1_DECLARED
+#define R2_LINUX_START_CAPTURE_V1_DECLARED
+#define R2_LINUX_CAPTURE_PRIMARY_ATTEMPT_MAX 64u
+#define R2_LINUX_CAPTURE_END_CLOCK_ATTEMPT_MAX 4u
+
+enum r2_linux_start_capture_status_v1 {
+    R2_LINUX_CAPTURE_UNKNOWN = 0,
+    R2_LINUX_CAPTURE_COMPLETE = 1,
+    R2_LINUX_CAPTURE_BAD_ARGUMENT = 2,
+    R2_LINUX_CAPTURE_ALREADY_ATTEMPTED = 3,
+    R2_LINUX_CAPTURE_API_FAILED = 4,
+    R2_LINUX_CAPTURE_INVARIANT_FAILED = 5,
+    R2_LINUX_CAPTURE_ATTEMPTS_EXHAUSTED = 6,
+    R2_LINUX_CAPTURE_INPUT_TOO_LARGE = 7,
+    R2_LINUX_CAPTURE_PARSE_FAILED = 8,
+    R2_LINUX_CAPTURE_CLEANUP_FAILED = 9
+};
+enum r2_linux_start_capture_state_v1 {
+    R2_LINUX_CAPTURE_UNATTEMPTED = 0,
+    R2_LINUX_CAPTURE_VALID = 1,
+    R2_LINUX_CAPTURE_FAILED = 2
+};
+enum r2_linux_start_capture_field_v1 {
+    R2_LINUX_CAPTURE_BEGIN_VALID = 1u,
+    R2_LINUX_CAPTURE_END_VALID = 2u,
+    R2_LINUX_CAPTURE_PROC_STAT_VALID = 4u,
+    R2_LINUX_CAPTURE_PROC_FS_VALID = 8u,
+    R2_LINUX_CAPTURE_MEMINFO_STAT_VALID = 16u,
+    R2_LINUX_CAPTURE_MEMINFO_FS_VALID = 32u,
+    R2_LINUX_CAPTURE_EOF_VALID = 64u,
+    R2_LINUX_CAPTURE_PARSER_RESULT_VALID = 128u,
+    R2_LINUX_CAPTURE_POST_STAT_VALID = 256u
+};
+enum r2_linux_start_capture_operation_v1 {
+    R2_LINUX_CAPTURE_OP_BEGIN_CLOCK = 1,
+    R2_LINUX_CAPTURE_OP_OPEN_PROC = 2,
+    R2_LINUX_CAPTURE_OP_PROC_STATFS = 3,
+    R2_LINUX_CAPTURE_OP_PROC_STAT = 4,
+    R2_LINUX_CAPTURE_OP_OPEN_MEMINFO = 5,
+    R2_LINUX_CAPTURE_OP_MEMINFO_STATFS = 6,
+    R2_LINUX_CAPTURE_OP_MEMINFO_STAT = 7,
+    R2_LINUX_CAPTURE_OP_READ = 8,
+    R2_LINUX_CAPTURE_OP_POST_STAT = 9,
+    R2_LINUX_CAPTURE_OP_CLOSE_MEMINFO = 10,
+    R2_LINUX_CAPTURE_OP_CLOSE_PROC = 11,
+    R2_LINUX_CAPTURE_OP_END_CLOCK = 12,
+    R2_LINUX_CAPTURE_OP_PARSE = 13
+};
+enum r2_linux_start_capture_fault_kind_v1 {
+    R2_LINUX_CAPTURE_FAULT_NONE = 0,
+    R2_LINUX_CAPTURE_FAULT_ERRNO = 1,
+    R2_LINUX_CAPTURE_FAULT_INVARIANT = 2,
+    R2_LINUX_CAPTURE_FAULT_BUDGET = 3,
+    R2_LINUX_CAPTURE_FAULT_PARSER = 4
+};
+enum r2_linux_start_capture_invariant_v1 {
+    R2_LINUX_CAPTURE_BAD_CLOCK = 1,
+    R2_LINUX_CAPTURE_NOT_PROCFS = 2,
+    R2_LINUX_CAPTURE_NOT_DIRECTORY = 3,
+    R2_LINUX_CAPTURE_NOT_REGULAR = 4,
+    R2_LINUX_CAPTURE_SOURCE_ALIAS = 5,
+    R2_LINUX_CAPTURE_NONZERO_PROC_SIZE = 6,
+    R2_LINUX_CAPTURE_IDENTITY_CHANGED = 7,
+    R2_LINUX_CAPTURE_BAD_READ_RESULT = 8,
+    R2_LINUX_CAPTURE_CLOCK_REGRESSED = 9,
+    R2_LINUX_CAPTURE_BAD_API_RESULT = 10,
+    R2_LINUX_CAPTURE_OVER_BOUND = 11
+};
+enum r2_linux_start_capture_source_v1 {
+    R2_LINUX_CAPTURE_SOURCE_UNKNOWN = 0,
+    R2_LINUX_CAPTURE_SOURCE_FIXED_PROC_MEMINFO = 1
+};
+
+/* Exact native LP64 ABI: 256 bytes, alignment 8; NOT a wire schema. */
+struct r2_linux_start_capture_v1 {
+    uint32_t abi, size, status, sample_valid;                         /* 0 */
+    uint32_t attempt_consumed, valid_fields, primary_attempts, read_attempts; /* 16 */
+    uint32_t bytes_read, eof_seen, parser_status, source_kind;        /* 32 */
+    uint32_t primary_operation, primary_kind, primary_code, primary_errno_valid; /* 48 */
+    int32_t primary_errno, meminfo_close_errno, proc_close_errno, end_clock_errno; /* 64 */
+    uint32_t meminfo_close_state, proc_close_state, end_clock_state, value_valid; /* 80 */
+    uint64_t monotonic_begin_ns, monotonic_end_ns;                    /* 96 */
+    uint64_t memavailable_kib, memavailable_bytes;                    /* 112 */
+    uint64_t proc_dev, proc_ino, meminfo_dev, meminfo_ino;             /* 128 */
+    int64_t meminfo_size, proc_fs_type, meminfo_fs_type;               /* 160 */
+    int32_t proc_fsid[2], meminfo_fsid[2];                            /* 184 */
+    uint32_t proc_mode, proc_uid, meminfo_mode, meminfo_uid;           /* 200 */
+    uint64_t proc_nlink, meminfo_nlink;                               /* 216 */
+    uint32_t proc_gid, meminfo_gid, post_stat_state, end_clock_attempts; /* 232 */
+    uint32_t end_clock_fault_kind, end_clock_fault_code;              /* 248 */
+};
+
+/* REAL production primitive for the R2_TARGET_LINUX_START executable only.
+ * Link exactly one native instance; invoke in its original native entry BEFORE
+ * any fork/clone/spawn/exec of a Python/controller child or Python startup.
+ * This function has no constructor/entry body, and cannot prove call ordering.
+ * No bytes, clock, path or descriptor supplied by a caller is a sample source.
+ * It samples CLOCK_MONOTONIC, opens fixed /proc and relative meminfo using
+ * openat2, checks owned fstatfs/fstat identities, consumes a single bounded
+ * stream to EOF, invokes the existing complete parser, closes owned fds once,
+ * and samples the end clock. No reopen, seek, repeated sample or fallback.
+ * Root resolution refuses symlink/magic-link components; relative meminfo also
+ * refuses every mount crossing (including bind aliases). Root mount/namespace
+ * authenticity is NOT established: its dev/ino/fsid/type are raw local facts.
+ * The original caller must bind these facts to its approved creator/root.
+ * A stable regular procfs file with size zero, nlink one and same root device
+ * is required. Before/after stat identity, owner, mode, size, mtime and ctime
+ * must match. This cannot turn dynamic procfs counters into an atomic snapshot.
+ * Input max is 16384 complete bytes; one extra byte detects oversize. The fixed
+ * 16385-byte buffer is private stack storage; there is no heap allocation.
+ * Every primary native call, including EINTR retries and short reads, consumes
+ * the SAME finite 64-attempt budget. Each acquired fd then gets exactly ONE
+ * close attempt, even on failure/budget exhaustion; Linux close is never
+ * retried, including EINTR. End clock has a separate finite 4-attempt budget.
+ * At most 70 clock/fd interface attempts; this does NOT bound a blocked call
+ * or signal-handler time. The future outer owner must enforce its deadline.
+ * Bad NULL/size/alignment/wrapped output returns BAD_ARGUMENT with no write,
+ * no clock/I/O and no once consumption. Caller guarantees writable accessible
+ * exclusive memory: range checks cannot prove accessibility or ownership.
+ * Thereafter atomic once is consumed for this native executable lifetime even
+ * on failure. Concurrent/reentrant/repeated calls return ALREADY_ATTEMPTED in
+ * a fresh deterministic report without I/O; no reset exists. Fork inherits
+ * the consumed state; re-exec/unload is not a continuity mechanism.
+ * All report bytes initialize zero. attempt_consumed means the opportunity
+ * was already or is now consumed, NOT that this call sampled successfully.
+ * valid_fields marks individually returned raw facts only. Parser status is
+ * meaningful only with PARSER_RESULT_VALID. sample_valid/value_valid become
+ * one ONLY on complete capture, parse, both closes and end clock; otherwise
+ * both memory values are zero. Successful raw zero remains value_valid=1.
+ * Raw timestamp flags can remain valid on a later failure; they are interval
+ * facts ONLY, never an admitted t0 or atomic M0 at t0. No startup-authority
+ * value, study-wide once, process ancestry, original-root authentication,
+ * transport authentication, scope acceptance or application admission issues.
+ * First primary fault is retained; each failed close retains its errno even
+ * if zero, identified by FAILED state. Secondary end-clock kind/code/errno is
+ * separate and cannot overwrite an earlier primary or either cleanup fault.
+ * Caller must require return COMPLETE plus sample_valid/value_valid, retain
+ * this native result under its original ownership, then perform future
+ * provenance/admission work before it may create its downstream children.
+ */
+uint32_t route2_linux_start_capture_once_v1(
+    struct r2_linux_start_capture_v1 *out, size_t out_size);
+#endif
+#endif

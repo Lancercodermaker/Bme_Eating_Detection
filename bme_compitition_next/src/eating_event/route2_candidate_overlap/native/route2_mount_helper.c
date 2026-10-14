@@ -1146,3 +1146,465 @@ uint32_t route2_linux_parse_memavailable_v1(
         found_kib);
 }
 #endif
+
+#if defined(R2_TARGET_LINUX_START)
+/* C03 production raw capture; no entry point, bootstrap or admission body. */
+#include <fcntl.h>
+#include <linux/magic.h>
+#include <linux/openat2.h>
+#include <stdatomic.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/vfs.h>
+#include <time.h>
+
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
+#error "C03 capture requires C11 atomics and fixed native layout"
+#endif
+#if !defined(SYS_openat2)
+#error "Actual target headers must provide SYS_openat2; no fallback"
+#endif
+#if !defined(PROC_SUPER_MAGIC) || !defined(RESOLVE_NO_XDEV) || !defined(RESOLVE_NO_SYMLINKS) || !defined(RESOLVE_NO_MAGICLINKS)
+#error "Actual target UAPI must provide procfs and strict openat2 constants"
+#endif
+_Static_assert(sizeof(struct r2_linux_start_capture_v1) == 256 &&
+               _Alignof(struct r2_linux_start_capture_v1) == 8,
+               "Linux capture record must be 256 bytes aligned to 8");
+#define R2_LSC_OFFSET(FIELD, VALUE) \
+    _Static_assert(offsetof(struct r2_linux_start_capture_v1, FIELD) == VALUE, \
+                   "Linux capture offset changed: " #FIELD)
+R2_LSC_OFFSET(abi, 0);
+R2_LSC_OFFSET(size, 4);
+R2_LSC_OFFSET(status, 8);
+R2_LSC_OFFSET(sample_valid, 12);
+R2_LSC_OFFSET(attempt_consumed, 16);
+R2_LSC_OFFSET(valid_fields, 20);
+R2_LSC_OFFSET(primary_attempts, 24);
+R2_LSC_OFFSET(read_attempts, 28);
+R2_LSC_OFFSET(bytes_read, 32);
+R2_LSC_OFFSET(eof_seen, 36);
+R2_LSC_OFFSET(parser_status, 40);
+R2_LSC_OFFSET(source_kind, 44);
+R2_LSC_OFFSET(primary_operation, 48);
+R2_LSC_OFFSET(primary_kind, 52);
+R2_LSC_OFFSET(primary_code, 56);
+R2_LSC_OFFSET(primary_errno_valid, 60);
+R2_LSC_OFFSET(primary_errno, 64);
+R2_LSC_OFFSET(meminfo_close_errno, 68);
+R2_LSC_OFFSET(proc_close_errno, 72);
+R2_LSC_OFFSET(end_clock_errno, 76);
+R2_LSC_OFFSET(meminfo_close_state, 80);
+R2_LSC_OFFSET(proc_close_state, 84);
+R2_LSC_OFFSET(end_clock_state, 88);
+R2_LSC_OFFSET(value_valid, 92);
+R2_LSC_OFFSET(monotonic_begin_ns, 96);
+R2_LSC_OFFSET(monotonic_end_ns, 104);
+R2_LSC_OFFSET(memavailable_kib, 112);
+R2_LSC_OFFSET(memavailable_bytes, 120);
+R2_LSC_OFFSET(proc_dev, 128);
+R2_LSC_OFFSET(proc_ino, 136);
+R2_LSC_OFFSET(meminfo_dev, 144);
+R2_LSC_OFFSET(meminfo_ino, 152);
+R2_LSC_OFFSET(meminfo_size, 160);
+R2_LSC_OFFSET(proc_fs_type, 168);
+R2_LSC_OFFSET(meminfo_fs_type, 176);
+R2_LSC_OFFSET(proc_fsid, 184);
+R2_LSC_OFFSET(meminfo_fsid, 192);
+R2_LSC_OFFSET(proc_mode, 200);
+R2_LSC_OFFSET(proc_uid, 204);
+R2_LSC_OFFSET(meminfo_mode, 208);
+R2_LSC_OFFSET(meminfo_uid, 212);
+R2_LSC_OFFSET(proc_nlink, 216);
+R2_LSC_OFFSET(meminfo_nlink, 224);
+R2_LSC_OFFSET(proc_gid, 232);
+R2_LSC_OFFSET(meminfo_gid, 236);
+R2_LSC_OFFSET(post_stat_state, 240);
+R2_LSC_OFFSET(end_clock_attempts, 244);
+R2_LSC_OFFSET(end_clock_fault_kind, 248);
+R2_LSC_OFFSET(end_clock_fault_code, 252);
+#undef R2_LSC_OFFSET
+_Static_assert(sizeof(time_t) == 8 && (time_t)-1 < (time_t)0 &&
+               sizeof(((struct timespec *)0)->tv_nsec) == 8,
+               "Linux capture requires reviewed signed LP64 clock fields");
+_Static_assert(sizeof(dev_t) == 8 && sizeof(ino_t) == 8 &&
+               sizeof(nlink_t) == 8 && sizeof(off_t) == 8 &&
+               sizeof(mode_t) == 4 && sizeof(uid_t) == 4 && sizeof(gid_t) == 4,
+               "Linux capture requires reviewed stat scalar widths");
+_Static_assert(sizeof(((struct statfs *)0)->f_type) == 8 &&
+               sizeof(((struct statfs *)0)->f_fsid) == 8,
+               "Linux capture requires reviewed statfs scalar widths");
+_Static_assert(sizeof(struct open_how) == 24 &&
+               offsetof(struct open_how, flags) == 0 &&
+               offsetof(struct open_how, mode) == 8 &&
+               offsetof(struct open_how, resolve) == 16,
+               "Linux capture openat2 UAPI layout changed");
+
+/* Permanently set, including failures; no reset/copy/constructor interface.
+ * This target is linked once into the original native start executable.
+ */
+static atomic_flag r2_linux_start_capture_consumed_v1 = ATOMIC_FLAG_INIT;
+
+static void r2_lsc_fault_v1(struct r2_linux_start_capture_v1 *r,
+    uint32_t status, uint32_t operation, uint32_t kind, uint32_t code,
+    int native_error, uint32_t errno_valid)
+{
+    if (r->status != R2_LINUX_CAPTURE_UNKNOWN) return;
+    r->status = status;
+    r->primary_operation = operation;
+    r->primary_kind = kind;
+    r->primary_code = code;
+    r->primary_errno = errno_valid ? native_error : 0;
+    r->primary_errno_valid = errno_valid;
+}
+
+static int r2_lsc_attempt_v1(struct r2_linux_start_capture_v1 *r,
+    uint32_t operation)
+{
+    if (r->primary_attempts >= R2_LINUX_CAPTURE_PRIMARY_ATTEMPT_MAX) {
+        r2_lsc_fault_v1(r, R2_LINUX_CAPTURE_ATTEMPTS_EXHAUSTED, operation,
+            R2_LINUX_CAPTURE_FAULT_BUDGET,
+            R2_LINUX_CAPTURE_PRIMARY_ATTEMPT_MAX, 0, 0);
+        return 0;
+    }
+    ++r->primary_attempts;
+    return 1;
+}
+
+static int r2_lsc_clock_ns_v1(const struct timespec *ts, uint64_t *out)
+{
+    uint64_t sec, nsec;
+    if (ts->tv_sec < 0 || ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000L)
+        return 0;
+    sec = (uint64_t)ts->tv_sec;
+    nsec = (uint64_t)ts->tv_nsec;
+    if (sec > (UINT64_MAX - nsec) / UINT64_C(1000000000)) return 0;
+    *out = sec * UINT64_C(1000000000) + nsec;
+    return 1;
+}
+
+static int r2_lsc_same_stat_v1(const struct stat *before,
+    const struct stat *after)
+{
+    return before->st_dev == after->st_dev &&
+        before->st_ino == after->st_ino &&
+        before->st_mode == after->st_mode &&
+        before->st_nlink == after->st_nlink &&
+        before->st_uid == after->st_uid && before->st_gid == after->st_gid &&
+        before->st_rdev == after->st_rdev && before->st_size == after->st_size &&
+        before->st_mtim.tv_sec == after->st_mtim.tv_sec &&
+        before->st_mtim.tv_nsec == after->st_mtim.tv_nsec &&
+        before->st_ctim.tv_sec == after->st_ctim.tv_sec &&
+        before->st_ctim.tv_nsec == after->st_ctim.tv_nsec;
+}
+
+/* Consume ownership BEFORE one close; always run for every acquired fd.
+ * Failed close errno (even zero) is distinct from an earlier primary fault.
+ */
+static void r2_lsc_close_v1(struct r2_linux_start_capture_v1 *r, int *owned,
+    uint32_t operation, uint32_t *state, int32_t *saved_errno)
+{
+    int fd = *owned;
+    if (fd < 0) return;
+    *owned = -1;
+    if (close(fd) == 0) {
+        *state = R2_LINUX_CAPTURE_VALID;
+    } else {
+        int error = errno;
+        *state = R2_LINUX_CAPTURE_FAILED;
+        *saved_errno = error;
+        r2_lsc_fault_v1(r, R2_LINUX_CAPTURE_CLEANUP_FAILED, operation,
+            R2_LINUX_CAPTURE_FAULT_ERRNO, 0, error, 1);
+    }
+}
+
+static void r2_lsc_end_clock_v1(struct r2_linux_start_capture_v1 *r)
+{
+    struct timespec ts = {0};
+    uint64_t ns = 0;
+    int result, error;
+    r->end_clock_state = R2_LINUX_CAPTURE_FAILED;
+    while (r->end_clock_attempts < R2_LINUX_CAPTURE_END_CLOCK_ATTEMPT_MAX) {
+        ++r->end_clock_attempts;
+        result = clock_gettime(CLOCK_MONOTONIC, &ts);
+        if (result == 0) {
+            if (!r2_lsc_clock_ns_v1(&ts, &ns)) {
+                r->end_clock_fault_kind = R2_LINUX_CAPTURE_FAULT_INVARIANT;
+                r->end_clock_fault_code = R2_LINUX_CAPTURE_BAD_CLOCK;
+                break;
+            }
+            if ((r->valid_fields & R2_LINUX_CAPTURE_BEGIN_VALID) &&
+                ns < r->monotonic_begin_ns) {
+                r->end_clock_fault_kind = R2_LINUX_CAPTURE_FAULT_INVARIANT;
+                r->end_clock_fault_code = R2_LINUX_CAPTURE_CLOCK_REGRESSED;
+                break;
+            }
+            r->monotonic_end_ns = ns;
+            r->valid_fields |= R2_LINUX_CAPTURE_END_VALID;
+            r->end_clock_state = R2_LINUX_CAPTURE_VALID;
+            return;
+        }
+        error = errno;
+        if (result != -1) {
+            r->end_clock_fault_kind = R2_LINUX_CAPTURE_FAULT_INVARIANT;
+            r->end_clock_fault_code = R2_LINUX_CAPTURE_BAD_API_RESULT;
+            break;
+        }
+        if (error != EINTR) {
+            r->end_clock_errno = error;
+            r->end_clock_fault_kind = R2_LINUX_CAPTURE_FAULT_ERRNO;
+            break;
+        }
+        if (r->end_clock_attempts == R2_LINUX_CAPTURE_END_CLOCK_ATTEMPT_MAX) {
+            r->end_clock_errno = error;
+            r->end_clock_fault_kind = R2_LINUX_CAPTURE_FAULT_BUDGET;
+            r->end_clock_fault_code = R2_LINUX_CAPTURE_END_CLOCK_ATTEMPT_MAX;
+        }
+    }
+    r2_lsc_fault_v1(r,
+        r->end_clock_fault_kind == R2_LINUX_CAPTURE_FAULT_BUDGET ?
+            R2_LINUX_CAPTURE_ATTEMPTS_EXHAUSTED :
+        r->end_clock_fault_kind == R2_LINUX_CAPTURE_FAULT_ERRNO ?
+            R2_LINUX_CAPTURE_API_FAILED : R2_LINUX_CAPTURE_INVARIANT_FAILED,
+        R2_LINUX_CAPTURE_OP_END_CLOCK, r->end_clock_fault_kind,
+        r->end_clock_fault_code, r->end_clock_errno,
+        r->end_clock_fault_kind == R2_LINUX_CAPTURE_FAULT_ERRNO ||
+        r->end_clock_fault_kind == R2_LINUX_CAPTURE_FAULT_BUDGET);
+}
+
+/* A native result outside this API's success/-1 contract is rejected too.
+ * Every EINTR returns to the SAME global call budget, never a reset budget.
+ */
+#define R2_LSC_TRY(OPERATION, EXPRESSION, SUCCESS) do { \
+    for (;;) { \
+        long r2_lsc_rc; \
+        int r2_lsc_error; \
+        if (!r2_lsc_attempt_v1(&r, (OPERATION))) goto cleanup; \
+        r2_lsc_rc = (long)(EXPRESSION); \
+        if (SUCCESS) break; \
+        r2_lsc_error = errno; \
+        if (r2_lsc_rc != -1) { \
+            r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED, (OPERATION), \
+                R2_LINUX_CAPTURE_FAULT_INVARIANT, \
+                R2_LINUX_CAPTURE_BAD_API_RESULT, 0, 0); \
+            goto cleanup; \
+        } \
+        if (r2_lsc_error != EINTR) { \
+            r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_API_FAILED, (OPERATION), \
+                R2_LINUX_CAPTURE_FAULT_ERRNO, 0, r2_lsc_error, 1); \
+            goto cleanup; \
+        } \
+    } \
+} while (0)
+
+uint32_t route2_linux_start_capture_once_v1(
+    struct r2_linux_start_capture_v1 *out, size_t out_size)
+{
+    struct r2_linux_start_capture_v1 r;
+    struct r2_linux_memavailable_parse_v1 parsed;
+    struct timespec begin = {0};
+    struct stat proc_stat = {0}, meminfo_stat = {0}, post_stat = {0};
+    struct statfs proc_fs = {0}, meminfo_fs = {0};
+    struct open_how how = {0};
+    uint8_t bytes[R2_LINUX_MEMINFO_INPUT_MAX_BYTES + 1u];
+    uintptr_t output_first;
+    size_t length = 0;
+    int proc_fd = -1, meminfo_fd = -1;
+
+    if (out == NULL || out_size != sizeof(*out))
+        return R2_LINUX_CAPTURE_BAD_ARGUMENT;
+    output_first = (uintptr_t)out;
+    if (output_first % _Alignof(struct r2_linux_start_capture_v1) != 0 ||
+        output_first > UINTPTR_MAX - (sizeof(*out) - 1u))
+        return R2_LINUX_CAPTURE_BAD_ARGUMENT;
+
+    memset(&r, 0, sizeof(r));
+    memset(&parsed, 0, sizeof(parsed));
+    r.abi = 1;
+    r.size = sizeof(r);
+    r.attempt_consumed = 1;
+    if (atomic_flag_test_and_set_explicit(
+            &r2_linux_start_capture_consumed_v1, memory_order_relaxed)) {
+        r.status = R2_LINUX_CAPTURE_ALREADY_ATTEMPTED;
+        memcpy(out, &r, sizeof(r));
+        return r.status;
+    }
+    r.source_kind = R2_LINUX_CAPTURE_SOURCE_FIXED_PROC_MEMINFO;
+
+    R2_LSC_TRY(R2_LINUX_CAPTURE_OP_BEGIN_CLOCK,
+        clock_gettime(CLOCK_MONOTONIC, &begin), r2_lsc_rc == 0);
+    if (!r2_lsc_clock_ns_v1(&begin, &r.monotonic_begin_ns)) {
+        r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED,
+            R2_LINUX_CAPTURE_OP_BEGIN_CLOCK, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+            R2_LINUX_CAPTURE_BAD_CLOCK, 0, 0);
+        goto cleanup;
+    }
+    r.valid_fields |= R2_LINUX_CAPTURE_BEGIN_VALID;
+
+    how.flags = O_PATH | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW;
+    how.resolve = RESOLVE_NO_SYMLINKS | RESOLVE_NO_MAGICLINKS;
+    R2_LSC_TRY(R2_LINUX_CAPTURE_OP_OPEN_PROC,
+        proc_fd = (int)syscall(SYS_openat2, AT_FDCWD, "/proc", &how, sizeof(how)),
+        r2_lsc_rc >= 0);
+    R2_LSC_TRY(R2_LINUX_CAPTURE_OP_PROC_STATFS,
+        fstatfs(proc_fd, &proc_fs), r2_lsc_rc == 0);
+    r.proc_fs_type = proc_fs.f_type;
+    memcpy(r.proc_fsid, &proc_fs.f_fsid, sizeof(r.proc_fsid));
+    r.valid_fields |= R2_LINUX_CAPTURE_PROC_FS_VALID;
+    if (proc_fs.f_type != PROC_SUPER_MAGIC) {
+        r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED,
+            R2_LINUX_CAPTURE_OP_PROC_STATFS, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+            R2_LINUX_CAPTURE_NOT_PROCFS, 0, 0);
+        goto cleanup;
+    }
+    R2_LSC_TRY(R2_LINUX_CAPTURE_OP_PROC_STAT,
+        fstat(proc_fd, &proc_stat), r2_lsc_rc == 0);
+    r.proc_dev = proc_stat.st_dev;
+    r.proc_ino = proc_stat.st_ino;
+    r.proc_mode = proc_stat.st_mode;
+    r.proc_uid = proc_stat.st_uid;
+    r.proc_gid = proc_stat.st_gid;
+    r.proc_nlink = proc_stat.st_nlink;
+    r.valid_fields |= R2_LINUX_CAPTURE_PROC_STAT_VALID;
+    if (!S_ISDIR(proc_stat.st_mode)) {
+        r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED,
+            R2_LINUX_CAPTURE_OP_PROC_STAT, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+            R2_LINUX_CAPTURE_NOT_DIRECTORY, 0, 0);
+        goto cleanup;
+    }
+
+    how.flags = O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK;
+    how.resolve = RESOLVE_NO_SYMLINKS | RESOLVE_NO_MAGICLINKS | RESOLVE_NO_XDEV;
+    R2_LSC_TRY(R2_LINUX_CAPTURE_OP_OPEN_MEMINFO,
+        meminfo_fd = (int)syscall(SYS_openat2, proc_fd, "meminfo", &how, sizeof(how)),
+        r2_lsc_rc >= 0);
+    R2_LSC_TRY(R2_LINUX_CAPTURE_OP_MEMINFO_STATFS,
+        fstatfs(meminfo_fd, &meminfo_fs), r2_lsc_rc == 0);
+    r.meminfo_fs_type = meminfo_fs.f_type;
+    memcpy(r.meminfo_fsid, &meminfo_fs.f_fsid, sizeof(r.meminfo_fsid));
+    r.valid_fields |= R2_LINUX_CAPTURE_MEMINFO_FS_VALID;
+    if (meminfo_fs.f_type != PROC_SUPER_MAGIC) {
+        r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED,
+            R2_LINUX_CAPTURE_OP_MEMINFO_STATFS, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+            R2_LINUX_CAPTURE_NOT_PROCFS, 0, 0);
+        goto cleanup;
+    }
+    if (memcmp(&proc_fs.f_fsid, &meminfo_fs.f_fsid, sizeof(proc_fs.f_fsid)) != 0) {
+        r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED,
+            R2_LINUX_CAPTURE_OP_MEMINFO_STATFS, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+            R2_LINUX_CAPTURE_SOURCE_ALIAS, 0, 0);
+        goto cleanup;
+    }
+    R2_LSC_TRY(R2_LINUX_CAPTURE_OP_MEMINFO_STAT,
+        fstat(meminfo_fd, &meminfo_stat), r2_lsc_rc == 0);
+    r.meminfo_dev = meminfo_stat.st_dev;
+    r.meminfo_ino = meminfo_stat.st_ino;
+    r.meminfo_mode = meminfo_stat.st_mode;
+    r.meminfo_uid = meminfo_stat.st_uid;
+    r.meminfo_gid = meminfo_stat.st_gid;
+    r.meminfo_nlink = meminfo_stat.st_nlink;
+    r.meminfo_size = meminfo_stat.st_size;
+    r.valid_fields |= R2_LINUX_CAPTURE_MEMINFO_STAT_VALID;
+    if (!S_ISREG(meminfo_stat.st_mode)) {
+        r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED,
+            R2_LINUX_CAPTURE_OP_MEMINFO_STAT, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+            R2_LINUX_CAPTURE_NOT_REGULAR, 0, 0);
+        goto cleanup;
+    }
+    if (meminfo_stat.st_dev != proc_stat.st_dev ||
+        meminfo_stat.st_ino == proc_stat.st_ino || meminfo_stat.st_nlink != 1) {
+        r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED,
+            R2_LINUX_CAPTURE_OP_MEMINFO_STAT, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+            R2_LINUX_CAPTURE_SOURCE_ALIAS, 0, 0);
+        goto cleanup;
+    }
+    if (meminfo_stat.st_size != 0) {
+        r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED,
+            R2_LINUX_CAPTURE_OP_MEMINFO_STAT, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+            R2_LINUX_CAPTURE_NONZERO_PROC_SIZE, 0, 0);
+        goto cleanup;
+    }
+
+    for (;;) {
+        size_t remaining = sizeof(bytes) - length;
+        ssize_t count;
+        int error;
+        if (!r2_lsc_attempt_v1(&r, R2_LINUX_CAPTURE_OP_READ)) goto cleanup;
+        ++r.read_attempts;
+        count = read(meminfo_fd, bytes + length, remaining);
+        if (count < 0) {
+            error = errno;
+            if (count == -1 && error == EINTR) continue;
+            r2_lsc_fault_v1(&r,
+                count == -1 ? R2_LINUX_CAPTURE_API_FAILED :
+                    R2_LINUX_CAPTURE_INVARIANT_FAILED,
+                R2_LINUX_CAPTURE_OP_READ,
+                count == -1 ? R2_LINUX_CAPTURE_FAULT_ERRNO :
+                    R2_LINUX_CAPTURE_FAULT_INVARIANT,
+                count == -1 ? 0 : R2_LINUX_CAPTURE_BAD_READ_RESULT,
+                count == -1 ? error : 0, count == -1);
+            goto cleanup;
+        }
+        if ((uint64_t)count > (uint64_t)remaining) {
+            r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED,
+                R2_LINUX_CAPTURE_OP_READ, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+                R2_LINUX_CAPTURE_BAD_READ_RESULT, 0, 0);
+            goto cleanup;
+        }
+        if (count == 0) {
+            r.eof_seen = 1;
+            r.valid_fields |= R2_LINUX_CAPTURE_EOF_VALID;
+            break;
+        }
+        length += (size_t)count;
+        r.bytes_read = (uint32_t)length;
+        if (length > R2_LINUX_MEMINFO_INPUT_MAX_BYTES) {
+            r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INPUT_TOO_LARGE,
+                R2_LINUX_CAPTURE_OP_READ, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+                R2_LINUX_CAPTURE_OVER_BOUND, 0, 0);
+            goto cleanup;
+        }
+    }
+
+    r.post_stat_state = R2_LINUX_CAPTURE_FAILED;
+    R2_LSC_TRY(R2_LINUX_CAPTURE_OP_POST_STAT,
+        fstat(meminfo_fd, &post_stat), r2_lsc_rc == 0);
+    if (!r2_lsc_same_stat_v1(&meminfo_stat, &post_stat)) {
+        r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_INVARIANT_FAILED,
+            R2_LINUX_CAPTURE_OP_POST_STAT, R2_LINUX_CAPTURE_FAULT_INVARIANT,
+            R2_LINUX_CAPTURE_IDENTITY_CHANGED, 0, 0);
+        goto cleanup;
+    }
+    r.post_stat_state = R2_LINUX_CAPTURE_VALID;
+    r.valid_fields |= R2_LINUX_CAPTURE_POST_STAT_VALID;
+    r.parser_status = route2_linux_parse_memavailable_v1(
+        bytes, length, &parsed, sizeof(parsed));
+    r.valid_fields |= R2_LINUX_CAPTURE_PARSER_RESULT_VALID;
+    if (r.parser_status != R2_LINUX_MEMINFO_PARSED || parsed.value_valid != 1) {
+        r2_lsc_fault_v1(&r, R2_LINUX_CAPTURE_PARSE_FAILED,
+            R2_LINUX_CAPTURE_OP_PARSE, R2_LINUX_CAPTURE_FAULT_PARSER,
+            r.parser_status, 0, 0);
+        goto cleanup;
+    }
+    /* Raw zero is deliberately retained and may be refused by admission later. */
+    r.memavailable_kib = parsed.memavailable_kib;
+    r.memavailable_bytes = parsed.memavailable_bytes;
+
+cleanup:
+    r2_lsc_close_v1(&r, &meminfo_fd, R2_LINUX_CAPTURE_OP_CLOSE_MEMINFO,
+        &r.meminfo_close_state, &r.meminfo_close_errno);
+    r2_lsc_close_v1(&r, &proc_fd, R2_LINUX_CAPTURE_OP_CLOSE_PROC,
+        &r.proc_close_state, &r.proc_close_errno);
+    r2_lsc_end_clock_v1(&r);
+    if (r.status == R2_LINUX_CAPTURE_UNKNOWN) {
+        r.status = R2_LINUX_CAPTURE_COMPLETE;
+        r.sample_valid = 1;
+        r.value_valid = 1;
+    } else {
+        r.memavailable_kib = 0;
+        r.memavailable_bytes = 0;
+    }
+    memcpy(out, &r, sizeof(r));
+    return r.status;
+}
+#undef R2_LSC_TRY
+#endif
