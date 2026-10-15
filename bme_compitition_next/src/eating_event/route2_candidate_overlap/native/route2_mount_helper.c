@@ -2461,3 +2461,460 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_copy_report_v1(
     return R2_OWN_OK;
 }
 #endif
+
+/* C03-B1 raw FILE PE dependency parser. SOURCE ONLY; no system calls.
+ * This append is independent of the dormant v2 and owned-child components.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED)
+#ifndef R2_PE_PRELOAD_RAW_V1_BODY
+#define R2_PE_PRELOAD_RAW_V1_BODY
+_Static_assert(sizeof(uintptr_t) == 8 && sizeof(size_t) == 8,
+               "raw PE parser requires native AMD64 sizes");
+_Static_assert(sizeof(struct r2_pe_raw_section_v1) == 24 &&
+               sizeof(struct r2_pe_raw_descriptor_v1) == 72 &&
+               sizeof(struct r2_pe_raw_symbol_v1) == 48 &&
+               sizeof(struct r2_pe_raw_tls_v1) == 80 &&
+               sizeof(struct r2_pe_raw_callback_v1) == 24,
+               "raw PE fact layout changed");
+_Static_assert(sizeof(struct r2_pe_raw_report_v1) == R2_PE_RAW_REPORT_BYTES &&
+               offsetof(struct r2_pe_raw_report_v1, directories) == 112 &&
+               offsetof(struct r2_pe_raw_report_v1, symbols) == 11760 &&
+               offsetof(struct r2_pe_raw_report_v1, tls) == 208368,
+               "raw PE fixed report ABI changed");
+struct r2_pe_context_v1 {
+    const unsigned char *file;
+    uint64_t length;
+    struct r2_pe_raw_report_v1 *r;
+};
+static int r2_pe_fail_v1(struct r2_pe_context_v1 *c, uint32_t status,
+                         uint32_t reason, uint64_t offset)
+{
+    if (c->r->reason == R2_PE_REASON_NONE) {
+        c->r->raw_status = status;
+        c->r->reason = reason;
+        c->r->failure_offset = offset;
+    }
+    return 0;
+}
+static int r2_pe_bad_v1(struct r2_pe_context_v1 *c, uint32_t reason, uint64_t off)
+{
+    return r2_pe_fail_v1(c, R2_PE_RAW_REJECTED, reason, off);
+}
+static int r2_pe_limit_v1(struct r2_pe_context_v1 *c, uint32_t reason, uint64_t off)
+{
+    return r2_pe_fail_v1(c, R2_PE_RAW_INCOMPLETE, reason, off);
+}
+static int r2_pe_charge_v1(struct r2_pe_context_v1 *c, uint64_t n, uint64_t off)
+{
+    if (n > R2_PE_RAW_WORK_LIMIT - c->r->work_units)
+        return r2_pe_limit_v1(c, R2_PE_REASON_WORK_LIMIT, off);
+    c->r->work_units += n;
+    return 1;
+}
+static int r2_pe_file_range_v1(struct r2_pe_context_v1 *c, uint64_t off, uint64_t n)
+{
+    if (off > c->length || n > c->length - off)
+        return r2_pe_bad_v1(c, R2_PE_REASON_TRUNCATED, off);
+    return 1;
+}
+/* All untrusted integer decoding is byte-wise, explicitly little endian. */
+static int r2_pe_read_v1(struct r2_pe_context_v1 *c, uint64_t off,
+                         uint32_t n, uint64_t *v)
+{
+    uint32_t i;
+    uint64_t x = 0;
+    if (!r2_pe_file_range_v1(c, off, n) || !r2_pe_charge_v1(c, n, off)) return 0;
+    for (i = 0; i < n; ++i) x |= (uint64_t)c->file[(size_t)(off + i)] << (8u * i);
+    *v = x;
+    return 1;
+}
+static int r2_pe_u32_v1(struct r2_pe_context_v1 *c, uint64_t off, uint32_t *v)
+{
+    uint64_t x;
+    if (!r2_pe_read_v1(c, off, 4, &x)) return 0;
+    *v = (uint32_t)x;
+    return 1;
+}
+/* The single RVA mapper. It returns one FILE-backed contiguous span. It never
+ * stitches sections, invents zero-fill, or resolves aliases. Every section
+ * candidate is charged even when a header/earlier section already matches.
+ */
+static int r2_pe_map_v1(struct r2_pe_context_v1 *c, uint32_t rva, uint64_t n,
+                        uint32_t *offset, uint32_t *available)
+{
+    uint32_t i, matches = 0, zero = 0, off = 0, span = 0;
+    uint64_t image = c->r->size_of_image;
+    if (!n || rva >= image || n > image - rva)
+        return r2_pe_bad_v1(c, R2_PE_REASON_RVA_OVERFLOW, rva);
+    if (!r2_pe_charge_v1(c, 1, rva)) return 0;
+    if (rva < c->r->size_of_headers) {
+        ++matches; off = rva; span = c->r->size_of_headers - rva;
+    }
+    for (i = 0; i < c->r->section_count; ++i) {
+        const struct r2_pe_raw_section_v1 *s = &c->r->sections[i];
+        uint32_t d;
+        if (!r2_pe_charge_v1(c, 1, rva)) return 0;
+        if (rva < s->rva || (uint64_t)rva - s->rva >= s->virtual_extent) continue;
+        d = rva - s->rva;
+        if (d >= s->raw_size) { zero = 1; continue; }
+        ++matches; off = s->raw_offset + d;
+        span = s->raw_size - d;
+        if (span > s->virtual_extent - d) span = s->virtual_extent - d;
+    }
+    if (matches > 1) return r2_pe_bad_v1(c, R2_PE_REASON_SECTION_OVERLAP, rva);
+    if (!matches) return r2_pe_bad_v1(c,
+        zero ? R2_PE_REASON_ZERO_FILL : R2_PE_REASON_RVA_UNMAPPED, rva);
+    if (n > span) return r2_pe_bad_v1(c, R2_PE_REASON_SPAN_CROSSING, rva);
+    if (!r2_pe_file_range_v1(c, off, span)) return 0;
+    *offset = off;
+    if (available) *available = span;
+    return 1;
+}
+static int r2_pe_name_v1(struct r2_pe_context_v1 *c, uint32_t rva,
+                         struct r2_pe_raw_name_v1 *name)
+{
+    uint32_t off, span, i;
+    if (!r2_pe_map_v1(c, rva, 1, &off, &span)) return 0;
+    for (i = 0; i < span && i < R2_PE_RAW_NAME_LIMIT; ++i) {
+        unsigned char b;
+        if (c->r->names_inspected_bytes == R2_PE_RAW_NAME_BYTES_LIMIT)
+            return r2_pe_limit_v1(c, R2_PE_REASON_NAME_BYTES_LIMIT, off + i);
+        if (!r2_pe_charge_v1(c, 1, off + i)) return 0;
+        ++c->r->names_inspected_bytes;
+        b = c->file[off + i];
+        if (b == 0) {
+            if (!i) return r2_pe_bad_v1(c, R2_PE_REASON_EMPTY_NAME, off);
+            name->file_offset = off; name->length = i;
+            return 1;
+        }
+    }
+    if (i == R2_PE_RAW_NAME_LIMIT)
+        return r2_pe_limit_v1(c, R2_PE_REASON_NAME_LIMIT, off + i);
+    return r2_pe_bad_v1(c, R2_PE_REASON_NAME_TERMINATOR, off + i);
+}
+static int r2_pe_dir_v1(struct r2_pe_context_v1 *c, uint32_t index,
+                        uint32_t minimum, uint32_t *off, uint32_t *size)
+{
+    const struct r2_pe_raw_directory_v1 *d = &c->r->directories[index];
+    *off = 0; *size = d->size;
+    if (!d->rva && !d->size) return 1;
+    if (!d->rva || d->size < minimum)
+        return r2_pe_bad_v1(c, R2_PE_REASON_DIRECTORY, d->rva);
+    return r2_pe_map_v1(c, d->rva, d->size, off, NULL);
+}
+static int r2_pe_power2_v1(uint32_t x) { return x && !(x & (x - 1u)); }
+static int r2_pe_headers_v1(struct r2_pe_context_v1 *c)
+{
+    uint64_t x, pe, opt, table;
+    uint32_t count, optional_size, dirs, i, j, section_align, file_align;
+    if (!r2_pe_read_v1(c, 0, 2, &x)) return 0;
+    if (x != 0x5A4Du) return r2_pe_bad_v1(c, R2_PE_REASON_DOS, 0);
+    if (!r2_pe_file_range_v1(c, 0, 64) || !r2_pe_read_v1(c, 0x3C, 4, &pe)) return 0;
+    if (pe < 64) return r2_pe_bad_v1(c, R2_PE_REASON_PE_SIGNATURE, pe);
+    if (!r2_pe_file_range_v1(c, pe, 24) || !r2_pe_read_v1(c, pe, 4, &x)) return 0;
+    if (x != 0x00004550u) return r2_pe_bad_v1(c, R2_PE_REASON_PE_SIGNATURE, pe);
+    if (!r2_pe_read_v1(c, pe + 4, 2, &x)) return 0;
+    if (x != 0x8664u) return r2_pe_bad_v1(c, R2_PE_REASON_MACHINE, pe + 4);
+    if (!r2_pe_read_v1(c, pe + 6, 2, &x)) return 0;
+    count = (uint32_t)x;
+    if (!count || count > R2_PE_RAW_SECTION_LIMIT)
+        return r2_pe_limit_v1(c, R2_PE_REASON_SECTION_LIMIT, pe + 6);
+    if (!r2_pe_read_v1(c, pe + 20, 2, &x)) return 0;
+    optional_size = (uint32_t)x; opt = pe + 24;
+    if (optional_size < 112)
+        return r2_pe_bad_v1(c, R2_PE_REASON_OPTIONAL_HEADER, pe + 20);
+    if (!r2_pe_file_range_v1(c, opt, optional_size) || !r2_pe_read_v1(c, opt, 2, &x)) return 0;
+    if (x != 0x20Bu) return r2_pe_bad_v1(c, R2_PE_REASON_OPTIONAL_HEADER, opt);
+    if (!r2_pe_read_v1(c, opt + 24, 8, &c->r->image_base) ||
+        !r2_pe_u32_v1(c, opt + 16, &c->r->entrypoint_rva) ||
+        !r2_pe_u32_v1(c, opt + 32, &section_align) ||
+        !r2_pe_u32_v1(c, opt + 36, &file_align) ||
+        !r2_pe_u32_v1(c, opt + 56, &c->r->size_of_image) ||
+        !r2_pe_u32_v1(c, opt + 60, &c->r->size_of_headers) ||
+        !r2_pe_u32_v1(c, opt + 108, &dirs)) return 0;
+    c->r->optional_directory_count = dirs;
+    if (dirs > 16 || dirs > (optional_size - 112u) / 8u)
+        return r2_pe_bad_v1(c, R2_PE_REASON_OPTIONAL_HEADER, opt + 108);
+    if (!r2_pe_power2_v1(section_align) || !r2_pe_power2_v1(file_align) ||
+        section_align < file_align ||
+        (section_align < 4096 ? file_align != section_align :
+          (file_align < 512 || file_align > 65536)) ||
+        !c->r->size_of_image || c->r->size_of_image % section_align ||
+        !c->r->size_of_headers || c->r->size_of_headers % file_align)
+        return r2_pe_bad_v1(c, R2_PE_REASON_ALIGNMENT, opt + 32);
+    table = opt + optional_size;
+    if (!r2_pe_file_range_v1(c, table, (uint64_t)count * 40)) return 0;
+    if (c->r->size_of_headers > c->length ||
+        c->r->size_of_headers > c->r->size_of_image ||
+        table + (uint64_t)count * 40 > c->r->size_of_headers ||
+        c->r->image_base > UINT64_MAX - c->r->size_of_image ||
+        c->r->entrypoint_rva >= c->r->size_of_image)
+        return r2_pe_bad_v1(c, R2_PE_REASON_SECTION_RANGE, opt + 56);
+    for (i = 0; i < dirs; ++i) {
+        if (!r2_pe_u32_v1(c, opt + 112 + i * 8, &c->r->directories[i].rva) ||
+            !r2_pe_u32_v1(c, opt + 116 + i * 8, &c->r->directories[i].size)) return 0;
+        ++c->r->directory_count;
+    }
+    for (i = 0; i < count; ++i) {
+        struct r2_pe_raw_section_v1 *s = &c->r->sections[i];
+        uint64_t at = table + (uint64_t)i * 40, vend, rend;
+        if (!r2_pe_u32_v1(c, at + 8, &s->virtual_size) ||
+            !r2_pe_u32_v1(c, at + 12, &s->rva) ||
+            !r2_pe_u32_v1(c, at + 16, &s->raw_size) ||
+            !r2_pe_u32_v1(c, at + 20, &s->raw_offset) ||
+            !r2_pe_u32_v1(c, at + 36, &s->characteristics)) return 0;
+        s->virtual_extent = s->virtual_size > s->raw_size ? s->virtual_size : s->raw_size;
+        vend = (uint64_t)s->rva + s->virtual_extent;
+        rend = (uint64_t)s->raw_offset + s->raw_size;
+        if (vend > UINT32_MAX || vend > c->r->size_of_image ||
+            rend > UINT32_MAX || rend > c->length)
+            return r2_pe_bad_v1(c, R2_PE_REASON_SECTION_RANGE, at + 8);
+        if ((s->virtual_extent && s->rva < c->r->size_of_headers) ||
+            (s->raw_size && s->raw_offset < c->r->size_of_headers))
+            return r2_pe_bad_v1(c, R2_PE_REASON_HEADER_OVERLAP, at + 12);
+        if (s->rva % section_align || (s->raw_size &&
+            (s->raw_offset % file_align || s->raw_size % file_align ||
+             (section_align < 4096 && s->raw_offset != s->rva))))
+            return r2_pe_bad_v1(c, R2_PE_REASON_ALIGNMENT, at + 12);
+        for (j = 0; j < i; ++j) {
+            const struct r2_pe_raw_section_v1 *p = &c->r->sections[j];
+            if (!r2_pe_charge_v1(c, 1, at)) return 0;
+            if ((s->virtual_extent && p->virtual_extent &&
+                 s->rva < (uint64_t)p->rva + p->virtual_extent && p->rva < vend) ||
+                (s->raw_size && p->raw_size &&
+                 s->raw_offset < (uint64_t)p->raw_offset + p->raw_size && p->raw_offset < rend))
+                return r2_pe_bad_v1(c, R2_PE_REASON_SECTION_OVERLAP, at);
+        }
+        ++c->r->section_count;
+    }
+    return 1;
+}
+/* Lookup and IAT advance in lockstep and must each terminate. The lookup is
+ * never replaced by IAT contents. Supported normal IATs are unbound copies of
+ * their lookup tables. Delay IATs may contain different nonzero stub addresses.
+ * Optional bound tables terminate in lockstep; unload tables are exact copies
+ * of the original on-disk delay IAT, including the zero terminator.
+ */
+static int r2_pe_thunks_v1(struct r2_pe_context_v1 *c, uint32_t di)
+{
+    struct r2_pe_raw_descriptor_v1 *d = &c->r->descriptors[di];
+    uint32_t lo, ls, io, is, bo = 0, bs = 0, uo = 0, us = 0, i;
+    if (!d->lookup_rva) return r2_pe_bad_v1(c, R2_PE_REASON_LOOKUP_ABSENT, d->descriptor_offset);
+    if (!d->iat_rva) return r2_pe_bad_v1(c, R2_PE_REASON_DIRECTORY, d->descriptor_offset);
+    if (!r2_pe_map_v1(c, d->lookup_rva, 8, &lo, &ls) ||
+        !r2_pe_map_v1(c, d->iat_rva, 8, &io, &is)) return 0;
+    if (d->bound_rva && !r2_pe_map_v1(c, d->bound_rva, 8, &bo, &bs)) return 0;
+    if (d->unload_rva && !r2_pe_map_v1(c, d->unload_rva, 8, &uo, &us)) return 0;
+    for (i = 0; ; ++i) {
+        uint64_t lookup, iat, bound = 0, unload = 0, step = (uint64_t)i * 8;
+        struct r2_pe_raw_symbol_v1 *s;
+        if (step + 8 > ls)
+            return r2_pe_bad_v1(c, R2_PE_REASON_THUNK_TERMINATOR, lo + step);
+        if (step + 8 > is)
+            return r2_pe_bad_v1(c, R2_PE_REASON_IAT_TERMINATOR, io + step);
+        if (!r2_pe_read_v1(c, lo + step, 8, &lookup) ||
+            !r2_pe_read_v1(c, io + step, 8, &iat)) return 0;
+        if (d->bound_rva) {
+            if (step + 8 > bs)
+                return r2_pe_bad_v1(c, R2_PE_REASON_BOUND_TERMINATOR, bo + step);
+            if (!r2_pe_read_v1(c, bo + step, 8, &bound)) return 0;
+        }
+        if (d->unload_rva) {
+            if (step + 8 > us)
+                return r2_pe_bad_v1(c, R2_PE_REASON_UNLOAD_CONTENT, uo + step);
+            if (!r2_pe_read_v1(c, uo + step, 8, &unload)) return 0;
+        }
+        if (!lookup) {
+            d->lookup_terminated = 1; d->valid_fields |= 4u;
+            if (iat) return r2_pe_bad_v1(c, R2_PE_REASON_IAT_TERMINATOR, io + step);
+            if (d->bound_rva && bound)
+                return r2_pe_bad_v1(c, R2_PE_REASON_BOUND_TERMINATOR, bo + step);
+            if (d->unload_rva && unload)
+                return r2_pe_bad_v1(c, R2_PE_REASON_UNLOAD_CONTENT, uo + step);
+            return 1;
+        }
+        if (c->r->symbol_count == R2_PE_RAW_SYMBOL_LIMIT)
+            return r2_pe_limit_v1(c, R2_PE_REASON_SYMBOL_LIMIT, lo + step);
+        s = &c->r->symbols[c->r->symbol_count++];
+        ++d->symbol_count;
+        s->descriptor_index = di; s->thunk_offset = lo + (uint32_t)step;
+        s->iat_offset = io + (uint32_t)step; s->raw_lookup = lookup; s->raw_iat = iat;
+        if (!iat) return r2_pe_bad_v1(c, R2_PE_REASON_IAT_TERMINATOR, io + step);
+        if (d->kind == R2_PE_IMPORT_NORMAL && iat != lookup)
+            return r2_pe_bad_v1(c, R2_PE_REASON_IAT_CONTENT, io + step);
+        if (d->bound_rva && !bound)
+            return r2_pe_bad_v1(c, R2_PE_REASON_BOUND_TERMINATOR, bo + step);
+        if (d->unload_rva && unload != iat)
+            return r2_pe_bad_v1(c, R2_PE_REASON_UNLOAD_CONTENT, uo + step);
+        if (lookup & UINT64_C(0x8000000000000000)) {
+            if (lookup & UINT64_C(0x7FFFFFFFFFFF0000))
+                return r2_pe_bad_v1(c, R2_PE_REASON_ORDINAL_BITS, lo + step);
+            s->ordinal = (uint32_t)(lookup & 0xFFFFu); s->kind = R2_PE_SYMBOL_ORDINAL;
+        } else {
+            struct r2_pe_raw_name_v1 name;
+            uint32_t no;
+            uint64_t hint;
+            /* PE32+ named lookup RVAs use only bits 30..0. */
+            if (lookup > UINT64_C(0x7FFFFFFF))
+                return r2_pe_bad_v1(c, R2_PE_REASON_NAME_RVA_BITS, lo + step);
+            if (!r2_pe_map_v1(c, (uint32_t)lookup, 3, &no, NULL) ||
+                !r2_pe_read_v1(c, no, 2, &hint)) return 0;
+            s->hint = (uint32_t)hint;
+            if (!r2_pe_name_v1(c, (uint32_t)lookup + 2u, &name)) return 0;
+            s->name_offset = name.file_offset; s->name_length = name.length;
+            s->kind = R2_PE_SYMBOL_NAME;
+        }
+    }
+}
+static int r2_pe_imports_v1(struct r2_pe_context_v1 *c, uint32_t delay)
+{
+    uint32_t off, size, cursor, width = delay ? 32u : 20u;
+    if (!r2_pe_dir_v1(c, delay ? 13u : 1u, width, &off, &size)) return 0;
+    if (!size) return 1;
+    for (cursor = 0; ; cursor += width) {
+        uint32_t f[8] = {0}, i, any = 0, di;
+        struct r2_pe_raw_descriptor_v1 *d;
+        if (cursor > size || width > size - cursor)
+            return r2_pe_bad_v1(c, R2_PE_REASON_DESCRIPTOR_TERMINATOR, (uint64_t)off + cursor);
+        for (i = 0; i < width / 4; ++i) {
+            if (!r2_pe_u32_v1(c, (uint64_t)off + cursor + i * 4, &f[i])) return 0;
+            any |= f[i];
+        }
+        if (!any) return 1;
+        if (c->r->descriptor_count == R2_PE_RAW_DESCRIPTOR_LIMIT)
+            return r2_pe_limit_v1(c, R2_PE_REASON_DESCRIPTOR_LIMIT, (uint64_t)off + cursor);
+        di = c->r->descriptor_count++;
+        d = &c->r->descriptors[di];
+        d->kind = delay ? R2_PE_IMPORT_DELAY : R2_PE_IMPORT_NORMAL;
+        d->valid_fields = 1; d->descriptor_offset = off + cursor;
+        d->first_symbol = c->r->symbol_count;
+        if (delay) {
+            uint32_t unused;
+            ++c->r->delay_count;
+            d->attributes = f[0]; d->module_handle_rva = f[2];
+            d->iat_rva = f[3]; d->lookup_rva = f[4];
+            d->bound_rva = f[5]; d->unload_rva = f[6]; d->time_stamp = f[7];
+            if (f[0] & ~1u) return r2_pe_bad_v1(c, R2_PE_REASON_DELAY_ATTRIBUTES, off + cursor);
+            if (!(f[0] & 1u)) return r2_pe_bad_v1(c, R2_PE_REASON_DELAY_LEGACY_VA, off + cursor);
+            if (!d->module_handle_rva)
+                return r2_pe_bad_v1(c, R2_PE_REASON_DELAY_HANDLE, off + cursor + 8);
+            if (!r2_pe_map_v1(c, d->module_handle_rva, 8, &unused, NULL)) return 0;
+        } else {
+            ++c->r->normal_count;
+            d->lookup_rva = f[0]; d->time_stamp = f[1]; d->forwarder_chain = f[2]; d->iat_rva = f[4];
+            if (f[1] || f[2]) return r2_pe_bad_v1(c, R2_PE_REASON_BOUND_UNSUPPORTED, off + cursor + 4);
+        }
+        if (!(delay ? f[1] : f[3])) return r2_pe_bad_v1(c, R2_PE_REASON_DIRECTORY, off + cursor);
+        if (!r2_pe_name_v1(c, delay ? f[1] : f[3], &d->dll_name)) return 0;
+        d->valid_fields |= 2u;
+        if (!r2_pe_thunks_v1(c, di)) return 0;
+    }
+}
+static int r2_pe_va_v1(struct r2_pe_context_v1 *c, uint64_t va,
+                       uint32_t endpoint, uint32_t *rva, uint64_t field)
+{
+    uint64_t delta;
+    if (va < c->r->image_base) return r2_pe_bad_v1(c, R2_PE_REASON_TLS_VA, field);
+    delta = va - c->r->image_base;
+    if (delta > UINT32_MAX || delta > c->r->size_of_image ||
+        (!endpoint && delta == c->r->size_of_image))
+        return r2_pe_bad_v1(c, R2_PE_REASON_TLS_VA, field);
+    *rva = (uint32_t)delta;
+    return 1;
+}
+static int r2_pe_tls_v1(struct r2_pe_context_v1 *c)
+{
+    struct r2_pe_raw_tls_v1 *t = &c->r->tls;
+    uint32_t off, size, start, end, rva, po, span, i;
+    if (!r2_pe_dir_v1(c, 9, 40, &off, &size)) return 0;
+    if (!size) return 1;
+    t->present = 1; t->directory_offset = off; t->directory_size = size;
+    if (!r2_pe_read_v1(c, off, 8, &t->raw_start_va) ||
+        !r2_pe_read_v1(c, off + 8, 8, &t->raw_end_va) ||
+        !r2_pe_read_v1(c, off + 16, 8, &t->index_va) ||
+        !r2_pe_read_v1(c, off + 24, 8, &t->callbacks_va) ||
+        !r2_pe_u32_v1(c, off + 32, &t->zero_fill) ||
+        !r2_pe_u32_v1(c, off + 36, &t->characteristics)) return 0;
+    t->fields_valid = 1;
+    if ((!t->raw_start_va) != (!t->raw_end_va) || t->raw_end_va < t->raw_start_va)
+        return r2_pe_bad_v1(c, R2_PE_REASON_TLS_TEMPLATE, off);
+    if (t->raw_start_va) {
+        if (!r2_pe_va_v1(c, t->raw_start_va, 1, &start, off) ||
+            !r2_pe_va_v1(c, t->raw_end_va, 1, &end, off + 8)) return 0;
+        t->template_bytes = end - start;
+        if (t->template_bytes && !r2_pe_map_v1(c, start, t->template_bytes, &t->template_offset, NULL)) return 0;
+    }
+    if (!t->index_va) return r2_pe_bad_v1(c, R2_PE_REASON_TLS_VA, off + 16);
+    if (!r2_pe_va_v1(c, t->index_va, 0, &rva, off + 16) ||
+        !r2_pe_map_v1(c, rva, 4, &t->index_offset, NULL)) return 0;
+    /* A zero address is absence, not an observed array terminator. */
+    if (!t->callbacks_va) return 1;
+    if (!r2_pe_va_v1(c, t->callbacks_va, 0, &rva, off + 24) ||
+        !r2_pe_map_v1(c, rva, 8, &po, &span)) return 0;
+    for (i = 0; ; ++i) {
+        uint64_t va, step = (uint64_t)i * 8;
+        struct r2_pe_raw_callback_v1 *cb;
+        if (step + 8 > span)
+            return r2_pe_bad_v1(c, R2_PE_REASON_TLS_TERMINATOR, po + step);
+        if (!r2_pe_read_v1(c, po + step, 8, &va)) return 0;
+        if (!va) { t->callbacks_terminated = 1; return 1; }
+        if (i == R2_PE_RAW_TLS_CALLBACK_LIMIT)
+            return r2_pe_limit_v1(c, R2_PE_REASON_TLS_CALLBACK_LIMIT, po + step);
+        cb = &c->r->callbacks[t->callback_count++];
+        cb->raw_va = va; cb->pointer_offset = po + (uint32_t)step;
+        if (!r2_pe_va_v1(c, va, 0, &cb->target_rva, po + step) ||
+            !r2_pe_map_v1(c, cb->target_rva, 1, &cb->target_offset, NULL)) return 0;
+    }
+}
+uint32_t route2_pe_preload_parse_raw_v1(
+    const unsigned char *file, size_t file_size, uint32_t report_abi,
+    struct r2_pe_raw_report_v1 *out, size_t out_size)
+{
+    uintptr_t in_begin = (uintptr_t)file, out_begin = (uintptr_t)out;
+    uintptr_t in_end, out_end;
+    size_t i;
+    unsigned char *clear;
+    struct r2_pe_context_v1 c;
+    uint32_t unused, size;
+    /* No output bytes are touched before all integer ranges, ABI, alignment
+     * and disjointness checks. The caller still owns accessibility/stability.
+     */
+    if (!file || !out || report_abi != R2_PE_RAW_ABI ||
+        out_size != R2_PE_RAW_REPORT_BYTES ||
+        out_begin % _Alignof(struct r2_pe_raw_report_v1) ||
+        file_size > UINTPTR_MAX - in_begin || out_size > UINTPTR_MAX - out_begin)
+        return R2_PE_RAW_BAD_ARGUMENT;
+    in_end = in_begin + file_size; out_end = out_begin + out_size;
+    if (file_size && in_begin < out_end && out_begin < in_end) return R2_PE_RAW_BAD_ARGUMENT;
+    clear = (unsigned char *)out;
+    for (i = 0; i < out_size; ++i) clear[i] = 0;
+    out->abi = R2_PE_RAW_ABI; out->size = R2_PE_RAW_REPORT_BYTES;
+    out->raw_status = R2_PE_RAW_REJECTED;
+    out->preload_scope = R2_PE_PRELOAD_CLOSURE_UNPROVEN;
+    out->file_bytes = file_size;
+    c.file = file; c.length = file_size; c.r = out;
+    if (file_size > R2_PE_RAW_FILE_LIMIT) {
+        r2_pe_limit_v1(&c, R2_PE_REASON_FILE_LIMIT, 0); return out->raw_status;
+    }
+    if (!r2_pe_headers_v1(&c)) return out->raw_status;
+    /* A bound import directory is retained but is unsupported by this parser.
+     * It must never cause a resolved address to be decoded as a spelling.
+     */
+    if (out->directories[11].rva || out->directories[11].size) {
+        r2_pe_bad_v1(&c, R2_PE_REASON_BOUND_UNSUPPORTED, out->directories[11].rva);
+        return out->raw_status;
+    }
+    if (!r2_pe_dir_v1(&c, 12, 8, &unused, &size) ||
+        !r2_pe_imports_v1(&c, 0) || !r2_pe_imports_v1(&c, 1) || !r2_pe_tls_v1(&c))
+        return out->raw_status;
+    out->structural_complete = 1;
+    out->raw_status = R2_PE_RAW_COMPLETE;
+    if (out->tls.callback_count) {
+        out->raw_status = R2_PE_RAW_APPLICATION_TLS_PRESENT;
+        out->reason = R2_PE_REASON_APPLICATION_TLS_PRESENT;
+        out->failure_offset = out->tls.directory_offset;
+    }
+    return out->raw_status;
+}
+#endif
+#endif

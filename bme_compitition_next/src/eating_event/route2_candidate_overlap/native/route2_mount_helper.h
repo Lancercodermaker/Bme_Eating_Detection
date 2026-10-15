@@ -671,3 +671,136 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_copy_report_v1(
     struct r2_win_owned_report_v1 *, size_t);
 #endif
 #endif
+
+/* C03-B1 bounded on-disk PE dependency facts, SOURCE ONLY. Independent ABI.
+ * Microsoft PE format: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
+ * No loader, provider selection, closure verifier, receipt, authority or export.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED)
+#ifndef R2_PE_PRELOAD_RAW_V1_DECLARED
+#define R2_PE_PRELOAD_RAW_V1_DECLARED
+#define R2_PE_RAW_ABI 1u
+#define R2_PE_RAW_REPORT_BYTES 209984u
+#define R2_PE_RAW_FILE_LIMIT 67108864u
+#define R2_PE_RAW_SECTION_LIMIT 96u
+#define R2_PE_RAW_DESCRIPTOR_LIMIT 128u
+#define R2_PE_RAW_SYMBOL_LIMIT 4096u
+#define R2_PE_RAW_NAME_LIMIT 512u
+#define R2_PE_RAW_NAME_BYTES_LIMIT 1048576u
+#define R2_PE_RAW_TLS_CALLBACK_LIMIT 64u
+#define R2_PE_RAW_WORK_LIMIT 8388608u
+
+enum r2_pe_raw_status_v1 {
+    R2_PE_RAW_COMPLETE = 0xC301u,
+    R2_PE_RAW_INCOMPLETE = 0xC302u,
+    R2_PE_RAW_REJECTED = 0xC303u,
+    R2_PE_RAW_BAD_ARGUMENT = 0xC304u,
+    R2_PE_RAW_APPLICATION_TLS_PRESENT = 0xC305u
+};
+enum r2_pe_raw_reason_v1 {
+    R2_PE_REASON_NONE = 0,
+    R2_PE_REASON_FILE_LIMIT, R2_PE_REASON_TRUNCATED,
+    R2_PE_REASON_DOS, R2_PE_REASON_PE_SIGNATURE,
+    R2_PE_REASON_MACHINE, R2_PE_REASON_OPTIONAL_HEADER,
+    R2_PE_REASON_SECTION_LIMIT, R2_PE_REASON_SECTION_RANGE,
+    R2_PE_REASON_SECTION_OVERLAP, R2_PE_REASON_HEADER_OVERLAP,
+    R2_PE_REASON_RVA_OVERFLOW, R2_PE_REASON_RVA_UNMAPPED,
+    R2_PE_REASON_ZERO_FILL, R2_PE_REASON_SPAN_CROSSING,
+    R2_PE_REASON_DIRECTORY, R2_PE_REASON_DESCRIPTOR_LIMIT,
+    R2_PE_REASON_DESCRIPTOR_TERMINATOR, R2_PE_REASON_LOOKUP_ABSENT,
+    R2_PE_REASON_BOUND_UNSUPPORTED, R2_PE_REASON_THUNK_TERMINATOR,
+    R2_PE_REASON_SYMBOL_LIMIT, R2_PE_REASON_ORDINAL_BITS,
+    R2_PE_REASON_NAME_RVA_BITS, R2_PE_REASON_EMPTY_NAME,
+    R2_PE_REASON_NAME_TERMINATOR, R2_PE_REASON_NAME_LIMIT,
+    R2_PE_REASON_NAME_BYTES_LIMIT, R2_PE_REASON_WORK_LIMIT,
+    R2_PE_REASON_DELAY_LEGACY_VA, R2_PE_REASON_DELAY_ATTRIBUTES,
+    R2_PE_REASON_TLS_VA, R2_PE_REASON_TLS_TEMPLATE,
+    R2_PE_REASON_TLS_CALLBACK_LIMIT, R2_PE_REASON_TLS_TERMINATOR,
+    R2_PE_REASON_APPLICATION_TLS_PRESENT, R2_PE_REASON_IAT_TERMINATOR,
+    R2_PE_REASON_ALIGNMENT, R2_PE_REASON_IAT_CONTENT,
+    R2_PE_REASON_BOUND_TERMINATOR, R2_PE_REASON_UNLOAD_CONTENT,
+    R2_PE_REASON_DELAY_HANDLE
+};
+/* This value is intentionally unrelated to r2_scope_result / any authority ABI. */
+#define R2_PE_PRELOAD_CLOSURE_UNPROVEN 0xC3FFu
+#define R2_PE_IMPORT_NORMAL 1u
+#define R2_PE_IMPORT_DELAY 2u
+#define R2_PE_SYMBOL_NAME 1u
+#define R2_PE_SYMBOL_ORDINAL 2u
+
+struct r2_pe_raw_name_v1 { uint32_t file_offset, length; };
+struct r2_pe_raw_directory_v1 { uint32_t rva, size; };
+struct r2_pe_raw_section_v1 {
+    uint32_t rva, virtual_size, raw_offset, raw_size, virtual_extent, characteristics;
+};
+/* valid_fields: bit0 descriptor bytes, bit1 DLL name, bit2 terminated lookup.
+ * Unset fields and slots are zero; counts include partial descriptors/symbols.
+ */
+struct r2_pe_raw_descriptor_v1 {
+    uint32_t kind, valid_fields, descriptor_offset, lookup_rva;
+    uint32_t iat_rva, module_handle_rva, bound_rva, unload_rva;
+    uint32_t time_stamp, forwarder_chain, attributes, first_symbol;
+    uint32_t symbol_count, lookup_terminated, reserved[2];
+    struct r2_pe_raw_name_v1 dll_name;
+};
+/* kind==0 means a retained but incompletely decoded thunk. Name length excludes
+ * NUL; hint is a raw 16-bit value and ordinal is the exact low 16 bits.
+ */
+struct r2_pe_raw_symbol_v1 {
+    uint32_t descriptor_index, kind, thunk_offset, iat_offset;
+    uint32_t name_offset, name_length, hint, ordinal;
+    uint64_t raw_lookup, raw_iat;
+};
+struct r2_pe_raw_tls_v1 {
+    uint32_t present, fields_valid, directory_offset, directory_size;
+    uint64_t raw_start_va, raw_end_va, index_va, callbacks_va;
+    uint32_t zero_fill, characteristics, template_offset, template_bytes;
+    uint32_t index_offset, callback_count, callbacks_terminated, reserved;
+};
+struct r2_pe_raw_callback_v1 {
+    uint64_t raw_va;
+    uint32_t pointer_offset, target_rva, target_offset, reserved;
+};
+struct r2_pe_raw_report_v1 {
+    uint32_t abi, size, raw_status, reason;
+    uint32_t preload_scope, structural_complete, section_count, descriptor_count;
+    uint32_t normal_count, delay_count, symbol_count, names_inspected_bytes;
+    uint32_t directory_count, reserved[3];
+    uint64_t failure_offset, work_units, image_base, file_bytes;
+    uint32_t size_of_image, size_of_headers, entrypoint_rva, optional_directory_count;
+    struct r2_pe_raw_directory_v1 directories[16];
+    struct r2_pe_raw_section_v1 sections[R2_PE_RAW_SECTION_LIMIT];
+    struct r2_pe_raw_descriptor_v1 descriptors[R2_PE_RAW_DESCRIPTOR_LIMIT];
+    struct r2_pe_raw_symbol_v1 symbols[R2_PE_RAW_SYMBOL_LIMIT];
+    struct r2_pe_raw_tls_v1 tls;
+    struct r2_pe_raw_callback_v1 callbacks[R2_PE_RAW_TLS_CALLBACK_LIMIT];
+};
+/* Caller supplies an accessible, STABLE FILE byte span (not a mapped image),
+ * and aligned, accessible, exclusive output for the entire call. const does
+ * not prove immutability. C pointer/range checks cannot prove accessibility.
+ * Input and output must be disjoint. Bad ABI/size/ranges/overlap return
+ * BAD_ARGUMENT without writing output; there is no probing or exception trap.
+ * All other returns initialize the whole fixed report and preserve partial
+ * facts. failure_offset is a FILE offset when a file location is known; for
+ * unmappable addresses it is the failing RVA (TLS_VA uses its field offset).
+ * work_units charges every inspected file byte and mapping/overlap candidate;
+ * fixed report initialization is bounded separately, not a RAM/time grant.
+ * A name may inspect at most 512 bytes INCLUDING its NUL, aggregate <=1MiB.
+ * Limits are conservative refusals, never truncation-as-complete. COMPLETE
+ * only covers these supported dependency structures, not whole PE validity.
+ * Supported normal IATs exactly match unbound lookup entries; delay IATs
+ * may hold nonzero stub addresses. Delay handle storage is required. Optional
+ * bound tables terminate in lockstep; unload tables equal the original IAT.
+ * Low alignment (<4096) requires each backed section FILE offset == RVA.
+ * APPLICATION_TLS_PRESENT retains complete structural facts but refuses the
+ * application callback condition. No callback is called. Empty/absent TLS
+ * proves nothing about CRT/DllMain. Export forwarders, API sets, SxS/search,
+ * mapped identities, transitive providers, existing 40-byte transport,
+ * original bytes provenance and actual preload closure remain UNPROVEN.
+ * No R2_SCOPE_PROVEN, v2 closure verifier, issuer receipt or handoff is issued.
+ */
+uint32_t route2_pe_preload_parse_raw_v1(
+    const unsigned char *file, size_t file_size, uint32_t report_abi,
+    struct r2_pe_raw_report_v1 *out, size_t out_size);
+#endif
+#endif
