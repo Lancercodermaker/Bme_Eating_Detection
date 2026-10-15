@@ -3193,3 +3193,300 @@ Prior source/storage commits1b3bceece7152fbe11279e7d7ea88111f014d907 and221becfb
 | 14 experiment endpoint | Route2 lawful StageA/B/results0; F1>=.66 OPEN. Route3v1-003 COMPLETE/four FAIL preserved. | Full scientific outcome intentionally awaits later lawful Stage; no pre-run F1 result or GT data is requested/fabricated. |
 
 Full status remains C00=AUDITED_UNPROVEN/allthreeUNPROVEN; wholeC01/C02/C03 incomplete; C04-C12 remain STOP under original2238-2248; PREPARED_UNREVIEWED/APPLICATION_BLOCKED/NOT_APPROVAL_READY/NOT_EXPERIMENT_AUTHORIZED. The present true execution dependency is a supported deployed trusted first-load/preparation owner with complete required resource/physical/service-join scope, or a separately concrete owner-authorized protocol change; permission alone is not current evidence. UNKNOWN is not machine impossibility. No unapproved disk change, GT payload/scientific work or Stage was run. Receipt clock 2026-10-15 07:03:01 UTC.
+
+
+<a id="h3-initial-inventory-proposal-20261015"></a>
+### H3 fixed initial inventory proposal: OWNER_NOT_APPROVED
+
+Latest owner instruction is: “补齐准入缺口，不要重复审查，完成补齐后直接开始执行stageA/B”. This supersedes the earlier requirement to seek another generic scientific-run approval after readiness: actual complete standards and a concrete frozen A+B object remain prerequisites, and then this conditional owner instruction authorizes execution. No Stage is currently authorized to start because those prerequisites are unmet. It does not authorize disk mutation or silently waive preparation/resource/protocol constraints. No complete frozen object or early GT/scientific result is created here.
+
+The next constructive operation is a fixed metadata inventory, not another audit of the unchanged C00 gap list. H1 (design-review3448/3461/3514) accepts missing historical proof but retains a trusted first-load/prebirth owner, complete prospective resources/physical/accounting and original stop/join owners BEFORE loads/spawn/provider work. The earlier H2 at3629 remained non-activatable because it kept those same missing prerequisites. Merely asking for normal preparation permission again would not supply them.
+
+H3 proposes a DIFFERENT, explicit and limited exception: admit exactly the final pinned scripts/route2_readonly_inventory.ps1 metadata probe despite the listed unproved BEFORE/C00 prerequisites, gather bounded partial machine facts, then return to all original gates. It requests one ADDITIONAL180s fact-gather allowance (120 active+60 cleanup), not a restart/consumption/renewal of H1's single preparation1800/external6000 attempt. All old and new costs remain aggregate UNKNOWN_NOT_ZERO; this extra allowance must be explicitly approved, never silently credited. It neither establishes original-budget compliance nor changes scientific Stage limits.
+
+The probe requests metadata reads only: bounded disk/partition/volume facts, RAM/CPU, fixed Windows build fields, existing WSL registration and VHD path/file metadata, selected .wslconfig settings. It starts no WSL, Python, compiler, native helper, GPU workload, GT/science or Stage; performs no task disk/configuration/filesystem mutation and creates no output files. Windows/.NET/module/provider activation can still cause cache, prefetch, registry, log, pagefile, ETW or service writes. Physical zero writes and bounded service completion are NOT promised. Those causal resources, E/nonE growth and residual fees remain unproved accepted-risk items ONLY if the owner approves H3.
+
+Precise proposed amendments, confined to this one inventory:
+- Adopt the existing tool-started PowerShell5.1/.NET root with unproved startup/preload/creator history; retain the original .NET child Process rather than claim native PROCESS_INFORMATION/primary-thread proof.
+- H3-only aggregate MONITORED64 threads, sampled parent512MiB/child4GiB/combined4GiB and shared two-core affinity. Formal MONITORED4/Linux hard limits and all original numbers outside H3 stay unchanged. Samples are not complete causal/hard RAM or infrastructure caps.
+- Suspend the complete causal-resource/physical-writer/first-load BEFORE proof ONLY for this fixed probe. Never report budget/admission PASS from it.
+- Use one original raw QPC before receipt persistence/source binding/child birth, absolute120/180 stops, original Process termination/wait and bounded streams; synchronous stalls, scheduling, original primary-thread proof and shared provider/service tail remain UNPROVEN. Failure/expiry does not end billing.
+- The trusted host root verifies actual owner approval and flushes one consumed invocation in original3 before launch in that SAME process. Script byte/receipt checks bind an already-authorized operation; they issue no approval and provide no durable anti-replay or owner-identity proof. Interrupted launch consumes the attempt, no retry.
+
+The following canonical ASCII policy is5748 bytes, SHA256 b255b40a7a4f83acee88019a32f811a87e27521bd174d2b1bb76ed10dd233dab. Hash covers exactly the single JSON line, excluding markers/newlines/fences. It intentionally excludes its own source hash; final approval binds both source_sha256 and contract_sha256, avoiding a self-hash cycle. The actual activation/consumption block MUST remain absent until an explicit owner decision on the final reviewed object. This POLICY block alone grants nothing.
+
+ROUTE2_H3_READONLY_INVENTORY_POLICY_V1_BEGIN
+{"schema":"route2_h3_readonly_inventory_policy_v1","policy_id":"route2-h3-readonly-inventory-2026-10-15-001","study_id":"route2-candidate-overlap-v1-001","purpose":"One initial Windows storage/RAM/CPU/WSL-registration/configuration metadata inventory before complete first-load/resource/physical closure; no feasibility or admission conclusion.","authority":"Activation requires one explicit owner approval of final source_sha256 and contract_sha256 after new scoped SPEC and independent fresh QUALITY. Trusted root verifies the actual owner message; caller bytes and this policy cannot issue authority.","entry":"Existing tool-started Windows PowerShell 5.1 root and .NET are adopted with their preload and creator history unproved. Same root samples raw Stopwatch QPC and frequency before durably consuming the sole activation in original3, then invokes the pinned script in that same process; one fixed self-child only.","clock":{"active_seconds":120,"cleanup_seconds":60,"total_seconds":180,"max_attempts":1,"epoch":"Original root raw QPC before receipt persistence, script binding, child birth and queries; script and child must retain exact original absolute active/cleanup stops without restart.","supervision":"Parent checks no less often than 100ms where runnable, requests termination only through the retained original child Process at active STOP or first failure, and waits/drains only inside the original cleanup deadline. No PID reopen.","limitation":"Scheduler delays, synchronous parent/Process.Start/observation/termination stalls, complete hard-deadline enforcement, provider completion and service-tail bounds remain UNPROVEN and are accepted only for this fixed probe."},"scope":{"script":"scripts/route2_readonly_inventory.ps1","runtime":"Windows PowerShell 5.1 and already-present .NET only; fixed self-child; no project/Python/libffi/compiler/native helper/WSL execution or GPU workload.","read_limits":"Get-Disk at most8 rows, Get-Partition at most128, Get-Volume at most64; fixed CIM RAM/CPU metadata; at most32 existing Lxss registrations and VHD file metadata only; selected .wslconfig fields from at most65536 bytes. Exact projections are frozen by source_sha256.","output":"Bounded stdout65536 bytes and stderr8192 bytes; no output files. Trusted root later appends actual facts/failures/unknowns only to original3.","forbidden":"Probe and child may not read payload/GT/scientific inputs, import project/Python code, download, install, compile, launch WSL, register, partition/format/shrink, mount, create/modify/delete directories or files, change configuration, run project tests, or execute Stage A/B. Fixed Windows PowerShell module autoload is within the accepted unproved first-load scope. Trusted-root original3 approval/consumption/factual receipts are the sole documentary-write exception."},"resources":{"application_threads":"H3-only aggregate parent plus fixed child MONITORED64 sampled where runnable; missing/stale/failed samples or observed excess STOP_NEW. Formal Windows MONITORED4 and Linux hard task limits remain unchanged outside H3.","rss":"Sample parent at most536870912 bytes, child at most4294967296 bytes, combined at most4294967296 bytes; observed excess or failed/stale sampling STOP_NEW. Sampling is not a hard or complete causal RAM cap.","cpu":"Parent affinity one core, child affinity two cores within the same two-core set, applied and read back before metadata queries; failed or unavailable application/readback STOP_NEW. Initial postbirth/pre-affinity execution and complete causal CPU control remain unproved.","whole":"Original wholeRAM16GiB/VRAM8GiB, E30GiB and nonE512MiB monitored/384MiB STOP_NEW/128MiB nominal cleanup numbers are not increased or certified. Complete causal VM/kernel/cache/service/provider/loader resources, E/nonE physical growth, writer scope and residual fees remain UNPROVEN; owner accepts that missing proof as an H3 admission exception."},"exceptions":"ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H3_MONITORED64_NOT_FORMAL4|H3_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H3_SHARED_PROVIDER_SERVICE_TAIL_UNJOINED|H3_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H3_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H3_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H3_ADDITIONAL_ONE180_NOT_H1_EPOCH","join":"Retained original .NET Process observation/wait/termination only, not native PROCESS_INFORMATION primary-thread join or complete provider/service cohort join. Unjoined actors and all tails remain UNKNOWN_NOT_ZERO and billed; FAIL or expiry never certifies drain or ends accounting.","accounting":"One additional fact-gather allowance of180 seconds only; does not start, consume, renew or restart the approved-unstarted H1 preparation1800/external6000 attempt. All old plus new unmeasured charges remain aggregate UNKNOWN_NOT_ZERO; no original-budget PASS or positive balance is inferred.","activation":"One unique strict canonical ASCII JSON block in the fixed original design-review document binds source, contract, actual owner message, nonce, same parent PID and original raw clocks. Trusted root flushes CONSUMED_FOR_THIS_INVOCATION before invocation; interrupted starts consume the attempt. Script checks bindings only, supplies no approval factory and claims no durable anti-replay guarantee.","result":"H3 produces bounded partial facts with field failures/unknowns and does not close C00, installed closure, physical/resource/service joins, full freeze/review, or any Stage gate. The latest owner authorization to proceed automatically with Stage A/B only after actual complete standards and concrete freeze is retained; H3 is not that satisfaction.","risk_acknowledgement":"H3_FIXED_READONLY_INVENTORY_ONLY"}
+ROUTE2_H3_READONLY_INVENTORY_POLICY_V1_END
+
+Implementation is still an unreviewed SOURCE proposal, not ready for approval or execution. The final pinned source, narrow independent SPEC and DIFFERENT fresh QUALITY results, exact launch recipe and one consolidated owner question will follow before any H3 activation. No actual invocation, syntax-execution, metadata provider query, project import/test/native/WSL/GT/Stage has occurred. Reading existing source/PE bytes and editing SOURCE are separate from the unstarted native attempt; their unknown costs persist.
+
+SOURCE chronology: root resumed07:48:07; preservation snapshot07:59:10 verified414 file identities and182 full index rows unchanged from b579fdbd90640dc7b55f68234566187925b166c1, including original11 staged. Script author FIRST07:54:57/original cutoff08:09:57, last saved08:03:51, then platform usage interruption left STOP unknown; no retrospective stop is invented. Contract design FIRST07:55:20/original cutoff08:05:20, final policy transmitted but STOP not captured before the same interruption. Root verified the exact canonical policy hash after resumption. Script readonly recovery13:16:10 found30325 bytes SHA0e1f1005adaf91485d0d756afdb9722135f9450be4127d8eef4b759e2d26e14f, then a separately declared targeted completion FIRST13:17:38/cutoff13:32:38; these are SOURCE phases, not H1/H3 native credit resets.
+
+Adaptive route STANDARD / PARALLEL_SUBAGENT via actual collaboration tools, one script writer and independent contract design. Only new implementation/contract errors will be reviewed. Manual source records are present; no runtime telemetry or full budget certificate is asserted. Existing三 SOURCE-reviewed C02 components at1b3bcee/221becf/b579fdb are unchanged and inherited. C00/full mechanisms, complete assembly/deployment/freeze and admission remain incomplete; H1 APPROVED_UNSTARTED, H3 OWNER_NOT_APPROVED, FROZEN_ADMISSION=None, lawful Stage/results0, old full FAIL-001 retained. Receipt clock 2026-10-15 13:19:18 UTC.
+
+
+### 2026-10-15 13:30 UTC — H3 fixed same-parent launcher, SOURCE TEMPLATE / OWNER_NOT_APPROVED
+
+This is a proposed launcher for the new metadata-only H3 exception, not an activation or approval issuer. Only after independent SPEC and different fresh QUALITY, final source pin, and an actual owner decision approving this exact H3 scope may trusted root replace the two owner placeholders with the actual message and an explicitly operator-local reference. A generic earlier preparation grant or `继续工作` does not approve these new exceptions. Launch once in fixed `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` with no profile, noninteractive and tool login disabled. No extra parent/native/WSL process may be substituted. Before tool launch trusted root marks the approved sole attempt consumed in its real execution record; any interrupted/refused/failed launch consumes it even if documentary writes never complete. No automatic recovery/retry. The wrapper checks binding and durable receipts only; trusted-host actual-message verification and serialized one-shot exclusion are explicit H3 responsibilities, not authenticated by this text.
+
+Raw root QPC is the first wrapper statement; the same epoch includes source binding, all documentary writes, child creation, queries and cleanup. All original3 must flush before invoking the source in that same parent. The code below constructs activation delimiters by concatenation, so this SOURCE template is not an activation block. Source pin is the current frozen candidate and must be superseded by an appended final pin if fixes change it; the launch is prohibited until the final review receipt identifies an exact matching template and script. Root SOURCE launcher drafting FIRST 13:30:08 UTC, finite600s cutoff13:40:08 UTC; this is not an H1/H3 native clock.
+
+```powershell
+# SOURCE TEMPLATE ONLY: do not execute before the actual owner approves
+# final source SHA + policy SHA + the nine named H3 exceptions.
+# Operator replaces ONLY the actual owner text and its local reference.
+# Run once through fixed System32 Windows PowerShell 5.1, -NoProfile,
+# -NonInteractive, login:false; no intermediate shell/second parent.
+$h3Epoch = [Diagnostics.Stopwatch]::GetTimestamp()
+$h3Frequency = [Diagnostics.Stopwatch]::Frequency
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$h3Root = 'E:\bme_compitition\.worktrees\high-f1-event-stack-execution\bme_compitition_next'
+$h3SourceSha = 'e54a9a81563aa2ba7020c5bb206d4aeed520b37bd24e08c896037b716f397688'
+$h3ContractSha = 'b255b40a7a4f83acee88019a32f811a87e27521bd174d2b1bb76ed10dd233dab'
+$h3OwnerText = '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__'
+$h3OwnerRef = '__ACTUAL_OPERATOR_LOCAL_REFERENCE__'
+$h3Script = [IO.Path]::Combine($h3Root, 'scripts\route2_readonly_inventory.ps1')
+$h3Docs = @(
+    'docs\superpowers\specs\2026-09-27-route2-candidate-interval-validation-design.md',
+    'docs\superpowers\plans\2026-09-28-route2-wsl-controller-execution.md',
+    'docs\decisions\2026-09-27-route2-design-review.md'
+)
+$h3ExceptionIds = 'ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H3_MONITORED64_NOT_FORMAL4|H3_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H3_SHARED_PROVIDER_SERVICE_TAIL_UNJOINED|H3_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H3_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H3_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H3_ADDITIONAL_ONE180_NOT_H1_EPOCH'
+$h3Utf8 = [Text.UTF8Encoding]::new($false, $true)
+function H3-Hash([byte[]] $Bytes) {
+    $h3Hash = [Security.Cryptography.SHA256]::Create()
+    try { ([BitConverter]::ToString($h3Hash.ComputeHash($Bytes))).Replace('-', '').ToLowerInvariant() }
+    finally { $h3Hash.Dispose() }
+}
+function H3-ReadBounded([string] $Path, [int] $Limit) {
+    $h3Stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        if ($h3Stream.Length -gt $Limit) { throw 'H3_SOURCE_OR_DOCUMENT_TOO_LARGE' }
+        $h3Bytes = New-Object byte[] ([int]$h3Stream.Length)
+        $h3Read = 0
+        while ($h3Read -lt $h3Bytes.Length) {
+            $h3Count = $h3Stream.Read($h3Bytes, $h3Read, $h3Bytes.Length - $h3Read)
+            if ($h3Count -eq 0) { throw 'H3_SHORT_READ' }
+            $h3Read += $h3Count
+        }
+        if ($h3Stream.ReadByte() -ne -1) { throw 'H3_FILE_GREW' }
+        return ,$h3Bytes
+    } finally { $h3Stream.Dispose() }
+}
+if ($h3OwnerText -eq '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__' -or $h3OwnerText.Length -eq 0 -or $h3OwnerText.Length -gt 8192 -or $h3OwnerRef -notmatch '^[A-Za-z0-9:/._-]{1,200}$' -or $h3OwnerRef -eq '__ACTUAL_OPERATOR_LOCAL_REFERENCE__') { throw 'H3_ACTUAL_OWNER_MESSAGE_REQUIRED' }
+if ((H3-Hash (H3-ReadBounded $h3Script 262144)) -cne $h3SourceSha) { throw 'H3_SOURCE_HASH_CHANGED_NO_RETRY' }
+$h3ActiveDecimal = [decimal]$h3Epoch + [decimal]$h3Frequency * 120
+$h3CleanupDecimal = [decimal]$h3Epoch + [decimal]$h3Frequency * 180
+if ($h3Frequency -le 0 -or $h3ActiveDecimal -gt [long]::MaxValue -or $h3CleanupDecimal -gt [long]::MaxValue) { throw 'H3_QPC_RANGE_NO_RETRY' }
+$h3Receipt = [ordered]@{
+    schema='route2_h3_readonly_inventory_activation_v1'
+    policy_id='route2-h3-readonly-inventory-2026-10-15-001'
+    source_sha256=$h3SourceSha
+    contract_sha256=$h3ContractSha
+    owner_message_sha256=(H3-Hash ($h3Utf8.GetBytes($h3OwnerText)))
+    owner_approval_reference=$h3OwnerRef
+    invocation_nonce=([Guid]::NewGuid().ToString('N'))
+    one_shot_state='CONSUMED_FOR_THIS_INVOCATION'
+    parent_pid=$PID
+    qpc_epoch=$h3Epoch
+    qpc_frequency=$h3Frequency
+    active_stop_qpc=[long]$h3ActiveDecimal
+    cleanup_stop_qpc=[long]$h3CleanupDecimal
+    active_seconds=120
+    cleanup_seconds=60
+    total_seconds=180
+    max_attempts=1
+    exception_ids=$h3ExceptionIds
+}
+$h3Json = $h3Receipt | ConvertTo-Json -Depth 4 -Compress
+if ($h3Json -cmatch '[^\x20-\x7e]') { throw 'H3_NON_ASCII_CANONICAL_JSON_NO_RETRY' }
+$h3ActivationSha = H3-Hash ([Text.Encoding]::ASCII.GetBytes($h3Json))
+$h3MarkerStem = 'ROUTE2_H3_READONLY_INVENTORY_ACTIVATION_V1'
+$h3Begin = '<!-- ' + $h3MarkerStem + '_BEGIN -->'
+$h3End = '<!-- ' + $h3MarkerStem + '_END -->'
+# Precheck ALL documents before any append. A failed/interrupted launch still
+# consumes the trusted host's sole attempt; absent/partial receipts permit NO retry.
+foreach ($h3Relative in $h3Docs) {
+    $h3Text = $h3Utf8.GetString((H3-ReadBounded ([IO.Path]::Combine($h3Root, $h3Relative)) 4194304))
+    if ($h3Text.Contains($h3Begin) -or $h3Text.Contains($h3End)) { throw 'H3_ALREADY_CONSUMED_OR_PARTIAL_RECEIPT_NO_RETRY' }
+}
+$h3OwnerBase64 = [Convert]::ToBase64String($h3Utf8.GetBytes($h3OwnerText))
+$h3Append = [string]::Join([char]10, @(
+    '', '',
+    'H3 actual owner decision and sole invocation consumption:',
+    ('Actual-owner-message UTF8 base64: ' + $h3OwnerBase64),
+    ('Operator-local reference (not a platform-issued message ID): ' + $h3OwnerRef),
+    'Trusted root verified the actual owner grant outside this script. CONSUMED before invocation; interruption, refusal or failed persistence grants no retry.',
+    $h3Begin, $h3Json, $h3End, ''
+))
+$h3AppendBytes = $h3Utf8.GetBytes($h3Append)
+foreach ($h3Relative in $h3Docs) {
+    if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h3ActiveDecimal) { throw 'H3_ACTIVE_STOP_DURING_RECEIPT_NO_RETRY' }
+    $h3AppendStream = [IO.File]::Open([IO.Path]::Combine($h3Root, $h3Relative), [IO.FileMode]::Append, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+    try {
+        $h3AppendStream.Write($h3AppendBytes, 0, $h3AppendBytes.Length)
+        $h3AppendStream.Flush($true)
+    } finally { $h3AppendStream.Dispose() }
+}
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h3ActiveDecimal) { throw 'H3_ACTIVE_STOP_BEFORE_INVOCATION_NO_RETRY' }
+& $h3Script -ActivationSha256 $h3ActivationSha
+$h3ExitCode = $LASTEXITCODE
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h3CleanupDecimal) { exit 1 }
+exit $h3ExitCode
+```
+
+The wrapper's placeholders refuse as written. No actual owner message, nonce, PID, original execution epoch, consumed activation block or probe result has been created by this SOURCE preparation. Source-only parsing is not invocation or runtime proof. H3 remains OWNER_NOT_APPROVED and H1 APPROVED_UNSTARTED.
+
+
+<a id="h3-final-source-launcher-20261015"></a>
+### 2026-10-15 — H3 final candidate launcher pin / SOURCE ONLY, OWNER_NOT_APPROVED
+
+The preceding e54a9a candidate launcher is SUPERSEDED and must never be used. This exact launcher differs only in the source pin, now 4cd47ee739897513af1f17fe65862ad15dbafe565a63ad34a063af52ed104634,45344 bytes, author freeze13:34:32 UTC after concrete SPEC P2 correction. Policy remains5748 ASCII bytes SHA256 b255b40a7a4f83acee88019a32f811a87e27521bd174d2b1bb76ed10dd233dab. A later fix would require an appended superseding pin/review before any launch. Actual approval placeholders remain empty of authority; this template creates no consumed activation. Same fixed PS5.1 parent, actual-message verification, raw pre-receipt QPC, all3 Flush(true), original absolute120/180 stops and trusted serialized NO RETRY duties remain as specified above. Root launcher authoring stopped13:35 UTC within13:30:08–13:40:08 SOURCE budget; exact verification/review clocks are appended separately. No H1/H3 epoch exists.
+
+```powershell
+# SOURCE TEMPLATE ONLY: do not execute before the actual owner approves
+# final source SHA + policy SHA + the nine named H3 exceptions.
+# Operator replaces ONLY the actual owner text and its local reference.
+# Run once through fixed System32 Windows PowerShell 5.1, -NoProfile,
+# -NonInteractive, login:false; no intermediate shell/second parent.
+$h3Epoch = [Diagnostics.Stopwatch]::GetTimestamp()
+$h3Frequency = [Diagnostics.Stopwatch]::Frequency
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$h3Root = 'E:\bme_compitition\.worktrees\high-f1-event-stack-execution\bme_compitition_next'
+$h3SourceSha = '4cd47ee739897513af1f17fe65862ad15dbafe565a63ad34a063af52ed104634'
+$h3ContractSha = 'b255b40a7a4f83acee88019a32f811a87e27521bd174d2b1bb76ed10dd233dab'
+$h3OwnerText = '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__'
+$h3OwnerRef = '__ACTUAL_OPERATOR_LOCAL_REFERENCE__'
+$h3Script = [IO.Path]::Combine($h3Root, 'scripts\route2_readonly_inventory.ps1')
+$h3Docs = @(
+    'docs\superpowers\specs\2026-09-27-route2-candidate-interval-validation-design.md',
+    'docs\superpowers\plans\2026-09-28-route2-wsl-controller-execution.md',
+    'docs\decisions\2026-09-27-route2-design-review.md'
+)
+$h3ExceptionIds = 'ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H3_MONITORED64_NOT_FORMAL4|H3_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H3_SHARED_PROVIDER_SERVICE_TAIL_UNJOINED|H3_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H3_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H3_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H3_ADDITIONAL_ONE180_NOT_H1_EPOCH'
+$h3Utf8 = [Text.UTF8Encoding]::new($false, $true)
+function H3-Hash([byte[]] $Bytes) {
+    $h3Hash = [Security.Cryptography.SHA256]::Create()
+    try { ([BitConverter]::ToString($h3Hash.ComputeHash($Bytes))).Replace('-', '').ToLowerInvariant() }
+    finally { $h3Hash.Dispose() }
+}
+function H3-ReadBounded([string] $Path, [int] $Limit) {
+    $h3Stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        if ($h3Stream.Length -gt $Limit) { throw 'H3_SOURCE_OR_DOCUMENT_TOO_LARGE' }
+        $h3Bytes = New-Object byte[] ([int]$h3Stream.Length)
+        $h3Read = 0
+        while ($h3Read -lt $h3Bytes.Length) {
+            $h3Count = $h3Stream.Read($h3Bytes, $h3Read, $h3Bytes.Length - $h3Read)
+            if ($h3Count -eq 0) { throw 'H3_SHORT_READ' }
+            $h3Read += $h3Count
+        }
+        if ($h3Stream.ReadByte() -ne -1) { throw 'H3_FILE_GREW' }
+        return ,$h3Bytes
+    } finally { $h3Stream.Dispose() }
+}
+if ($h3OwnerText -eq '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__' -or $h3OwnerText.Length -eq 0 -or $h3OwnerText.Length -gt 8192 -or $h3OwnerRef -notmatch '^[A-Za-z0-9:/._-]{1,200}$' -or $h3OwnerRef -eq '__ACTUAL_OPERATOR_LOCAL_REFERENCE__') { throw 'H3_ACTUAL_OWNER_MESSAGE_REQUIRED' }
+if ((H3-Hash (H3-ReadBounded $h3Script 262144)) -cne $h3SourceSha) { throw 'H3_SOURCE_HASH_CHANGED_NO_RETRY' }
+$h3ActiveDecimal = [decimal]$h3Epoch + [decimal]$h3Frequency * 120
+$h3CleanupDecimal = [decimal]$h3Epoch + [decimal]$h3Frequency * 180
+if ($h3Frequency -le 0 -or $h3ActiveDecimal -gt [long]::MaxValue -or $h3CleanupDecimal -gt [long]::MaxValue) { throw 'H3_QPC_RANGE_NO_RETRY' }
+$h3Receipt = [ordered]@{
+    schema='route2_h3_readonly_inventory_activation_v1'
+    policy_id='route2-h3-readonly-inventory-2026-10-15-001'
+    source_sha256=$h3SourceSha
+    contract_sha256=$h3ContractSha
+    owner_message_sha256=(H3-Hash ($h3Utf8.GetBytes($h3OwnerText)))
+    owner_approval_reference=$h3OwnerRef
+    invocation_nonce=([Guid]::NewGuid().ToString('N'))
+    one_shot_state='CONSUMED_FOR_THIS_INVOCATION'
+    parent_pid=$PID
+    qpc_epoch=$h3Epoch
+    qpc_frequency=$h3Frequency
+    active_stop_qpc=[long]$h3ActiveDecimal
+    cleanup_stop_qpc=[long]$h3CleanupDecimal
+    active_seconds=120
+    cleanup_seconds=60
+    total_seconds=180
+    max_attempts=1
+    exception_ids=$h3ExceptionIds
+}
+$h3Json = $h3Receipt | ConvertTo-Json -Depth 4 -Compress
+if ($h3Json -cmatch '[^\x20-\x7e]') { throw 'H3_NON_ASCII_CANONICAL_JSON_NO_RETRY' }
+$h3ActivationSha = H3-Hash ([Text.Encoding]::ASCII.GetBytes($h3Json))
+$h3MarkerStem = 'ROUTE2_H3_READONLY_INVENTORY_ACTIVATION_V1'
+$h3Begin = '<!-- ' + $h3MarkerStem + '_BEGIN -->'
+$h3End = '<!-- ' + $h3MarkerStem + '_END -->'
+# Precheck ALL documents before any append. A failed/interrupted launch still
+# consumes the trusted host's sole attempt; absent/partial receipts permit NO retry.
+foreach ($h3Relative in $h3Docs) {
+    $h3Text = $h3Utf8.GetString((H3-ReadBounded ([IO.Path]::Combine($h3Root, $h3Relative)) 4194304))
+    if ($h3Text.Contains($h3Begin) -or $h3Text.Contains($h3End)) { throw 'H3_ALREADY_CONSUMED_OR_PARTIAL_RECEIPT_NO_RETRY' }
+}
+$h3OwnerBase64 = [Convert]::ToBase64String($h3Utf8.GetBytes($h3OwnerText))
+$h3Append = [string]::Join([char]10, @(
+    '', '',
+    'H3 actual owner decision and sole invocation consumption:',
+    ('Actual-owner-message UTF8 base64: ' + $h3OwnerBase64),
+    ('Operator-local reference (not a platform-issued message ID): ' + $h3OwnerRef),
+    'Trusted root verified the actual owner grant outside this script. CONSUMED before invocation; interruption, refusal or failed persistence grants no retry.',
+    $h3Begin, $h3Json, $h3End, ''
+))
+$h3AppendBytes = $h3Utf8.GetBytes($h3Append)
+foreach ($h3Relative in $h3Docs) {
+    if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h3ActiveDecimal) { throw 'H3_ACTIVE_STOP_DURING_RECEIPT_NO_RETRY' }
+    $h3AppendStream = [IO.File]::Open([IO.Path]::Combine($h3Root, $h3Relative), [IO.FileMode]::Append, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+    try {
+        $h3AppendStream.Write($h3AppendBytes, 0, $h3AppendBytes.Length)
+        $h3AppendStream.Flush($true)
+    } finally { $h3AppendStream.Dispose() }
+}
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h3ActiveDecimal) { throw 'H3_ACTIVE_STOP_BEFORE_INVOCATION_NO_RETRY' }
+& $h3Script -ActivationSha256 $h3ActivationSha
+$h3ExitCode = $LASTEXITCODE
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h3CleanupDecimal) { exit 1 }
+exit $h3ExitCode
+```
+
+<a id="h3-reviewed-proposal-decision-20261015"></a>
+### 2026-10-15 — H3 implemented source and concrete pending owner decision
+
+Review ID: route2-h3-readonly-inventory-source-review-2026-10-15-001. This ID covers ONLY the new H3 metadata inventory SOURCE, canonical policy and exact final same-parent launcher above. It is not the formal installed A+B implementation/execution review. H3 is still OWNER_NOT_APPROVED and no activation exists.
+
+Frozen working-file source scripts/route2_readonly_inventory.ps1 is 45344 bytes SHA2564cd47ee739897513af1f17fe65862ad15dbafe565a63ad34a063af52ed104634. Canonical policy is 5748 ASCII bytes SHA256b255b40a7a4f83acee88019a32f811a87e27521bd174d2b1bb76ed10dd233dab. Final fenced launcher content, including its leading/trailing LF, is 6100 UTF8 bytes SHA256fa54fe6754f5d57a7177acfe10e10fce633e1187abdf2ef24598184cbadc988f. All original3 contain identical policy and final launcher. The older e54a9a source/launcher is superseded. These are actual working-byte pins, not a claim that Git's line-ending-normalized blob has the same SHA256.
+
+Single writer /root/implement_initial_inventory_entry froze e54a9a at13:26:45 after the bounded13:17:38–13:32:38 correction window. Independent SPEC found a real P2: cleanup lacked resource samples and a child-exited branch could ignore an observed excessive parent thread count. The same writer corrected only the new script in a new explicitly recorded600s SOURCE window FIRST13:31:59/freeze13:34:32 (153s; original cutoff13:41:59). The final code checks parent limits before child-exit branching, attempts original termination/join independently of capture/sampling faults, samples runnable cleanup with deduplicated faults, and samples parent before Process disposal. Post-exit/post-final sample/provider/serialization/flush tails remain UNKNOWN_NOT_ZERO.
+
+Independent SPEC /root/h3_inventory_spec FIRST13:29:25, initial READSTOP13:31:57; launcher extension13:32:18–13:33:01; final targeted13:35:08–13:36:18, all within original13:39:25 cutoff, returned NO_REMAINING_SCOPED_P1_P2 / H3_PROPOSAL_SOURCE_ONLY. Different fresh QUALITY: /root/h3_inventory_fresh_quality FIRST13:37:16/READSTOP13:41:21 UTC (245s of600, original cutoff13:47:16), returned NO_REMAINING_SCOPED_P1_P2 / H3_PROPOSAL_SOURCE_ONLY after independently checking the same final script/policy/launcher and zero source-parser errors. No invocation, project tests/imports, providers/hardware/GT, writes or Git mutation occurred.
+Root independently verified final45344B source hash and source-only Parser.ParseFile0errors/6764tokens13:36:06; final launcher Parser.ParseInput0errors/874tokens13:36:13; original3 exact policy/launcher bytes and hashes13:37:40. These parse/hash checks prove no runtime capability or admission. Root launcher drafting FIRST13:30:08, final append observed13:35:22 and source verification13:36:13, within its600s SOURCE cutoff13:40:08. Earlier platform usage interruptions, original unobserved STOPs and all prior SOURCE/actual costs remain recorded; no history was zeroed or reconstructed.
+
+**One pending concrete decision.** Approve or decline exactly this H3 source/policy/final launcher: ONE ADDITIONAL180s Windows readonly metadata inventory (120 active+60 cleanup), adopted preloaded PS5.1/.NET root and retained original Process, H3-only MONITORED64 sampled threads, parent512MiB/child4GiB/combined4GiB samples and selected one/two-core affinity. Accept the nine exact named exceptions in the pinned policy, including unproved initial creator/loader boundaries, complete causal resource/physical/E/nonE charges, provider/service join, sync-stall hard deadlines and trusted-host manual one-shot provenance. All those missing facts/fees remain UNPROVEN/UNKNOWN_NOT_ZERO. Normal formal4-thread and every original Stage/storage/resource/science limit are unchanged outside this one probe. No WSL startup, install/build/Python/native helper/GT/science/Stage or disk/configuration mutation is included; original3 factual/consumption appends are the sole intentional documentary writes. System/provider implicit writes and surviving tails are not certified absent.
+
+This is a necessary new scope exception because the owner's original preparation grant explicitly says “这些授权不豁免任何预算、身份、加载前边界或失败清场要求”. Existing preparation authority and the twice-approved H1 are retained, not requested again. H3 must admit the specified missing BEFORE proof for this one fact query, instead of silently ignoring that clause. A generic earlier approval/continue message does not grant this new pinned exception. Only an actual later decision after both scoped reviews can activate it. Trusted root must record the sole launch as consumed before issuing it; receipt/source bindings are not authority factories, and interruption/refusal/partial persistence permits no retry.
+
+The owner's latest instruction to start Stage A/B directly once actual complete standards and concrete freeze are achieved is effective. No new generic final scientific permission will be invented. It is conditional authority: none of the H3 facts/source reviews constitutes fulfillment, and no current complete frozen A+B object or legal invocation exists.
+
+| Original A+B condition | SOURCE / actual evidence now | Remaining BEFORE / authorized SAME-invocation gate and conclusion |
+| --- | --- | --- |
+| 1 study and authority | Original study/H1 retained; latest conditional Stage-start direction effective; H3 exact proposal reviewed, not approved. | Concrete full A+B freeze/review and all actual admission criteria unmet. Current object cannot start; FROZEN_ADMISSION=None. |
+| 2 fixed science / equivalence | Original saved scores/model26D/threshold/decoder/matcher and strict-overlap vs300s gap fixed. No new scientific input read. | Complete no-GT production equivalence BEFORE;105-reference reproduction only lawful Stage. UNPROVEN. |
+| 3 immutable role inputs | directory-v2 broker/O_PATH110/revocation history inherited unchanged. | Full actual creator/bank/generation/per-role publisher/same-FD consumer absent. Original4096/256/nlink1 retained. UNPROVEN. |
+| 4 counts / Stage B gate |105+105,25fit/25predict/65decode/20GT-backed+21stGT-free merge and pooledGTreads0 unchanged. | Actual nonbypassable image/ledger assembly BEFORE; StageA measurements/projection only authorized same invocation. UNPROVEN. |
+| 5 matched-GT control | Prior matched-GT gain/loss and finalize dual-exception fixes inherited. | Full isolated grants/revokes/production consumption BEFORE; GT-backed calls only lawful Stage. UNPROVEN. |
+| 6 trust / deployment | Three prior C02 source components preserved; H3 new fixedPS source/launcher dual-reviewed only. | Normal creator/cohort/HANDLE/Job/UID/namespace/IPC/preload/write scope and installed closure incomplete. H3 exceptions are not proof. UNPROVEN. |
+| 7 physical storage / two floors | Native readonly geometry producer remains unexecuted; H3 query unexecuted, no target or disk change. | Actual backing/geometry/rights/baseline/all-writer bounds and separately approved specific mutation if needed BEFORE; guestFS and actual Windows backing two8GiB floors SAME invocation. UNPROVEN. |
+| 8 complete resources / wall | Prior Linux capture/native deadline SOURCE inherited; H3 only sampled exception proposal. | Full normal RAM/VRAM/CPU/thread/kernel/VM/service support/ownership and applied WSL/Linux limits incomplete; SAME-invocation startup facts not manufactured. UNPROVEN. |
+| 9 preparation budgets | H1 approved/unstarted1800/6000; H3 proposed additional180s not yet granted/consumed. | Original limits unchanged outside H3; genuine normal preparation boundary and actual prospective billing remain BEFORE. No balance/PASS inferred. UNPROVEN. |
+| 10 full charging / nonE | All old/new fees retained UNKNOWN_NOT_ZERO; no new runtime telemetry. | Full causal accounting and nonE512MiB monitored384stop/128nominal cleanup remain incomplete. H3 would except missing proof only for this query. UNPROVEN. |
+| 11 loading / dependencies | Compile-free native source and static file-byte inventory inherited; fixed system PS/module path in new source only. | Actual immutable mapped runtime/provider/native ABI/install/loader/authenticated dual-clock closure incomplete. UNPROVEN. |
+| 12 cleanup / terminal | Native original-child/deadline SOURCE inherited; new H3 cleanup sampling P2 fixed and reviewed only. | Real normal cgroup/VM/service/cohort exit/join, durable E QPC receipt and billed bounded coordinator tail absent. UNPROVEN. |
+| 13 full review / freeze | New H3 scoped ID covers only proposal SOURCE; old route2-ab-full-implementation-review-2026-09-29-FAIL-001 remains FAIL. | Complete installed source/runtime/input/protocol/budget freeze and new full independent review still absent. UNPROVEN; FROZEN_ADMISSION=None. |
+| 14 experimental endpoint | Route2 lawful Stage/results0; F1>=0.66 OPEN; Route3v1-003 lawfulCOMPLETE/fourFAIL retained. | Scientific outcomes arise only after actual full admission under latest conditional Stage authority. No Stage run or result invented. |
+
+C00 remains AUDITED_UNPROVEN/allthreeUNPROVEN, wholeC01/C02/C03 incomplete and originalC04-C12 STOP under2238–2248 remains outside the exact proposed H3 exception. PREPARED_UNREVIEWED/APPLICATION_BLOCKED/NOT_APPROVAL_READY continue; current Stage start is not authorized because the owner's actual admission condition is unsatisfied. No ordinary permission gap or UNKNOWN has been relabeled machine impossibility. H1 APPROVED_UNSTARTED; H3 OWNER_NOT_APPROVED; no H1/H3 native epoch, consumed receipt or provider run. Current get_goal returned platform-controlled usageLimited; root has not marked it complete, paused or active, and continues the explicit user task.
+
+Git scope is exactly new script plus append-only original3. Precommit static preservation independently confirmed all182 index rows unchanged, all unrelated prior414 working-file identities unchanged, and original3 prefixes512815/628513/870565 bytes unchanged. Original11 full mode/blob/stage/path identities are protected. Root commits only these exact4 paths, nonforce pushes the specified feature branch and verifies remote feature/main separately; the following commit/push is not preclaimed by this receipt. No original authorization card/prompt was altered, and no handoff/application bundle was created.
+
+Closing receipt assembled after actual QUALITY return; root clock before append is sampled below in the tool record. H3 remains a pending proposal, not an execution.
