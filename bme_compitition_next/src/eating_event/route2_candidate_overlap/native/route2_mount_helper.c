@@ -1608,3 +1608,856 @@ cleanup:
 }
 #undef R2_LSC_TRY
 #endif
+
+#if defined(R2_TARGET_WINDOWS_SEED)
+/* C02 generic raw owned-child owner; original C02-A/B1/C03 bytes above are
+ * preserved. This is a downstream primitive, not an installed seed/lease
+ * verifier. Interlocked LONGs are naturally 32-bit aligned static objects.
+ * Winnt.h InterlockedCompareExchange/Exchange are XP+ full-fence operations;
+ * this component explicitly requires Win10 because JOB_LIST birth does.
+ */
+#if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0A00
+#error "C02 owned-child requires explicit Windows 10 JOB_LIST SDK target"
+#endif
+#if !defined(_WIN64) || !(defined(_M_X64) || defined(__x86_64__))
+#error "C02 owned-child requires native Windows x64"
+#endif
+#ifndef PROC_THREAD_ATTRIBUTE_JOB_LIST
+#error "Actual SDK must expose PROC_THREAD_ATTRIBUTE_JOB_LIST; no fallback"
+#endif
+#include <TlHelp32.h>
+#include <limits.h>
+#include <string.h>
+#include <wchar.h>
+
+_Static_assert(sizeof(LONG) == 4 && sizeof(WCHAR) == 2 && sizeof(void *) == 8,
+    "owned-child requires native Win64 LLP64/UTF16 ABI");
+_Static_assert(sizeof(struct r2_win_owned_text_v1) == 16 &&
+    sizeof(struct r2_win_owned_spec_v1) == 112, "owned-child spec ABI");
+_Static_assert(offsetof(struct r2_win_owned_spec_v1, application) == 48 &&
+    offsetof(struct r2_win_owned_spec_v1, command_line) == 64 &&
+    offsetof(struct r2_win_owned_spec_v1, current_directory) == 80 &&
+    offsetof(struct r2_win_owned_spec_v1, environment) == 96, "text ABI offsets");
+_Static_assert(R2_OWN_OP_CREATOR_WAIT < R2_WIN_OWNED_FAULT_CAPACITY,
+    "one bounded first-fault slot per native operation");
+_Static_assert(sizeof(struct r2_win_owned_report_v1) <= UINT32_MAX,
+    "owned-child report size field");
+_Static_assert(sizeof(STARTUPINFOEXW) == 112 && sizeof(PROCESS_INFORMATION) == 24,
+    "owned-child Windows process ABI");
+_Static_assert(sizeof(struct r2_win_owned_fault_v1) == 24 &&
+    sizeof(struct r2_win_owned_handle_state_v1) == 16 &&
+    sizeof(struct r2_win_job_raw_snapshot_v1) == 224 &&
+    sizeof(struct r2_win_owned_report_v1) == 2736 &&
+    offsetof(struct r2_win_owned_report_v1, faults) == 528 &&
+    offsetof(struct r2_win_owned_report_v1, configured) == 2064 &&
+    sizeof(struct r2_win_owned_abi_v1) == 48, "owned-child report ABI");
+
+#define R2_OWN_FLAGS (JOB_OBJECT_LIMIT_ACTIVE_PROCESS | JOB_OBJECT_LIMIT_AFFINITY | \
+    JOB_OBJECT_LIMIT_JOB_MEMORY | JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE)
+#define R2_OWN_CPU_FLAGS (JOB_OBJECT_CPU_RATE_CONTROL_ENABLE | JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP)
+#define R2_OWN_COMMIT (UINT64_C(4) * 1024 * 1024 * 1024)
+#define R2_OWN_CREATE_FLAGS (CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | \
+    EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW)
+#define R2_OWN_ERROR_ARGUMENT 1u
+#define R2_OWN_ERROR_WIN32 2u
+#define R2_OWN_ERROR_INVARIANT 3u
+#define R2_OWN_ERROR_NO_EXTENDED 4u
+#define R2_OWN_BAD_VALUE 1u
+#define R2_OWN_DEADLINE 2u
+#define R2_OWN_IDENTITY 3u
+#define R2_OWN_LENGTH 4u
+#define R2_OWN_LIMIT_CHANGED 5u
+#define R2_OWN_COUNT_CHANGED 6u
+#define R2_OWN_SCAN_BOUND 7u
+#define R2_OWN_WAIT_RESULT 8u
+
+struct r2_own_private_v1 {
+    HANDLE creator, job, process, thread, snapshot;
+    HANDLE jobs[1];
+    PROCESS_INFORMATION pi;
+    STARTUPINFOEXW startup;
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits;
+    JOBOBJECT_CPU_RATE_CONTROL_INFORMATION cpu;
+    union { max_align_t alignment; unsigned char bytes[R2_WIN_OWNED_ATTRIBUTE_CAPACITY]; } attributes;
+    WCHAR application[R2_WIN_OWNED_TEXT_CAPACITY];
+    WCHAR command[R2_WIN_OWNED_TEXT_CAPACITY];
+    WCHAR directory[R2_WIN_OWNED_TEXT_CAPACITY];
+    WCHAR environment[R2_WIN_OWNED_TEXT_CAPACITY];
+    int deadline_bound, final_attempted;
+};
+static volatile LONG r2_own_guard_v1 = 0;
+static volatile LONG r2_own_stop_v1 = 0;
+static struct r2_own_private_v1 r2_own_v1;
+static struct r2_win_owned_report_v1 r2_own_report_v1 = {
+    .abi = R2_WIN_OWNED_ABI, .size = sizeof(struct r2_win_owned_report_v1),
+    .thread_warning_limit = 4
+};
+
+static int r2_own_enter_v1(void)
+{
+    return InterlockedCompareExchange(&r2_own_guard_v1, 1, 0) == 0;
+}
+static int r2_own_stopped_v1(void)
+{
+    return InterlockedCompareExchange(&r2_own_stop_v1, 0, 0) != 0;
+}
+static uint32_t r2_own_leave_v1(uint32_t status)
+{
+    r2_own_report_v1.status = status;
+    r2_own_report_v1.stop_new = (uint32_t)r2_own_stopped_v1();
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return status;
+}
+static int r2_own_range_v1(const void *p, size_t size, size_t alignment)
+{
+    uintptr_t address = (uintptr_t)p;
+    return address != 0 && address % alignment == 0 && size <= UINTPTR_MAX - address;
+}
+static void r2_own_u32_v1(struct r2_win_job_raw_u32_v1 *out, uint32_t value)
+{
+    out->value = value; out->state = R2_WIN_JOB_FIELD_VALID;
+}
+static void r2_own_u64_v1(struct r2_win_job_raw_u64_v1 *out, uint64_t value)
+{
+    out->value = value; out->state = R2_WIN_JOB_FIELD_VALID; out->reserved = 0;
+}
+static void r2_own_i64_v1(struct r2_win_job_raw_i64_v1 *out, int64_t value)
+{
+    out->value = value; out->state = R2_WIN_JOB_FIELD_VALID; out->reserved = 0;
+}
+static uint64_t r2_own_filetime_v1(FILETIME value)
+{
+    return ((uint64_t)value.dwHighDateTime << 32) | value.dwLowDateTime;
+}
+static void r2_own_fault_v1(uint32_t op, uint32_t kind, uint32_t code, DWORD error)
+{
+    struct r2_win_owned_report_v1 *r = &r2_own_report_v1;
+    struct r2_win_owned_fault_v1 *f;
+    InterlockedExchange(&r2_own_stop_v1, 1);
+    r->stop_new = 1;
+    if (op == 0 || op >= R2_WIN_OWNED_FAULT_CAPACITY) {
+        r->residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+        return;
+    }
+    f = &r->faults[op];
+    if (f->occurrences == 0) {
+        f->operation = op; f->kind = kind; f->code = code;
+        f->win32_error = (uint32_t)error;
+        f->win32_error_valid = kind == R2_OWN_ERROR_WIN32;
+        f->occurrences = 1;
+        if (r->fault_count == 0) r->primary = *f;
+        ++r->fault_count;
+    } else if (f->occurrences != UINT32_MAX) {
+        ++f->occurrences;
+    }
+}
+static void r2_own_api_v1(uint32_t op, DWORD error)
+{
+    r2_own_fault_v1(op, R2_OWN_ERROR_WIN32, 0, error);
+    if (op == R2_OWN_OP_CREATOR_PID || op == R2_OWN_OP_CREATOR_TIMES || op == R2_OWN_OP_CREATOR_WAIT ||
+        op == R2_OWN_OP_CHILD_PID || op == R2_OWN_OP_CHILD_TID ||
+        op == R2_OWN_OP_PROCESS_TIMES || op == R2_OWN_OP_THREAD_TIMES ||
+        op == R2_OWN_OP_MEMBERSHIP || op == R2_OWN_OP_EXIT_CODE ||
+        op == R2_OWN_OP_SNAPSHOT || op == R2_OWN_OP_THREAD_FIRST || op == R2_OWN_OP_THREAD_NEXT)
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+    if (op == R2_OWN_OP_WAIT_PROCESS || op == R2_OWN_OP_WAIT_THREAD)
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_JOIN;
+}
+static void r2_own_bad_v1(uint32_t op, uint32_t code)
+{
+    r2_own_fault_v1(op, R2_OWN_ERROR_INVARIANT, code, 0);
+    if (op == R2_OWN_OP_CREATOR_PID || op == R2_OWN_OP_CREATOR_TIMES ||
+        op == R2_OWN_OP_CREATOR_WAIT || op == R2_OWN_OP_SNAPSHOT)
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+}
+/* A failed/regressed clock is irreversible. No later sample creates a fresh
+ * epoch. Synchronous native calls are not claimed to be cancellable. */
+static int r2_own_clock_v1(int64_t deadline, uint32_t op)
+{
+    LARGE_INTEGER value;
+    struct r2_win_owned_report_v1 *r = &r2_own_report_v1;
+    if (!QueryPerformanceCounter(&value)) {
+        DWORD error = GetLastError();
+        r2_own_api_v1(op, error);
+        r->clock_valid = 0; r->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        return 0;
+    }
+    if (value.QuadPart <= 0 || (r->last_qpc && value.QuadPart < r->last_qpc)) {
+        r2_own_bad_v1(op, R2_OWN_BAD_VALUE);
+        r->clock_valid = 0; r->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        return 0;
+    }
+    r->last_qpc = value.QuadPart;
+    r->clock_valid = (r->residual_bits & R2_OWN_RESIDUAL_CLOCK) == 0;
+    if (deadline > 0 && value.QuadPart >= deadline) {
+        r2_own_bad_v1(op, R2_OWN_DEADLINE);
+        r->residual_bits |= R2_OWN_RESIDUAL_DEADLINE;
+        return 0;
+    }
+    return r->clock_valid != 0;
+}
+static int r2_own_new_work_v1(uint32_t state)
+{
+    if (r2_own_report_v1.lifecycle != state) {
+        if (r2_own_report_v1.lifecycle != R2_OWN_DONE && r2_own_report_v1.lifecycle != R2_OWN_RETAINED)
+            r2_own_bad_v1(R2_OWN_OP_STATE, R2_OWN_BAD_VALUE);
+        return 0;
+    }
+    if (r2_own_report_v1.fault_count || r2_own_stopped_v1())
+        return 0;
+    if (GetCurrentProcessId() != r2_own_report_v1.creator_pid ||
+        GetCurrentThreadId() != r2_own_report_v1.creator_tid) {
+        r2_own_bad_v1(R2_OWN_OP_STATE, R2_OWN_IDENTITY);
+        return 0;
+    }
+    return r2_own_clock_v1(r2_own_report_v1.stop_deadline_qpc, R2_OWN_OP_CLOCK);
+}
+static int r2_own_copy_text_v1(WCHAR *out, const struct r2_win_owned_text_v1 *in,
+                              int environment, int command, int absolute)
+{
+    uint32_t i, maximum = command ? 32767u : R2_WIN_OWNED_TEXT_CAPACITY;
+    if (in->reserved || in->units < (environment ? 2u : 1u) || in->units > maximum ||
+        !r2_own_range_v1(in->text, (size_t)in->units * sizeof(uint16_t), _Alignof(uint16_t)))
+        return 0;
+    if (in->text[in->units - 1] != 0 || (environment && in->text[in->units - 2] != 0)) return 0;
+    for (i = 0; i + 1 < in->units; ++i) {
+        if (!environment && in->text[i] == 0) return 0;
+        if (environment && i + 2 < in->units && in->text[i] == 0 && in->text[i + 1] == 0) return 0;
+    }
+    /* Deliberately bounded supported path grammar: drive-absolute paths.
+     * This is lexical validation only, never an image/readonly identity. */
+    if (absolute && (in->units < 4 ||
+        !((in->text[0] >= 'A' && in->text[0] <= 'Z') || (in->text[0] >= 'a' && in->text[0] <= 'z')) ||
+        in->text[1] != ':' || in->text[2] != '\\')) return 0;
+    memcpy(out, in->text, (size_t)in->units * sizeof(uint16_t));
+    return 1;
+}
+static int r2_own_query_v1(JOBOBJECTINFOCLASS cls, void *out, DWORD size,
+                          uint32_t op, int64_t deadline)
+{
+    DWORD returned = 0;
+    if (!r2_own_clock_v1(deadline, R2_OWN_OP_CLOCK)) return 0;
+    if (!QueryInformationJobObject(r2_own_v1.job, cls, out, size, &returned)) {
+        DWORD error = GetLastError();
+        r2_own_api_v1(op, error);
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+        return 0;
+    }
+    if (returned != size) {
+        r2_own_bad_v1(op, R2_OWN_LENGTH);
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+        return 0;
+    }
+    return r2_own_clock_v1(deadline, R2_OWN_OP_CLOCK);
+}
+static int r2_own_limits_v1(struct r2_win_job_raw_snapshot_v1 *s, int64_t deadline)
+{
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {0};
+    JOBOBJECT_CPU_RATE_CONTROL_INFORMATION cpu = {0};
+    memset(s, 0, sizeof(*s));
+    s->limits_readback_state = R2_WIN_JOB_FIELD_FAILED;
+    if (!r2_own_query_v1(JobObjectExtendedLimitInformation, &limits, sizeof(limits),
+        R2_OWN_OP_QUERY_LIMITS, deadline)) return 0;
+    r2_own_u32_v1(&s->limit_flags, limits.BasicLimitInformation.LimitFlags);
+    r2_own_u32_v1(&s->active_process_limit, limits.BasicLimitInformation.ActiveProcessLimit);
+    r2_own_u64_v1(&s->affinity, limits.BasicLimitInformation.Affinity);
+    r2_own_u64_v1(&s->job_commit_limit, limits.JobMemoryLimit);
+    r2_own_u64_v1(&s->process_commit_limit, limits.ProcessMemoryLimit);
+    r2_own_u64_v1(&s->peak_process_commit, limits.PeakProcessMemoryUsed);
+    r2_own_u64_v1(&s->peak_job_commit, limits.PeakJobMemoryUsed);
+    if (limits.BasicLimitInformation.LimitFlags != R2_OWN_FLAGS ||
+        limits.BasicLimitInformation.ActiveProcessLimit != 1 ||
+        limits.BasicLimitInformation.Affinity != r2_own_v1.limits.BasicLimitInformation.Affinity ||
+        limits.JobMemoryLimit != (SIZE_T)R2_OWN_COMMIT || limits.ProcessMemoryLimit != 0 ||
+        limits.PeakJobMemoryUsed > (SIZE_T)R2_OWN_COMMIT || limits.PeakProcessMemoryUsed > (SIZE_T)R2_OWN_COMMIT) {
+        r2_own_bad_v1(R2_OWN_OP_QUERY_LIMITS, R2_OWN_LIMIT_CHANGED);
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+        return 0;
+    }
+    s->limits_readback_state = R2_WIN_JOB_FIELD_VALID;
+    s->cpu_readback_state = R2_WIN_JOB_FIELD_FAILED;
+    if (!r2_own_query_v1(JobObjectCpuRateControlInformation, &cpu, sizeof(cpu),
+        R2_OWN_OP_QUERY_CPU, deadline)) return 0;
+    r2_own_u32_v1(&s->cpu_control_flags, cpu.ControlFlags);
+    r2_own_u32_v1(&s->cpu_rate, cpu.CpuRate);
+    if (cpu.ControlFlags != R2_OWN_CPU_FLAGS || cpu.CpuRate != r2_own_v1.cpu.CpuRate) {
+        r2_own_bad_v1(R2_OWN_OP_QUERY_CPU, R2_OWN_LIMIT_CHANGED);
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+        return 0;
+    }
+    s->cpu_readback_state = R2_WIN_JOB_FIELD_VALID;
+    return 1;
+}
+static int r2_own_sample_v1(struct r2_win_job_raw_snapshot_v1 *s, int64_t deadline)
+{
+    JOBOBJECT_BASIC_ACCOUNTING_INFORMATION a = {0};
+    if (!r2_own_limits_v1(s, deadline)) return 0;
+    s->accounting_state = R2_WIN_JOB_FIELD_FAILED;
+    if (!r2_own_query_v1(JobObjectBasicAccountingInformation, &a, sizeof(a),
+        R2_OWN_OP_QUERY_ACCOUNTING, deadline)) return 0;
+    if (a.TotalUserTime.QuadPart < 0 || a.TotalKernelTime.QuadPart < 0 ||
+        a.ThisPeriodTotalUserTime.QuadPart < 0 || a.ThisPeriodTotalKernelTime.QuadPart < 0) {
+        r2_own_bad_v1(R2_OWN_OP_QUERY_ACCOUNTING, R2_OWN_BAD_VALUE);
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+        return 0;
+    }
+    r2_own_i64_v1(&s->total_user_100ns, a.TotalUserTime.QuadPart);
+    r2_own_i64_v1(&s->total_kernel_100ns, a.TotalKernelTime.QuadPart);
+    r2_own_i64_v1(&s->period_user_100ns, a.ThisPeriodTotalUserTime.QuadPart);
+    r2_own_i64_v1(&s->period_kernel_100ns, a.ThisPeriodTotalKernelTime.QuadPart);
+    r2_own_u32_v1(&s->page_faults, a.TotalPageFaultCount);
+    r2_own_u32_v1(&s->total_processes, a.TotalProcesses);
+    r2_own_u32_v1(&s->active_processes, a.ActiveProcesses);
+    r2_own_u32_v1(&s->terminated_by_limits, a.TotalTerminatedProcesses);
+    s->accounting_state = R2_WIN_JOB_FIELD_VALID;
+    r2_own_report_v1.job_empty = a.ActiveProcesses == 0;
+    if (a.ActiveProcesses > 1 || a.TotalTerminatedProcesses != 0 ||
+        a.TotalProcesses != (r2_own_report_v1.process.acquired ? 1u : 0u)) {
+        r2_own_bad_v1(R2_OWN_OP_BIRTH_HISTORY, R2_OWN_COUNT_CHANGED);
+        return 0;
+    }
+    return 1;
+}
+static int r2_own_creator_identity_v1(void)
+{
+    FILETIME creation, exit_time, kernel, user;
+    DWORD wait = WaitForSingleObject(r2_own_v1.creator, 0);
+    if (wait == WAIT_FAILED) { DWORD error = GetLastError(); r2_own_api_v1(R2_OWN_OP_CREATOR_WAIT, error); return 0; }
+    if (wait != WAIT_TIMEOUT) { r2_own_bad_v1(R2_OWN_OP_CREATOR_WAIT, R2_OWN_WAIT_RESULT); return 0; }
+    DWORD pid = GetProcessId(r2_own_v1.creator);
+    if (!pid) { DWORD error = GetLastError(); r2_own_api_v1(R2_OWN_OP_CREATOR_PID, error); return 0; }
+    if (pid != r2_own_report_v1.creator_pid || GetCurrentProcessId() != pid) {
+        r2_own_bad_v1(R2_OWN_OP_CREATOR_PID, R2_OWN_IDENTITY); return 0;
+    }
+    if (!GetProcessTimes(r2_own_v1.creator, &creation, &exit_time, &kernel, &user)) {
+        DWORD error = GetLastError(); r2_own_api_v1(R2_OWN_OP_CREATOR_TIMES, error);
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_SAMPLE; return 0;
+    }
+    if (r2_own_report_v1.creator_creation_100ns.state == R2_WIN_JOB_FIELD_VALID &&
+        r2_own_report_v1.creator_creation_100ns.value != r2_own_filetime_v1(creation)) {
+        r2_own_bad_v1(R2_OWN_OP_CREATOR_TIMES, R2_OWN_IDENTITY); return 0;
+    }
+    r2_own_u64_v1(&r2_own_report_v1.creator_creation_100ns, r2_own_filetime_v1(creation));
+    return 1;
+}
+static int r2_own_child_identity_v1(int final)
+{
+    FILETIME creation, exit_time, kernel, user;
+    DWORD pid, tid;
+    BOOL member = FALSE;
+    struct r2_win_owned_report_v1 *r = &r2_own_report_v1;
+    pid = GetProcessId(r2_own_v1.process);
+    if (!pid) { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_CHILD_PID, e); goto failed; }
+    tid = GetThreadId(r2_own_v1.thread);
+    if (!tid) { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_CHILD_TID, e); goto failed; }
+    if (pid != r->child_pid || tid != r->child_tid) {
+        r2_own_bad_v1(R2_OWN_OP_CHILD_PID, R2_OWN_IDENTITY); goto failed;
+    }
+    if (!GetProcessTimes(r2_own_v1.process, &creation, &exit_time, &kernel, &user)) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_PROCESS_TIMES, e); goto failed;
+    }
+    if (r->child_creation_100ns.state == R2_WIN_JOB_FIELD_VALID &&
+        r->child_creation_100ns.value != r2_own_filetime_v1(creation)) {
+        r2_own_bad_v1(R2_OWN_OP_PROCESS_TIMES, R2_OWN_IDENTITY); goto failed;
+    }
+    r2_own_u64_v1(&r->child_creation_100ns, r2_own_filetime_v1(creation));
+    if (final) {
+        r2_own_u64_v1(&r->final_exit_100ns, r2_own_filetime_v1(exit_time));
+        r2_own_u64_v1(&r->final_kernel_100ns, r2_own_filetime_v1(kernel));
+        r2_own_u64_v1(&r->final_user_100ns, r2_own_filetime_v1(user));
+    }
+    if (!GetThreadTimes(r2_own_v1.thread, &creation, &exit_time, &kernel, &user)) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_THREAD_TIMES, e); goto failed;
+    }
+    if (r->primary_creation_100ns.state == R2_WIN_JOB_FIELD_VALID &&
+        r->primary_creation_100ns.value != r2_own_filetime_v1(creation)) {
+        r2_own_bad_v1(R2_OWN_OP_THREAD_TIMES, R2_OWN_IDENTITY); goto failed;
+    }
+    r2_own_u64_v1(&r->primary_creation_100ns, r2_own_filetime_v1(creation));
+    if (final) {
+        r2_own_u64_v1(&r->final_thread_kernel_100ns, r2_own_filetime_v1(kernel));
+        r2_own_u64_v1(&r->final_thread_user_100ns, r2_own_filetime_v1(user));
+    }
+    /* Birth/live membership was verified on the original handles. Do not
+     * require a dead process to retain live membership semantics. */
+    if (final) return 1;
+    if (!IsProcessInJob(r2_own_v1.process, r2_own_v1.job, &member)) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_MEMBERSHIP, e); goto failed;
+    }
+    if (!member) { r2_own_bad_v1(R2_OWN_OP_MEMBERSHIP, R2_OWN_IDENTITY); goto failed; }
+    r->membership = 1;
+    return 1;
+failed:
+    r->residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+    return 0;
+}
+static int r2_own_wait_process_v1(DWORD milliseconds)
+{
+    DWORD value;
+    if (!r2_own_v1.process || r2_own_report_v1.process_signaled) return 1;
+    value = WaitForSingleObject(r2_own_v1.process, milliseconds);
+    if (value == WAIT_FAILED) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_WAIT_PROCESS, e);
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_JOIN; return 0;
+    }
+    r2_own_u32_v1(&r2_own_report_v1.wait_after, value);
+    if (value == WAIT_OBJECT_0) r2_own_report_v1.process_signaled = 1;
+    else if (value != WAIT_TIMEOUT) {
+        r2_own_bad_v1(R2_OWN_OP_WAIT_PROCESS, R2_OWN_WAIT_RESULT);
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_JOIN; return 0;
+    }
+    return 1;
+}
+static int r2_own_close_v1(HANDLE *slot, struct r2_win_owned_handle_state_v1 *state,
+                          uint32_t op, int64_t deadline)
+{
+    HANDLE handle;
+    if (!*slot) return state->close_state != R2_WIN_JOB_FIELD_FAILED;
+    if (!r2_own_clock_v1(deadline, R2_OWN_OP_CLOCK)) return 0;
+    handle = *slot; *slot = NULL; state->consumed = 1;
+    if (!CloseHandle(handle)) {
+        DWORD e = GetLastError(); r2_own_api_v1(op, e);
+        state->close_state = R2_WIN_JOB_FIELD_FAILED;
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_CLOSE;
+        return 0;
+    }
+    state->close_state = R2_WIN_JOB_FIELD_VALID;
+    return r2_own_clock_v1(deadline, R2_OWN_OP_CLOCK);
+}
+/* Bounded raw MONITORED4 observation of original parent and owned child.
+ * Snapshot TIDs are not opened/reopened or promoted into creator handles.
+ * Two liveness/creation checks exclude PID reuse within this observation;
+ * transient threads between observations remain explicitly uncovered. */
+static int r2_own_threads_v1(int64_t deadline)
+{
+    THREADENTRY32 entry;
+    DWORD parent_count = 0, child_count = 0, entries = 0, before = WAIT_TIMEOUT;
+    BOOL more;
+    int complete = 0, ok = 0;
+    struct r2_win_owned_report_v1 *r = &r2_own_report_v1;
+    r->thread_scan_state = R2_WIN_JOB_FIELD_FAILED;
+    r->thread_scan_entries = r->parent_threads = r->child_threads = 0;
+    r->thread_live_at_both_polls = 0;
+    if (r2_own_v1.snapshot || r->snapshot.close_state == R2_WIN_JOB_FIELD_FAILED) return 0;
+    if (!r2_own_creator_identity_v1() || !r2_own_clock_v1(deadline, R2_OWN_OP_CLOCK)) return 0;
+    if (r2_own_v1.process) {
+        before = WaitForSingleObject(r2_own_v1.process, 0);
+        if (before == WAIT_FAILED) { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_WAIT_PROCESS, e); return 0; }
+        r2_own_u32_v1(&r->wait_before, before);
+        if (before == WAIT_OBJECT_0) {
+            r->process_signaled = 1; InterlockedExchange(&r2_own_stop_v1, 1); return 1;
+        }
+        if (before != WAIT_TIMEOUT || !r2_own_child_identity_v1(0)) {
+            r2_own_bad_v1(R2_OWN_OP_WAIT_PROCESS, R2_OWN_WAIT_RESULT); return 0;
+        }
+    }
+    r2_own_v1.snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (r2_own_v1.snapshot == INVALID_HANDLE_VALUE) {
+        DWORD e = GetLastError(); r2_own_v1.snapshot = NULL;
+        r2_own_api_v1(R2_OWN_OP_SNAPSHOT, e); return 0;
+    }
+    if (!r2_own_v1.snapshot) { r2_own_bad_v1(R2_OWN_OP_SNAPSHOT, R2_OWN_BAD_VALUE); return 0; }
+    r->snapshot = (struct r2_win_owned_handle_state_v1){1, 0, 0, 0};
+    if (!r2_own_clock_v1(deadline, R2_OWN_OP_CLOCK)) goto cleanup;
+    memset(&entry, 0, sizeof(entry)); entry.dwSize = sizeof(entry);
+    more = Thread32First(r2_own_v1.snapshot, &entry);
+    if (!more) {
+        DWORD e = GetLastError();
+        if (e != ERROR_NO_MORE_FILES) r2_own_api_v1(R2_OWN_OP_THREAD_FIRST, e);
+        else r2_own_bad_v1(R2_OWN_OP_THREAD_FIRST, R2_OWN_BAD_VALUE);
+        goto cleanup;
+    }
+    while (more) {
+        if (++entries > R2_WIN_OWNED_THREAD_SCAN_CAPACITY ||
+            entry.dwSize < offsetof(THREADENTRY32, th32OwnerProcessID) + sizeof(entry.th32OwnerProcessID)) {
+            r2_own_bad_v1(R2_OWN_OP_THREAD_NEXT, R2_OWN_SCAN_BOUND); goto cleanup;
+        }
+        if (entry.th32OwnerProcessID == r->creator_pid) ++parent_count;
+        if (r2_own_v1.process && entry.th32OwnerProcessID == r->child_pid) ++child_count;
+        if (!r2_own_clock_v1(deadline, R2_OWN_OP_CLOCK)) goto cleanup;
+        entry.dwSize = sizeof(entry);
+        more = Thread32Next(r2_own_v1.snapshot, &entry);
+        if (!more) {
+            DWORD e = GetLastError();
+            if (e != ERROR_NO_MORE_FILES) { r2_own_api_v1(R2_OWN_OP_THREAD_NEXT, e); goto cleanup; }
+            complete = 1;
+        }
+    }
+    if (!complete || parent_count == 0) {
+        r2_own_bad_v1(R2_OWN_OP_THREAD_NEXT, R2_OWN_BAD_VALUE); goto cleanup;
+    }
+    if (!r2_own_creator_identity_v1()) goto cleanup;
+    if (r2_own_v1.process) {
+        DWORD after = WaitForSingleObject(r2_own_v1.process, 0);
+        if (after == WAIT_FAILED) { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_WAIT_PROCESS, e); goto cleanup; }
+        r2_own_u32_v1(&r->wait_after, after);
+        if (after == WAIT_OBJECT_0) {
+            r->process_signaled = 1; InterlockedExchange(&r2_own_stop_v1, 1); goto cleanup;
+        }
+        if (after != WAIT_TIMEOUT || !r2_own_child_identity_v1(0) || child_count == 0) {
+            r2_own_bad_v1(R2_OWN_OP_THREAD_NEXT, R2_OWN_IDENTITY); goto cleanup;
+        }
+    }
+    r->thread_scan_entries = entries; r->parent_threads = parent_count; r->child_threads = child_count;
+    r->thread_live_at_both_polls = r2_own_v1.process ? 1u : 0u;
+    r->thread_scan_state = R2_WIN_JOB_FIELD_VALID;
+    if (parent_count + child_count > 4) {
+        r2_own_bad_v1(R2_OWN_OP_THREAD_LIMIT, R2_OWN_COUNT_CHANGED); goto cleanup;
+    }
+    ok = 1;
+cleanup:
+    if (!r2_own_close_v1(&r2_own_v1.snapshot, &r->snapshot, R2_OWN_OP_CLOSE_SNAPSHOT, deadline)) ok = 0;
+    if (!ok && !r->process_signaled) InterlockedExchange(&r2_own_stop_v1, 1);
+    return ok;
+}
+static DWORD r2_own_slice_v1(int64_t deadline)
+{
+    int64_t remaining = deadline - r2_own_report_v1.last_qpc;
+    int64_t frequency = r2_own_report_v1.qpc_frequency;
+    if (remaining <= 0 || frequency <= 0) return 0;
+    if (remaining >= frequency) return 1000;
+    /* Avoid overflowing remaining*1000 for unusual native frequencies. */
+    return (DWORD)((remaining / frequency) * 1000 +
+        ((uint64_t)(remaining % frequency) * 1000u) / (uint64_t)frequency);
+}
+
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_describe_v1(
+    struct r2_win_owned_abi_v1 *out, size_t size)
+{
+    struct r2_win_owned_abi_v1 value = {
+        R2_WIN_OWNED_ABI, sizeof(value), sizeof(struct r2_win_owned_spec_v1),
+        sizeof(struct r2_win_owned_report_v1), sizeof(void *),
+        sizeof(struct r2_win_owned_text_v1), sizeof(struct r2_win_owned_fault_v1),
+        sizeof(struct r2_win_owned_handle_state_v1), sizeof(struct r2_win_job_raw_snapshot_v1),
+        offsetof(struct r2_win_owned_report_v1, faults),
+        offsetof(struct r2_win_owned_report_v1, configured), 0
+    };
+    if (size != sizeof(value) || !r2_own_range_v1(out, size, _Alignof(struct r2_win_owned_abi_v1)))
+        return R2_OWN_BAD_ARGUMENT;
+    memcpy(out, &value, sizeof(value));
+    return R2_OWN_OK;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_begin_once_v1(
+    const struct r2_win_owned_spec_v1 *spec, size_t size)
+{
+    LARGE_INTEGER frequency;
+    HANDLE creator = NULL;
+    struct r2_win_owned_report_v1 *r = &r2_own_report_v1;
+    if (!r2_own_enter_v1()) return R2_OWN_BUSY;
+    if (r->attempt_consumed) {
+        if (r->lifecycle != R2_OWN_DONE && r->lifecycle != R2_OWN_RETAINED)
+            r2_own_bad_v1(R2_OWN_OP_STATE, R2_OWN_BAD_VALUE);
+        return r2_own_leave_v1(R2_OWN_BAD_STATE);
+    }
+    r->attempt_consumed = 1; r->lifecycle = R2_OWN_INITIALIZING;
+    if (r2_own_stopped_v1()) { r2_own_bad_v1(R2_OWN_OP_STATE, R2_OWN_BAD_VALUE); return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP); }
+    if (!r2_own_clock_v1(0, R2_OWN_OP_FIRST_CLOCK)) return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    r->context_observed_qpc = r->last_qpc;
+    if (!QueryPerformanceFrequency(&frequency)) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_FREQUENCY, e);
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    }
+    if (frequency.QuadPart <= 0 || frequency.QuadPart > INT64_MAX / 1000 ||
+        size != sizeof(*spec) || !r2_own_range_v1(spec, size, _Alignof(struct r2_win_owned_spec_v1))) {
+        r2_own_fault_v1(R2_OWN_OP_ARGUMENT, R2_OWN_ERROR_ARGUMENT, R2_OWN_BAD_VALUE, 0);
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    }
+    r->qpc_frequency = frequency.QuadPart;
+    if (spec->abi != R2_WIN_OWNED_ABI || spec->size != size || spec->lease_epoch_qpc <= 0 ||
+        spec->lease_qpc_frequency != frequency.QuadPart || spec->lease_epoch_qpc > r->context_observed_qpc ||
+        spec->stop_deadline_qpc <= r->context_observed_qpc ||
+        spec->cleanup_deadline_qpc <= spec->stop_deadline_qpc) {
+        r2_own_fault_v1(R2_OWN_OP_ARGUMENT, R2_OWN_ERROR_ARGUMENT, R2_OWN_BAD_VALUE, 0);
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    }
+    r->lease_epoch_qpc = spec->lease_epoch_qpc; r->intent_serial = spec->intent_serial;
+    r->stop_deadline_qpc = spec->stop_deadline_qpc; r->cleanup_deadline_qpc = spec->cleanup_deadline_qpc;
+    r2_own_v1.deadline_bound = 1;
+    if (!r2_own_copy_text_v1(r2_own_v1.application, &spec->application, 0, 0, 1) ||
+        !r2_own_copy_text_v1(r2_own_v1.command, &spec->command_line, 0, 1, 0) ||
+        !r2_own_copy_text_v1(r2_own_v1.directory, &spec->current_directory, 0, 0, 1) ||
+        !r2_own_copy_text_v1(r2_own_v1.environment, &spec->environment, 1, 0, 0)) {
+        r2_own_fault_v1(R2_OWN_OP_ARGUMENT, R2_OWN_ERROR_ARGUMENT, R2_OWN_BAD_VALUE, 0);
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    }
+    r->creator_pid = GetCurrentProcessId(); r->creator_tid = GetCurrentThreadId();
+    if (!r->creator_pid || !r->creator_tid) {
+        r2_own_bad_v1(R2_OWN_OP_CREATOR_PID, R2_OWN_BAD_VALUE);
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    }
+    if (!r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK))
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    if (!DuplicateHandle(GetCurrentProcess(), GetCurrentProcess(), GetCurrentProcess(),
+        &creator, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_CREATOR_DUPLICATE, e);
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    }
+    r2_own_v1.creator = creator; r->creator.acquired = 1;
+    if (!r2_own_creator_identity_v1() || !r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK) ||
+        !r2_own_threads_v1(r->stop_deadline_qpc)) return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    r->lifecycle = R2_OWN_INTENT_HELD;
+    return r2_own_leave_v1(R2_OWN_OK);
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_birth_suspended_once_v1(void)
+{
+    WORD groups;
+    DWORD count, i, pop = 0;
+    DWORD_PTR allowed = 0, system = 0, first, remaining;
+    SIZE_T attribute_size = 0;
+    BOOL sized, created;
+    DWORD sizing_error;
+    struct r2_win_owned_report_v1 *r = &r2_own_report_v1;
+    if (!r2_own_enter_v1()) return R2_OWN_BUSY;
+    if (!r2_own_new_work_v1(R2_OWN_INTENT_HELD) || r->birth_attempted)
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    r->birth_attempted = 1;
+    r2_own_v1.job = CreateJobObjectW(NULL, NULL);
+    if (!r2_own_v1.job) { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_CREATE_JOB, e); goto failed; }
+    r->job.acquired = 1;
+    if (!r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK)) goto failed;
+    groups = GetActiveProcessorGroupCount();
+    if (!groups) { r2_own_fault_v1(R2_OWN_OP_GROUPS, R2_OWN_ERROR_NO_EXTENDED, 0, 0); goto failed; }
+    count = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+    if (!count) { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_COUNT, e); goto failed; }
+    r2_own_u32_v1(&r->processor_groups, groups); r2_own_u32_v1(&r->processor_count, count);
+    if (groups != 1 || count > sizeof(DWORD_PTR) * CHAR_BIT) { r2_own_bad_v1(R2_OWN_OP_COUNT, R2_OWN_BAD_VALUE); goto failed; }
+    if (!GetProcessAffinityMask(r2_own_v1.creator, &allowed, &system)) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_AFFINITY, e); goto failed;
+    }
+    for (i = 0; i < sizeof(DWORD_PTR) * CHAR_BIT; ++i) if (system & ((DWORD_PTR)1 << i)) ++pop;
+    if (!allowed || (allowed & ~system) || pop != count) { r2_own_bad_v1(R2_OWN_OP_AFFINITY, R2_OWN_BAD_VALUE); goto failed; }
+    first = allowed & (~allowed + 1); remaining = allowed ^ first;
+    r2_own_v1.limits.BasicLimitInformation.LimitFlags = R2_OWN_FLAGS;
+    r2_own_v1.limits.BasicLimitInformation.ActiveProcessLimit = 1;
+    r2_own_v1.limits.BasicLimitInformation.Affinity = first | (remaining & (~remaining + 1));
+    r2_own_v1.limits.JobMemoryLimit = (SIZE_T)R2_OWN_COMMIT;
+    r2_own_v1.cpu.ControlFlags = R2_OWN_CPU_FLAGS;
+    r2_own_v1.cpu.CpuRate = count <= 2 ? 10000 : 20000 / count;
+    r2_own_u64_v1(&r->allowed_affinity, allowed); r2_own_u64_v1(&r->system_affinity, system);
+    r2_own_u64_v1(&r->selected_affinity, r2_own_v1.limits.BasicLimitInformation.Affinity);
+    if (!r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK)) goto failed;
+    if (!SetInformationJobObject(r2_own_v1.job, JobObjectExtendedLimitInformation,
+        &r2_own_v1.limits, sizeof(r2_own_v1.limits))) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_SET_LIMITS, e); goto failed;
+    }
+    if (!r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK)) goto failed;
+    if (!SetInformationJobObject(r2_own_v1.job, JobObjectCpuRateControlInformation,
+        &r2_own_v1.cpu, sizeof(r2_own_v1.cpu))) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_SET_CPU, e); goto failed;
+    }
+    if (!r2_own_sample_v1(&r->configured, r->stop_deadline_qpc)) goto failed;
+    r->configured_valid = 1;
+    sized = InitializeProcThreadAttributeList(NULL, 1, 0, &attribute_size);
+    sizing_error = GetLastError();
+    if (sized || sizing_error != ERROR_INSUFFICIENT_BUFFER || !attribute_size ||
+        attribute_size > sizeof(r2_own_v1.attributes.bytes)) {
+        if (!sized && sizing_error != ERROR_INSUFFICIENT_BUFFER) r2_own_api_v1(R2_OWN_OP_ATTRIBUTE_SIZE, sizing_error);
+        else r2_own_bad_v1(R2_OWN_OP_ATTRIBUTE_SIZE, R2_OWN_LENGTH);
+        goto failed;
+    }
+    if (!r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK) || r2_own_stopped_v1()) goto failed;
+    r2_own_v1.startup.StartupInfo.cb = sizeof(r2_own_v1.startup);
+    r2_own_v1.startup.lpAttributeList = (LPPROC_THREAD_ATTRIBUTE_LIST)r2_own_v1.attributes.bytes;
+    if (!InitializeProcThreadAttributeList(r2_own_v1.startup.lpAttributeList, 1, 0, &attribute_size)) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_ATTRIBUTE_INIT, e); goto failed;
+    }
+    r->attribute_initialized = 1;
+    if (!r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK) || r2_own_stopped_v1()) goto failed;
+    r2_own_v1.jobs[0] = r2_own_v1.job;
+    if (!UpdateProcThreadAttribute(r2_own_v1.startup.lpAttributeList, 0,
+        PROC_THREAD_ATTRIBUTE_JOB_LIST, r2_own_v1.jobs, sizeof(r2_own_v1.jobs), NULL, NULL)) {
+        DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_ATTRIBUTE_UPDATE, e); goto failed;
+    }
+    if (!r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK) || r2_own_stopped_v1()) goto failed;
+    created = CreateProcessW(r2_own_v1.application, r2_own_v1.command, NULL, NULL, FALSE,
+        R2_OWN_CREATE_FLAGS, r2_own_v1.environment, r2_own_v1.directory,
+        &r2_own_v1.startup.StartupInfo, &r2_own_v1.pi);
+    if (!created) { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_CREATE_PROCESS, e); goto failed; }
+    /* First instructions after BOOL success adopt BOTH originals. No API,
+     * clock, validation, report callback or foreign conversion intervenes. */
+    r2_own_v1.process = r2_own_v1.pi.hProcess;
+    r2_own_v1.thread = r2_own_v1.pi.hThread;
+    r->process.acquired = r->thread.acquired = 1;
+    r->job_empty = 0; /* Invalidate the pre-birth empty observation. */
+    r->child_pid = r2_own_v1.pi.dwProcessId; r->child_tid = r2_own_v1.pi.dwThreadId;
+    r->lifecycle = R2_OWN_SUSPENDED;
+    DeleteProcThreadAttributeList(r2_own_v1.startup.lpAttributeList); r->attribute_deleted = 1;
+    if (!r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK) ||
+        !r2_own_child_identity_v1(0) || !r2_own_sample_v1(&r->latest, r->stop_deadline_qpc)) goto failed;
+    r->latest_valid = 1;
+    if (!r2_own_threads_v1(r->stop_deadline_qpc) || r2_own_stopped_v1()) goto failed;
+    return r2_own_leave_v1(R2_OWN_OK);
+failed:
+    if (r->attribute_initialized && !r->attribute_deleted) {
+        DeleteProcThreadAttributeList(r2_own_v1.startup.lpAttributeList); r->attribute_deleted = 1;
+    }
+    InterlockedExchange(&r2_own_stop_v1, 1);
+    return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_resume_once_v1(void)
+{
+    DWORD previous;
+    struct r2_win_owned_report_v1 *r = &r2_own_report_v1;
+    if (!r2_own_enter_v1()) return R2_OWN_BUSY;
+    if (!r2_own_new_work_v1(R2_OWN_SUSPENDED) || r->resume_attempted)
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    r->latest_valid = 0;
+    if (
+        !r2_own_child_identity_v1(0) || !r2_own_threads_v1(r->stop_deadline_qpc) ||
+        !r2_own_sample_v1(&r->latest, r->stop_deadline_qpc) || r2_own_stopped_v1())
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    r->latest_valid = 1; r->resume_attempted = 1;
+    previous = ResumeThread(r2_own_v1.thread);
+    if (previous == (DWORD)-1) { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_RESUME, e); return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP); }
+    if (previous != 1) { r2_own_bad_v1(R2_OWN_OP_RESUME, R2_OWN_BAD_VALUE); return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP); }
+    r->lifecycle = R2_OWN_RUNNING;
+    if (!r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK) || r2_own_stopped_v1())
+        return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    return r2_own_leave_v1(R2_OWN_OK);
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_observe_step_v1(void)
+{
+    DWORD code;
+    struct r2_win_owned_report_v1 *r = &r2_own_report_v1;
+    if (!r2_own_enter_v1()) return R2_OWN_BUSY;
+    if (!r2_own_new_work_v1(R2_OWN_RUNNING)) return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    if (!r2_own_wait_process_v1(r2_own_slice_v1(r->stop_deadline_qpc)) ||
+        !r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK)) return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    r->latest_valid = r2_own_sample_v1(&r->latest, r->stop_deadline_qpc);
+    if (!r->latest_valid) return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    if (r->process_signaled) {
+        InterlockedExchange(&r2_own_stop_v1, 1);
+        if (!GetExitCodeProcess(r2_own_v1.process, &code)) { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_EXIT_CODE, e); return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP); }
+        r2_own_u32_v1(&r->final_exit_code, code);
+        if (code != 0) r2_own_bad_v1(R2_OWN_OP_EXIT_CODE, code);
+        return r2_own_leave_v1(R2_OWN_EXITED);
+    }
+    if (!r2_own_child_identity_v1(0) || !r2_own_threads_v1(r->stop_deadline_qpc) ||
+        !r2_own_clock_v1(r->stop_deadline_qpc, R2_OWN_OP_CLOCK)) return r2_own_leave_v1(R2_OWN_NEEDS_CLEANUP);
+    if (r->process_signaled) return r2_own_leave_v1(R2_OWN_EXITED);
+    return r2_own_leave_v1(r2_own_stopped_v1() ? R2_OWN_NEEDS_CLEANUP : R2_OWN_PENDING);
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_stop_new_v1(void)
+{
+    InterlockedExchange(&r2_own_stop_v1, 1);
+    if (!r2_own_enter_v1()) return R2_OWN_BUSY;
+    r2_own_report_v1.stop_new = 1;
+    return r2_own_leave_v1(R2_OWN_OK);
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_finish_step_v1(void)
+{
+    DWORD value, code;
+    int64_t slice_deadline;
+    int clock_ok, final_ok = 1;
+    struct r2_win_owned_report_v1 *r = &r2_own_report_v1;
+    InterlockedExchange(&r2_own_stop_v1, 1);
+    if (!r2_own_enter_v1()) return R2_OWN_BUSY;
+    if (!r->attempt_consumed) return r2_own_leave_v1(R2_OWN_BAD_STATE);
+    if (r->lifecycle == R2_OWN_DONE) return r2_own_leave_v1(R2_OWN_FINISHED);
+    if (r->lifecycle == R2_OWN_RETAINED) return r2_own_leave_v1(R2_OWN_RESIDUAL);
+    clock_ok = r2_own_v1.deadline_bound && r2_own_clock_v1(r->cleanup_deadline_qpc, R2_OWN_OP_CLOCK);
+    if (!r->finish_started) {
+        r->finish_started = 1; r->lifecycle = R2_OWN_STOPPING;
+        /* Even a late first cleanup requests termination once. It never
+         * invents more waiting time or turns that request into observed exit. */
+        if (r2_own_v1.job && (!r->process_signaled || !r->job_empty)) {
+            if (TerminateJobObject(r2_own_v1.job, 0xE0000001u)) r->terminate_job_state = R2_WIN_JOB_FIELD_VALID;
+            else { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_TERMINATE_JOB, e); r->terminate_job_state = R2_WIN_JOB_FIELD_FAILED; }
+        }
+        if (r2_own_v1.process && !r->process_signaled &&
+            (!r->membership || r->terminate_job_state != R2_WIN_JOB_FIELD_VALID)) {
+            if (TerminateProcess(r2_own_v1.process, 0xE0000001u)) r->terminate_process_state = R2_WIN_JOB_FIELD_VALID;
+            else { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_TERMINATE_PROCESS, e); r->terminate_process_state = R2_WIN_JOB_FIELD_FAILED; }
+        }
+    }
+    if (!r2_own_v1.creator && !r2_own_v1.job && !r2_own_v1.process && !r2_own_v1.thread && !r2_own_v1.snapshot) {
+        if (r->residual_bits) goto residual;
+        r->final_complete = 1; r->lifecycle = R2_OWN_DONE;
+        return r2_own_leave_v1(R2_OWN_FINISHED);
+    }
+    if (!clock_ok || !r2_own_clock_v1(r->cleanup_deadline_qpc, R2_OWN_OP_CLOCK)) goto residual;
+    r->lifecycle = R2_OWN_JOINING;
+    slice_deadline = r->cleanup_deadline_qpc - r->last_qpc > r->qpc_frequency ?
+        r->last_qpc + r->qpc_frequency : r->cleanup_deadline_qpc;
+    if (!r2_own_wait_process_v1(r2_own_slice_v1(slice_deadline)) ||
+        !r2_own_clock_v1(r->cleanup_deadline_qpc, R2_OWN_OP_CLOCK)) goto residual;
+    if (r2_own_v1.thread) {
+        value = WaitForSingleObject(r2_own_v1.thread, 0);
+        if (value == WAIT_FAILED) { DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_WAIT_THREAD, e); r->residual_bits |= R2_OWN_RESIDUAL_JOIN; goto residual; }
+        r2_own_u32_v1(&r->thread_wait, value);
+        if (value == WAIT_OBJECT_0) r->thread_signaled = 1;
+        else if (value == WAIT_TIMEOUT && r->process_signaled) {
+            r2_own_bad_v1(R2_OWN_OP_WAIT_THREAD, R2_OWN_WAIT_RESULT);
+            r->residual_bits |= R2_OWN_RESIDUAL_JOIN; goto residual;
+        }
+        else if (value != WAIT_TIMEOUT) { r2_own_bad_v1(R2_OWN_OP_WAIT_THREAD, R2_OWN_WAIT_RESULT); r->residual_bits |= R2_OWN_RESIDUAL_JOIN; goto residual; }
+    }
+    if (r2_own_v1.job) {
+        r->latest_valid = r2_own_sample_v1(&r->latest, r->cleanup_deadline_qpc);
+        if (!r->latest_valid) r->residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+    }
+    if ((r2_own_v1.process && !r->process_signaled) ||
+        (r2_own_v1.thread && !r->thread_signaled) || (r2_own_v1.job && !r->job_empty)) {
+        if (!r2_own_clock_v1(r->cleanup_deadline_qpc, R2_OWN_OP_CLOCK)) goto residual;
+        if (r->process_signaled && r2_own_v1.job && !r->job_empty) {
+            DWORD pause = r2_own_slice_v1(slice_deadline);
+            if (pause) Sleep(pause);
+            if (!r2_own_clock_v1(r->cleanup_deadline_qpc, R2_OWN_OP_CLOCK)) goto residual;
+        }
+        return r2_own_leave_v1(R2_OWN_PENDING);
+    }
+    if (!r2_own_v1.final_attempted) {
+        r2_own_v1.final_attempted = 1; r->lifecycle = R2_OWN_FINAL_SAMPLING;
+        if (r2_own_v1.process) {
+            if (!r2_own_child_identity_v1(1)) final_ok = 0;
+            if (!GetExitCodeProcess(r2_own_v1.process, &code)) {
+                DWORD e = GetLastError(); r2_own_api_v1(R2_OWN_OP_EXIT_CODE, e); final_ok = 0;
+            } else {
+                r2_own_u32_v1(&r->final_exit_code, code);
+                /* A nonzero exit is a work failure even when a thread-scan
+                 * race was the first exit observation. Keep valid final CPU,
+                 * identity/accounting and the real once-close path: a failed
+                 * workload does not itself mean the original is unjoined. */
+                if (code != 0) r2_own_bad_v1(R2_OWN_OP_EXIT_CODE, code);
+            }
+        }
+        if (r2_own_v1.job) {
+            r->final_valid = r2_own_sample_v1(&r->final_sample, r->cleanup_deadline_qpc);
+            if (!r->final_valid || !r->job_empty) final_ok = 0;
+        }
+        if (!r2_own_clock_v1(r->cleanup_deadline_qpc, R2_OWN_OP_FINAL_CLOCK)) final_ok = 0;
+        r->final_complete = final_ok;
+        if (!final_ok) r->residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+    }
+    if (r->residual_bits || !r->final_complete) goto residual;
+    r->lifecycle = R2_OWN_CLOSING;
+    /* Every slot is consumed before its sole attempt. Independent later
+     * closes still run after one failed close while original time remains. */
+    r2_own_close_v1(&r2_own_v1.snapshot, &r->snapshot, R2_OWN_OP_CLOSE_SNAPSHOT, r->cleanup_deadline_qpc);
+    r2_own_close_v1(&r2_own_v1.thread, &r->thread, R2_OWN_OP_CLOSE_THREAD, r->cleanup_deadline_qpc);
+    r2_own_close_v1(&r2_own_v1.process, &r->process, R2_OWN_OP_CLOSE_PROCESS, r->cleanup_deadline_qpc);
+    r2_own_close_v1(&r2_own_v1.job, &r->job, R2_OWN_OP_CLOSE_JOB, r->cleanup_deadline_qpc);
+    r2_own_close_v1(&r2_own_v1.creator, &r->creator, R2_OWN_OP_CLOSE_CREATOR, r->cleanup_deadline_qpc);
+    if (!r2_own_clock_v1(r->cleanup_deadline_qpc, R2_OWN_OP_FINAL_CLOCK) || r->residual_bits ||
+        r2_own_v1.snapshot || r2_own_v1.thread || r2_own_v1.process || r2_own_v1.job || r2_own_v1.creator) goto residual;
+    r->lifecycle = R2_OWN_DONE;
+    return r2_own_leave_v1(R2_OWN_FINISHED);
+residual:
+    if ((r2_own_v1.process && !r->process_signaled) ||
+        (r2_own_v1.thread && !r->thread_signaled) || (r2_own_v1.job && !r->job_empty))
+        r->residual_bits |= R2_OWN_RESIDUAL_JOIN;
+    r->lifecycle = R2_OWN_RETAINED;
+    return r2_own_leave_v1(R2_OWN_RESIDUAL);
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_copy_report_v1(
+    struct r2_win_owned_report_v1 *out, size_t size)
+{
+    if (size != sizeof(*out) || !r2_own_range_v1(out, size, _Alignof(struct r2_win_owned_report_v1)))
+        return R2_OWN_BAD_ARGUMENT;
+    if (!r2_own_enter_v1()) return R2_OWN_BUSY;
+    r2_own_report_v1.stop_new = (uint32_t)r2_own_stopped_v1();
+    memcpy(out, &r2_own_report_v1, sizeof(*out));
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return R2_OWN_OK;
+}
+#endif

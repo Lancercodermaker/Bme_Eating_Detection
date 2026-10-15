@@ -1,4 +1,4 @@
-"""Private native child-Job lifecycle source; no preparation deployment entry.
+"""Private generic native-owned child lifecycle; no preparation deployment entry.
 
 The immutable Windows interpreter, stdlib, PE images and complete native load
 closure MUST be established by an actual installation/startup owner BEFORE
@@ -7,10 +7,14 @@ The sole preparation operation below refuses: that owner and the fixed readonly
 worker/PE closure have no concrete producer here. Underscores are not a security
 boundary; the underlying kernel methods are primitives, never launch permission.
 
-The raw QPC epoch begins here before child birth, not before Python startup or
-the original whole preparation/study. Fixed 60/70-second absolute deadlines
-cover only this private lifecycle. The Job caps only its child group: 4 GiB
-commit, four active processes, at most two affinity bits and CPU rate control.
+The original caller supplies raw intent and already-bound absolute QPC
+deadlines through an ALREADY loaded C02 native component. No custom DLL is
+loaded here. Native context-observed QPC is separate from the supplied epoch;
+neither proves Python/preload/root history. The existing non-E monitor retains
+one private 60/70-second subwindow, sampled ONCE and accepted only as a strict
+subset of the supplied original lease deadlines. Original lease values remain
+separate; no H1/root credit or epoch is reset. The Job caps only one owned child: 4 GiB commit,
+one active process, at most two affinity bits and CPU rate control.
 PeakProcessMemoryUsed/PeakJobMemoryUsed are commit peaks, not physical RAM/RSS.
 Parent, external observer, WSLService/vmcompute/VM, total RAM and GPU are UNKNOWN.
 The fixed C/D native component supplies actual bounded before/after polling,
@@ -25,10 +29,12 @@ Unclosed deployment dependencies include the readonly worker/runtime/launcher
 and pre-Python QPC identity; E carrier/guest creation, allocation and history;
 C/D/System writers and inflight/cleanup growth within 512 MiB; external WSL VM
 lifecycle and whole-task RAM/GPU. Native call setup alone closes none of them.
-ABI: Microsoft Learn winnt.h/jobapi2.h/processthreadsapi.h/winbase.h.
-Arbitrary/fatal OOM or owner death is not recoverably contained here. In
-particular, ctypes HANDLE-return conversion can fail after native Job creation;
-only a future native/external owner can close that UNKNOWN quarantine gap.
+ABI: Microsoft Learn winnt.h/jobapi2.h/processthreadsapi.h/winbase.h/tlhelp32.h.
+Native C stores every successful Job/PROCESS_INFORMATION acquisition before
+another API or foreign conversion. Recoverable ctypes result failures cannot
+discard those originals. Unjoined/query/close residuals retain the native
+component and Python owner strongly. Fatal owner death/OOM, asynchronous hard
+deadlines and complete external containment still require the missing owner.
 """
 
 from __future__ import annotations
@@ -38,6 +44,11 @@ import sys as _sys
 from types import MappingProxyType as _MappingProxyType
 
 from .native_failure_capture import NativeFailureCapture as _NativeFailureCapture
+from .windows_owned_child import (
+    _LoadedOwnedChild, _OK as _OWN_OK, _PENDING as _OWN_PENDING,
+    _EXITED as _OWN_EXITED, _FINISHED as _OWN_FINISHED, _RESIDUAL as _OWN_RESIDUAL,
+    _DONE as _OWN_DONE, _ORIGINAL_DISPATCH as _OWN_DISPATCH,
+)
 
 
 _DWORD, _WORD, _BOOL = _c.c_uint32, _c.c_uint16, _c.c_int32
@@ -52,6 +63,7 @@ _JOB_LIST = 0x0002000D  # ProcThreadAttributeValue(JobList=13, FALSE, TRUE, FALS
 _WAIT_OBJECT_0, _WAIT_TIMEOUT, _WAIT_FAILED = 0, 258, 0xFFFFFFFF
 _ORIGINAL_OWNER = _ORIGINAL_KERNEL = None  # Strong retained once-only raw binding.
 _ORIGINAL_NATIVE = _ORIGINAL_IDENTITY = _ORIGINAL_EPOCH = _NON_E_DISPATCH = None
+_ORIGINAL_OWNED_CHILD = None  # Strong native image/report/intent retention, including residual.
 
 
 class _IoCounters(_c.Structure):
@@ -192,39 +204,12 @@ def _bind_kernel():
     """Bind Windows LLP64 ABI lazily; binding cannot authorize construction."""
     if _sys.platform != "win32" or _c.sizeof(_HANDLE) != 8:
         raise PermissionError("private preparation primitives require 64-bit Windows")
-    # Fail closed on another ABI rather than assuming POSIX c_long layout.
-    if (_c.sizeof(_BasicLimits), _c.sizeof(_ExtendedLimits), _c.sizeof(_CpuRate),
-            _c.sizeof(_Accounting), _c.sizeof(_StartupInfoEx), _c.sizeof(_ProcessInfo)) != (
-                64, 144, 8, 48, 112, 24):
-        raise PermissionError("private preparation Win32 structure ABI differs")
     kernel = _c.WinDLL("kernel32.dll", use_last_error=True, winmode=0x00000800)
     declarations = (
         ("QueryPerformanceFrequency", _BOOL, [_c.POINTER(_I64)]),
         ("QueryPerformanceCounter", _BOOL, [_c.POINTER(_I64)]),
         ("GetCurrentProcess", _HANDLE, []),
         ("GetCurrentProcessId", _DWORD, []), ("GetCurrentThreadId", _DWORD, []),
-        ("GetActiveProcessorGroupCount", _WORD, []),
-        ("GetActiveProcessorCount", _DWORD, [_WORD]),
-        ("GetProcessAffinityMask", _BOOL, [_HANDLE, _c.POINTER(_SIZE), _c.POINTER(_SIZE)]),
-        ("CreateJobObjectW", _HANDLE, [_VOID, _WSTR]),
-        ("SetInformationJobObject", _BOOL, [_HANDLE, _c.c_int32, _VOID, _DWORD]),
-        ("QueryInformationJobObject", _BOOL,
-         [_HANDLE, _c.c_int32, _VOID, _DWORD, _c.POINTER(_DWORD)]),
-        ("InitializeProcThreadAttributeList", _BOOL,
-         [_VOID, _DWORD, _DWORD, _c.POINTER(_SIZE)]),
-        ("UpdateProcThreadAttribute", _BOOL,
-         [_VOID, _DWORD, _SIZE, _VOID, _SIZE, _VOID, _c.POINTER(_SIZE)]),
-        ("DeleteProcThreadAttributeList", None, [_VOID]),
-        ("CreateProcessW", _BOOL,
-         [_WSTR, _c.POINTER(_c.c_wchar), _VOID, _VOID, _BOOL, _DWORD,
-          _VOID, _WSTR, _c.POINTER(_StartupInfo), _c.POINTER(_ProcessInfo)]),
-        ("GetProcessId", _DWORD, [_HANDLE]), ("GetThreadId", _DWORD, [_HANDLE]),
-        ("IsProcessInJob", _BOOL, [_HANDLE, _HANDLE, _c.POINTER(_BOOL)]),
-        ("ResumeThread", _DWORD, [_HANDLE]),
-        ("WaitForSingleObject", _DWORD, [_HANDLE, _DWORD]),
-        ("GetExitCodeProcess", _BOOL, [_HANDLE, _c.POINTER(_DWORD)]),
-        ("TerminateJobObject", _BOOL, [_HANDLE, _DWORD]),
-        ("TerminateProcess", _BOOL, [_HANDLE, _DWORD]),
         ("CreateFileW", _HANDLE, [_WSTR, _DWORD, _DWORD, _VOID, _DWORD, _DWORD, _HANDLE]),
         ("GetFileType", _DWORD, [_HANDLE]),
         ("GetFileInformationByHandleEx", _BOOL, [_HANDLE, _c.c_int32, _VOID, _DWORD]),
@@ -238,10 +223,10 @@ def _bind_kernel():
         ("FindFirstVolumeW", _HANDLE, [_c.POINTER(_c.c_wchar), _DWORD]),
         ("FindNextVolumeW", _BOOL, [_HANDLE, _c.POINTER(_c.c_wchar), _DWORD]),
         ("FindVolumeClose", _BOOL, [_HANDLE]),
-        ("CloseHandle", _BOOL, [_HANDLE]), ("Sleep", None, [_DWORD]))
+        ("CloseHandle", _BOOL, [_HANDLE]))
     bindings = {}
     for name, restype, argtypes in declarations:
-        function = getattr(kernel, name)  # Missing JOB_LIST support is never emulated.
+        function = getattr(kernel, name)  # Only existing parent/file-monitor ABI here.
         function.restype, function.argtypes = restype, argtypes
         bindings[name] = _NativeBinding(kernel, name, function, restype, argtypes)
     return kernel, _MappingProxyType(bindings)
@@ -251,16 +236,20 @@ class _KernelOwner:
     """Original handles and one bounded native lifecycle for a future deployer.
 
     This private object is NOT an installed launch binding or a public factory.
-    It deliberately has no caller path, command, callback or receipt parameters.
+    Its loaded native binding holds raw generic intent/original deadlines;
+    neither a Python object nor these inputs verify an execution lease.
     The preparation operation does not construct it while the startup owner is
     missing. It offers no whole-task authority even after local child exit.
     """
 
-    def __init__(self):
-        global _ORIGINAL_OWNER, _ORIGINAL_KERNEL, _ORIGINAL_NATIVE
+    def __init__(self, *, owned_child=None):
+        global _ORIGINAL_OWNER, _ORIGINAL_KERNEL, _ORIGINAL_NATIVE, _ORIGINAL_OWNED_CHILD
         if (type(self) is not _KernelOwner or hasattr(self, "capture")
                 or _ORIGINAL_OWNER is not None):
             raise PermissionError("private native owner initialization is once only")
+        if owned_child is not None and type(owned_child) is not _LoadedOwnedChild:
+            raise TypeError("original already-loaded native owned-child binding required")
+        self.owned_child = owned_child
         self.capture = _NativeFailureCapture(64)
         self.faults = [_NativeFault() for _ in range(32)]
         self.fault_index = 0
@@ -281,30 +270,25 @@ class _KernelOwner:
         self.capture.failure.non_e_inflight_upper_bound = "UNKNOWN_NOT_ZERO"
         self.capture.failure.non_e_visible_high_water_bytes = self.capture.failure.non_e_visible_overshoot_bytes = None
         self.capture.failure.non_e_stop_latched, self.capture.failure.non_e_local_status = False, "NOT_INSTALLED"
-        self.job, self.pi = _HANDLE(), _ProcessInfo()
-        self.limits, self.seen, self.cpu, self.cpu_seen = (
-            _ExtendedLimits(), _ExtendedLimits(), _CpuRate(), _CpuRate())
-        self.accounting, self.returned = _Accounting(), _DWORD()
         self.frequency, self.counter = _I64(), _I64()
-        self.process_mask, self.system_mask = _SIZE(), _SIZE()
-        self.membership, self.exit_code, self.attribute_size = _BOOL(), _DWORD(), _SIZE()
-        self.jobs, self.startup = (_HANDLE * 1)(), _StartupInfoEx()
-        # Fixed absolute ApplicationName and quoted argv[0]; no caller command/PATH search.
-        self.command = _c.create_unicode_buffer('"E:\\Route2Dedicated\\control\\prep-worker.exe"')
-        self.environment = _c.create_unicode_buffer("SystemRoot=C:\\Windows\0\0")
-        self.attribute_buffer = None
-        self.attribute_live = self.member_verified = self.process_exited = False
+        self.process_exited = False
         self.job_empty = self.attempted = self.cleanup_attempted = False
         self.cleanup_integrity_lost = False
         self.started_ticks = self.last_ticks = self.stop_ticks = self.cleanup_ticks = 0
         self.owner_pid = self.owner_tid = self.processor_count = self.affinity = 0
         self.identity_probe_pid = self.identity_probe_tid = None
         self.sample_ticks = 0
+        self.context_observed_qpc = 0
+        self.original_lease_values = None
+        self.private_window = None
         self.non_e_monitor = None
         self.state, self.quarantine = "NEW", "UNKNOWN"
         self.kernel, bindings = _bind_kernel()  # No module-eager DLL load or handles.
         _ORIGINAL_OWNER, _ORIGINAL_KERNEL = self, self.kernel
         _ORIGINAL_NATIVE = bindings
+        _ORIGINAL_OWNED_CHILD = owned_child
+        self.capture.failure.raw_owned_child_report = None if owned_child is None else _OWN_DISPATCH["report"](owned_child)
+        self.capture.failure.raw_owned_child_original_lease = None if owned_child is None else _OWN_DISPATCH["source_lease"](owned_child)
 
     def _record(self, operation, error, handle=None):
         try:
@@ -347,18 +331,29 @@ class _KernelOwner:
         global _ORIGINAL_IDENTITY, _ORIGINAL_EPOCH
         if self is not _ORIGINAL_OWNER or _ORIGINAL_IDENTITY is not None:
             self._invalid("original_native_epoch_already_issued")
-        self.owner_pid = _native_function("GetCurrentProcessId")()
-        self.owner_tid = _native_function("GetCurrentThreadId")()
-        if not self.owner_pid or not self.owner_tid:
-            self._invalid("original_native_owner_identity_missing")
-        _ORIGINAL_IDENTITY = (self.owner_pid, self.owner_tid)
+        if (self.owned_child is None or self.owned_child is not _ORIGINAL_OWNED_CHILD
+                or not _OWN_DISPATCH["unchanged"](self.owned_child)):
+            self._invalid("already_loaded_original_native_child_binding_absent")
+        self.original_lease_values = _OWN_DISPATCH["source_lease"](self.owned_child)
         if not _native_function("QueryPerformanceFrequency")(_c.byref(self.frequency)):
-            raise self._native_error("QueryPerformanceFrequency")
-        if self.frequency.value <= 0:
-            self._invalid("QPC_frequency_nonpositive")
-        self.started_ticks = self._clock()
-        self.stop_ticks = self.started_ticks + 60 * self.frequency.value
-        self.cleanup_ticks = self.started_ticks + 70 * self.frequency.value
+            raise self._native_error("QueryPerformanceFrequency_private_subwindow")
+        # One sample produces exactly the existing monitor's private window.
+        # This is neither original H1 t0 nor native creator/preload birth.
+        private_start = self._clock()
+        self.private_window = _OWN_DISPATCH["restrict_private_window_once"](self.owned_child, private_start, self.frequency.value)
+        result = _OWN_DISPATCH["begin"](self.owned_child)  # Native owns every acquired handle even if conversion raises.
+        report = _OWN_DISPATCH["report"](self.owned_child)
+        self.owner_pid, self.owner_tid = report.creator_pid, report.creator_tid
+        self.frequency.value = report.qpc_frequency
+        self.started_ticks = self.private_window[0]  # Private monitor start only, never original H1/root t0.
+        self.context_observed_qpc = report.context_observed_qpc
+        self.last_ticks = report.last_qpc
+        self.stop_ticks, self.cleanup_ticks = report.stop_deadline_qpc, report.cleanup_deadline_qpc
+        if (result != _OWN_OK or not self.owner_pid or not self.owner_tid
+                or report.lease_epoch_qpc != self.original_lease_values[0]
+                or (self.started_ticks, self.frequency.value, self.stop_ticks, self.cleanup_ticks) != self.private_window):
+            self._invalid("native_owned_child_begin_failed")
+        _ORIGINAL_IDENTITY = (self.owner_pid, self.owner_tid)
         _ORIGINAL_EPOCH = (_ORIGINAL_IDENTITY[0], _ORIGINAL_IDENTITY[1],
             self.started_ticks, self.frequency.value, self.stop_ticks, self.cleanup_ticks)
 
@@ -377,6 +372,10 @@ class _KernelOwner:
                 or (self.owner_pid, self.owner_tid) != _ORIGINAL_IDENTITY
                 or (self.owner_pid, self.owner_tid, self.started_ticks,
                     self.frequency.value, self.stop_ticks, self.cleanup_ticks) != _ORIGINAL_EPOCH
+                or self.owned_child is not _ORIGINAL_OWNED_CHILD
+                or self.owned_child is None or not _OWN_DISPATCH["unchanged"](self.owned_child)
+                or self.original_lease_values != _OWN_DISPATCH["source_lease"](self.owned_child)
+                or self.private_window != _OWN_DISPATCH["private_window"](self.owned_child)
                 or _native_drifted()):
             self._invalid("original_owner_identity_changed")
         if self._clock() >= _ORIGINAL_EPOCH[4]:
@@ -409,312 +408,90 @@ class _KernelOwner:
                 self.cleanup_integrity_lost, self.quarantine = True, "UNKNOWN"
                 self._record("non_e_close_once_dispatch", error)
 
-    def _cpu_profile(self):
-        groups = _native_function("GetActiveProcessorGroupCount")()
-        if not groups:
-            raise self._native_error("GetActiveProcessorGroupCount")
-        count = _native_function("GetActiveProcessorCount")(0xFFFF)  # ALL_PROCESSOR_GROUPS.
-        if not count:
-            raise self._native_error("GetActiveProcessorCount")
-        if groups != 1 or not 1 <= count <= 64:
-            self._invalid("unsupported_processor_groups")
-        if not _native_function("GetProcessAffinityMask")(_native_function("GetCurrentProcess")(),
-                _c.byref(self.process_mask), _c.byref(self.system_mask)):
-            raise self._native_error("GetProcessAffinityMask")
-        allowed, system = self.process_mask.value, self.system_mask.value
-        if not allowed or allowed & ~system or system.bit_count() != count:
-            self._invalid("native_affinity_topology_inconsistent")
-        first = allowed & -allowed
-        remaining = allowed ^ first
-        self.affinity = first | (remaining & -remaining)
-        self.processor_count = count
-        self.cpu.ControlFlags, self.cpu.Rate.CpuRate = _CPU_FLAGS, min(10000, 20000 // count)
-        basic = self.limits.BasicLimitInformation
-        basic.LimitFlags, basic.ActiveProcessLimit, basic.Affinity = _JOB_FLAGS, 4, self.affinity
-        self.limits.JobMemoryLimit = 4 * 1024 ** 3
-
-    def _initialize_attributes(self):
-        result = _native_function("InitializeProcThreadAttributeList")(
-            None, 1, 0, _c.byref(self.attribute_size))
-        sizing_error = _c.get_last_error()
-        if not result and sizing_error != 122:
-            raise self._native_error("InitializeProcThreadAttributeList_sizing")
-        if result or not 0 < self.attribute_size.value <= 65536:
-            self._invalid("attribute_list_expected_insufficient_buffer")
-        units = (self.attribute_size.value + _c.sizeof(_SIZE) - 1) // _c.sizeof(_SIZE)
-        self.attribute_buffer = (_SIZE * units)()  # Pointer-aligned, held through deletion.
-        self.startup.lpAttributeList = _c.cast(self.attribute_buffer, _VOID)
-        if not _native_function("InitializeProcThreadAttributeList")(self.startup.lpAttributeList,
-                1, 0, _c.byref(self.attribute_size)):
-            raise self._native_error("InitializeProcThreadAttributeList")
-        self.attribute_live = True
-
-    def _create_job(self):
-        self._stop_guard()  # Before creating any new Job, then after actual creation.
-        self.job.value = _native_function("CreateJobObjectW")(None, None)  # Unnamed, noninheritable.
-        if not self.job.value:
-            raise self._native_error("CreateJobObjectW")
-        self._stop_guard()
-        for information_class, value in ((9, self.limits), (15, self.cpu)):
-            if not _native_function("SetInformationJobObject")(self.job, information_class,
-                    _c.byref(value), _c.sizeof(value)):
-                raise self._native_error("SetInformationJobObject", self.job.value)
-        self._read_limits()
-        self.jobs[0] = self.job.value
-        if not _native_function("UpdateProcThreadAttribute")(self.startup.lpAttributeList, 0,
-                _JOB_LIST, self.jobs, _c.sizeof(self.jobs), None, None):
-            # Win10+ atomic birth association is required. No AssignProcess
-            # suspended fallback: it cannot cover allocations before association.
-            raise self._native_error("UpdateProcThreadAttribute_JOB_LIST", self.job.value)
-        self._stop_guard()
-
-    def _query(self, information_class, value):
-        self.returned.value = 0
-        if not _native_function("QueryInformationJobObject")(self.job, information_class,
-                _c.byref(value), _c.sizeof(value), _c.byref(self.returned)):
-            raise self._native_error("QueryInformationJobObject", self.job.value)
-        if self.returned.value != _c.sizeof(value):
-            self._invalid("job_information_readback_size")
-
-    def _read_limits(self):
-        self._query(9, self.seen)
-        self._query(15, self.cpu_seen)
-        actual, expected = self.seen.BasicLimitInformation, self.limits.BasicLimitInformation
-        # Compare every enabled limit and the entire flag word, including absence
-        # of both breakaway flags. Disabled fields (e.g. default scheduling class)
-        # are not limit values; Microsoft documents them as ignored.
-        if (actual.LimitFlags != expected.LimitFlags
-                or actual.ActiveProcessLimit != expected.ActiveProcessLimit
-                or actual.Affinity != expected.Affinity):
-            self._invalid("job_basic_limit_readback_changed")
-        if (self.seen.JobMemoryLimit != self.limits.JobMemoryLimit
-                or self.seen.ProcessMemoryLimit != 0
-                or self.cpu_seen.ControlFlags != _CPU_FLAGS
-                or self.cpu_seen.Rate.CpuRate != self.cpu.Rate.CpuRate):
-            self._invalid("job_memory_or_cpu_limit_readback_changed")
-
-    def _birth_suspended(self):
-        self._stop_guard()  # Current actual non-E sample before atomic child birth.
-        if self.pi.hProcess or self.pi.hThread:
-            self._invalid("private_child_birth_repeated")
-        self.startup.StartupInfo.cb = _c.sizeof(_StartupInfoEx)
-        # STARTF_USESTDHANDLES remains clear with bInheritHandles=False.
-        if not _native_function("CreateProcessW")(_WORKER, self.command, None, None, False,
-                _CREATE_FLAGS, self.environment, _DIRECTORY,
-                _c.cast(_c.byref(self.startup), _c.POINTER(_StartupInfo)), _c.byref(self.pi)):
-            raise self._native_error("CreateProcessW_atomic_job_birth", self.job.value)
-        # Native PROCESS_INFORMATION holds originals even if the return path raises.
-        self.state = "SUSPENDED_CHILD"
-        self._stop_guard()
-        pid = _native_function("GetProcessId")(self.pi.hProcess)
-        if not pid:
-            raise self._native_error("GetProcessId", self.pi.hProcess)
-        tid = _native_function("GetThreadId")(self.pi.hThread)
-        if not tid:
-            raise self._native_error("GetThreadId", self.pi.hThread)
-        if pid != self.pi.dwProcessId or tid != self.pi.dwThreadId:
-            self._invalid("original_child_handle_identity_changed")
-        self.membership.value = 0
-        if not _native_function("IsProcessInJob")(self.pi.hProcess, self.job, _c.byref(self.membership)):
-            raise self._native_error("IsProcessInJob", self.pi.hProcess)
-        if self.membership.value != 1:
-            self._invalid("atomic_child_job_membership_absent")
-        self.member_verified = True
-        self._read_limits()
-        self._stop_guard()
-        prior = _native_function("ResumeThread")(self.pi.hThread)
-        if prior == 0xFFFFFFFF:
-            raise self._native_error("ResumeThread", self.pi.hThread)
-        if prior != 1:
-            self._invalid("unexpected_original_thread_suspend_count")
-        self.state = "RUNNING_CHILD"
-        self._stop_guard()  # ResumeThread is synchronous; no interrupt/overshoot bound.
-        self._close_thread()
-        if self.capture.first_error is not None:
-            raise self.capture.first_error
-        if self._capture_incomplete():
-            raise self.incomplete_capture
-
-    def _sample(self):
-        self._query(1, self.accounting)
-        self._read_limits()  # Includes raw Job/individual commit peaks in self.seen.
-        self.sample_ticks = self._clock()
-        if self.accounting.ActiveProcesses > 4 or self.seen.PeakJobMemoryUsed > 4 * 1024 ** 3:
-            self._invalid("raw_job_accounting_exceeded_cap")
-
-    def _observe_exit(self, timeout_ms):
-        self._identity_guard()
-        if self.pi.hProcess and not self.process_exited:
-            result = _native_function("WaitForSingleObject")(self.pi.hProcess, timeout_ms)
-            if result == _WAIT_FAILED:
-                raise self._native_error("WaitForSingleObject", self.pi.hProcess)
-            if result == _WAIT_OBJECT_0:
-                if not _native_function("GetExitCodeProcess")(self.pi.hProcess, _c.byref(self.exit_code)):
-                    raise self._native_error("GetExitCodeProcess", self.pi.hProcess)
-                self.process_exited = True  # Signaled original handle, not PID existence.
-            elif result != _WAIT_TIMEOUT:
-                self._invalid("unexpected_process_wait_result")
-        elif timeout_ms:
-            _native_function("Sleep")(timeout_ms)  # Descendants may outlive the original child.
-        if self.job.value:
-            self._query(1, self.accounting)
-            self.job_empty = self.accounting.ActiveProcesses == 0
-        return (not self.pi.hProcess or self.process_exited) and (not self.job.value or self.job_empty)
-
     def _wait_for_local_exit(self):
+        """All child waits/accounting/identity now use the native originals."""
         while True:
             self._stop_guard()
-            remaining_ms = (_ORIGINAL_EPOCH[4] - self.last_ticks) * 1000 // _ORIGINAL_EPOCH[3]
-            cleared = self._observe_exit(min(1000, remaining_ms))
-            self._sample()
-            self._stop_guard()
-            if self.process_exited and self.exit_code.value != 0:
-                self._invalid("original_child_nonzero_exit")
-            if cleared:
-                self.state = "NATIVE_CHILD_GROUP_EXIT_OBSERVED"
-                return
-
-    def _terminate_originals(self):
-        self._identity_guard()  # Foreign-process numbers are never terminated.
-        job_terminated = False
-        if self.job.value:
-            try:
-                job_terminated = bool(_native_function("TerminateJobObject")(self.job, 0xE0000001))
-                if not job_terminated:
-                    self._native_error("TerminateJobObject", self.job.value)
-            except BaseException as error:
-                self._record("TerminateJobObject_exception", error, self.job.value)
-        # Before verified membership, or after a failed Job termination, retain
-        # the actual process handle path. Never reopen a PID or invoke taskkill.
-        if (self.pi.hProcess and not self.process_exited
-                and (not self.member_verified or not job_terminated)):
-            try:
-                if not _native_function("TerminateProcess")(self.pi.hProcess, 0xE0000001):
-                    self._native_error("TerminateProcess", self.pi.hProcess)
-            except BaseException as error:
-                self._record("TerminateProcess_exception", error, self.pi.hProcess)
-
-    def _bounded_cleanup_wait(self):
-        while True:
+            result = _OWN_DISPATCH["observe"](self.owned_child)
+            report = _OWN_DISPATCH["report"](self.owned_child)
+            self.sample_ticks = report.last_qpc
+            self.process_exited, self.job_empty = bool(report.process_signaled), bool(report.job_empty)
             self._cleanup_non_e_observation()
-            ticks = self._clock()
-            if ticks >= _ORIGINAL_EPOCH[5]:
-                self._invalid("absolute_private_cleanup_deadline")
-            remaining_ms = (_ORIGINAL_EPOCH[5] - ticks) * 1000 // _ORIGINAL_EPOCH[3]
-            try:
-                cleared = self._observe_exit(min(1000, remaining_ms))
-            finally:
-                self._cleanup_non_e_observation()  # Preserve a failed wait's primary.
-            if cleared:
-                if self._clock() >= _ORIGINAL_EPOCH[5]:
-                    self._invalid("cleanup_exit_observed_after_deadline")
-                monitor = None if _NON_E_DISPATCH is None else _NON_E_DISPATCH["registered"](self)
-                if monitor is None or monitor.unknown:
-                    self.quarantine = "UNKNOWN"
-                else:
-                    self.quarantine = "CHILD_GROUP_EXIT_OBSERVED"  # Local handles only, not VM/full-scope clean.
+            if result == _OWN_EXITED and not report.fault_count:
+                self.state = "NATIVE_CHILD_GROUP_EXIT_PENDING_FINAL_SAMPLE"
                 return
-
-    def _close_thread(self):
-        if self.pi.hThread:
-            self._identity_guard()  # Reject before consuming a foreign number.
-        handle, self.pi.hThread = self.pi.hThread, None
-        self._close_consumed(handle, "CloseHandle_thread")
-
-    def _close_process(self):
-        if self.pi.hProcess:
-            self._identity_guard()
-        handle, self.pi.hProcess = self.pi.hProcess, None
-        self._close_consumed(handle, "CloseHandle_process")
-
-    def _close_job(self):
-        if self.job.value:
-            self._identity_guard()
-        handle, self.job.value = self.job.value, None
-        self._close_consumed(handle, "CloseHandle_job")
-
-    def _close_consumed(self, handle, operation):
-        # Only the three original-handle consumers above supply these literals.
-        if handle:
-            try:
-                if not _native_function("CloseHandle")(handle):
-                    self._native_error(operation, handle)
-                    self.cleanup_integrity_lost, self.quarantine = True, "UNKNOWN"
-            except BaseException as error:
-                self._record(operation, error, handle)
-                self.cleanup_integrity_lost, self.quarantine = True, "UNKNOWN"
-
-    def _delete_attributes(self):
-        if self.attribute_live:
-            self._identity_guard()  # The original buffer also belongs to this process.
-            self.attribute_live = False
-            try:
-                _native_function("DeleteProcThreadAttributeList")(self.startup.lpAttributeList)
-            except BaseException as error:
-                self._record("DeleteProcThreadAttributeList_exception", error)
-                self.cleanup_integrity_lost = True
-                self.quarantine = "UNKNOWN"
+            if result != _OWN_PENDING:
+                self._invalid("native_owned_child_observation_failed")
+            self._stop_guard()
 
     def _cleanup_once(self, failed):
+        """Native once-termination/joins/final-sampling/close; retain residuals.
+
+        Native ownership survives any earlier return conversion/report failure.
+        No Python HANDLE value or mutable cleanup flag is used to terminate a
+        child. The original singleton and library are never cleared or reused.
+        """
         if self.cleanup_attempted:
             return
         self.cleanup_attempted = True
+        native = _ORIGINAL_OWNED_CHILD
+        if native is None or not _OWN_DISPATCH["begin_attempted"](native):
+            self.quarantine = "UNKNOWN"
+            return
         self._cleanup_non_e_observation()
-        monitor = None if _NON_E_DISPATCH is None else _NON_E_DISPATCH["registered"](self)
-        if monitor is not None and monitor.stop_latched:
-            failed = True
-        if failed:
-            try:
-                self._terminate_originals()
-            except BaseException as error:
-                self._record("terminate_originals_dispatch", error)
-                self.quarantine = "UNKNOWN"
-            finally:
+        try:
+            _OWN_DISPATCH["stop_new"](native)
+        except BaseException as error:
+            # Still dispatch finish: stop is not a prerequisite for cleanup.
+            self._record("native_owned_child_stop_dispatch", error)
+            self.cleanup_integrity_lost = True
+        try:
+            while True:
+                result = _OWN_DISPATCH["finish_step"](native)  # Each wait shares the original absolute deadline.
                 self._cleanup_non_e_observation()
-        if self.pi.hProcess or self.job.value:
-            try:
-                self._bounded_cleanup_wait()
-            except BaseException as error:
-                self._record("bounded_original_handle_cleanup_wait", error)
-                self.quarantine = "UNKNOWN"
-        # Independent guarded closes: one recoverable close error cannot skip
-        # the remaining originals. Every handle is consumed before its attempt.
-        try:
-            self._delete_attributes()
+                if result == _OWN_PENDING:
+                    continue
+                report = _OWN_DISPATCH["report"](native)
+                binding_drifted = (_OWN_DISPATCH["drifted"](native)
+                    or not _OWN_DISPATCH["unchanged"](native))
+                self.process_exited, self.job_empty = bool(report.process_signaled), bool(report.job_empty)
+                if (result == _OWN_FINISHED and report.lifecycle == _OWN_DONE
+                        and report.final_complete and not report.residual_bits):
+                    self.state = "NATIVE_CHILD_GROUP_FINAL_FACTS_AND_CLOSES_OBSERVED"
+                    if report.fault_count or binding_drifted:
+                        self.cleanup_integrity_lost = True
+                        self.quarantine = "UNKNOWN"
+                    else:
+                        monitor = None if _NON_E_DISPATCH is None else _NON_E_DISPATCH["registered"](self)
+                        self.quarantine = ("UNKNOWN" if monitor is None or monitor.unknown
+                            else "CHILD_GROUP_EXIT_OBSERVED")
+                    self._close_non_e_once()
+                else:
+                    # Keep original native/library/owner and monitor roots held.
+                    # No fresh wait, PID reopen, release-for-reuse or false EXITED.
+                    self.cleanup_integrity_lost, self.quarantine = True, "UNKNOWN"
+                    self.state = "NATIVE_CHILD_RESIDUAL_RETAINED"
+                break
         except BaseException as error:
-            self._record("delete_attributes_dispatch", error)
-            self.cleanup_integrity_lost = True
-        try:
-            self._close_thread()
-        except BaseException as error:
-            self._record("close_thread_dispatch", error)
-            self.cleanup_integrity_lost = True
-        try:
-            self._close_process()
-        except BaseException as error:
-            self._record("close_process_dispatch", error)
-            self.cleanup_integrity_lost = True
-        try:
-            self._close_job()
-        except BaseException as error:
-            self._record("close_job_dispatch", error)
-            self.cleanup_integrity_lost = True
-        # Roots remain held through final observed cleanup growth. Monitor
-        # cleanup remains independent of all three original Job-handle closes.
-        self._cleanup_non_e_observation()
-        self._close_non_e_once()
-        if self.started_ticks:
-            try:
-                if _ORIGINAL_EPOCH is None or self._clock() >= _ORIGINAL_EPOCH[5]:
-                    self._invalid("complete_handle_cleanup_after_deadline")
-            except BaseException as error:
-                self._record("final_cleanup_QPC", error)
-                self.quarantine = "UNKNOWN"
+            self.cleanup_integrity_lost, self.quarantine = True, "UNKNOWN"
+            self.state = "NATIVE_CHILD_RESIDUAL_RETAINED"
+            self.capture.failure.cleanup_dispatch_error = error
+            self._record("native_owned_child_finish_dispatch", error)
+            self._cleanup_non_e_observation()  # Roots remain open on this path.
 
     def _capture_incomplete(self):
         monitor = None if _NON_E_DISPATCH is None else _NON_E_DISPATCH["registered"](self)
+        native = _ORIGINAL_OWNED_CHILD
+        report = None if native is None else _OWN_DISPATCH["report"](native)
+        binding_drifted = native is not None and (_OWN_DISPATCH["drifted"](native)
+            or not _OWN_DISPATCH["unchanged"](native))
         return (self.capture.aggregation_error is not None
                 or self.capture.overflowed or self.cleanup_integrity_lost
+                or binding_drifted
+                or report is None or report.lifecycle != _OWN_DONE
+                or not report.final_complete or bool(report.residual_bits) or bool(report.fault_count)
+                or (report.process.acquired and
+                    (report.final_exit_code.state != 1 or report.final_exit_code.value != 0))
                 or (monitor is not None and (monitor.unknown or not monitor.baseline_installed)))
 
     def _finalize_capture(self):
@@ -756,11 +533,11 @@ class _KernelOwner:
             _NON_E_DISPATCH = _ORIGINAL_DISPATCH
             _NON_E_DISPATCH["install"](self)
             self._stop_guard()
-            self._cpu_profile()
-            self._initialize_attributes()
-            self._create_job()
+            if _OWN_DISPATCH["birth"](self.owned_child) != _OWN_OK:
+                self._invalid("native_owned_child_birth_failed")
             self._stop_guard()
-            self._birth_suspended()
+            if _OWN_DISPATCH["resume"](self.owned_child) != _OWN_OK:
+                self._invalid("native_owned_child_resume_failed")
             self._wait_for_local_exit()
         except BaseException as error:
             primary = error

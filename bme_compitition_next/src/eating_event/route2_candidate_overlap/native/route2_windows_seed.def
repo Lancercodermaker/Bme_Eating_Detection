@@ -1,0 +1,19 @@
+LIBRARY route2_windows_seed
+EXPORTS
+    route2_win_raw_process_observe_v1
+    route2_win_refuse_vm_service_scope_v1
+    route2_win_refuse_e_physical_cap_v1
+    route2_win_refuse_owner_exit_join_v1
+    route2_win_raw_job_capsule_create_fixed_v1
+    route2_win_raw_job_capsule_assign_borrowed_v1
+    route2_win_raw_job_capsule_query_v1
+    route2_win_raw_job_capsule_close_once_v1
+    route2_win_raw_job_capsule_copy_report_v1
+    route2_win_owned_child_describe_v1
+    route2_win_owned_child_begin_once_v1
+    route2_win_owned_child_birth_suspended_once_v1
+    route2_win_owned_child_resume_once_v1
+    route2_win_owned_child_observe_step_v1
+    route2_win_owned_child_stop_new_v1
+    route2_win_owned_child_finish_step_v1
+    route2_win_owned_child_copy_report_v1

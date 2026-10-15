@@ -527,3 +527,147 @@ uint32_t route2_linux_start_capture_once_v1(
     struct r2_linux_start_capture_v1 *out, size_t out_size);
 #endif
 #endif
+
+/* C02 owned-child SOURCE component. This appended ABI does not change C02-A,
+ * C02-B1 or C03. Native memory layout only; no authenticated transport or
+ * admission. The original caller supplies already-bound raw intent and its
+ * ORIGINAL absolute QPC deadlines. This component does not verify a lease,
+ * readonly image closure, original H1/root epoch, RAM/VM/service scope, whole
+ * fees, physical writes or an external hard-deadline executor.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED)
+#ifndef R2_WIN_OWNED_CHILD_V1_DECLARED
+#define R2_WIN_OWNED_CHILD_V1_DECLARED
+#define R2_WIN_OWNED_ABI 1u
+#define R2_WIN_OWNED_TEXT_CAPACITY 32768u
+#define R2_WIN_OWNED_ATTRIBUTE_CAPACITY 65536u
+#define R2_WIN_OWNED_FAULT_CAPACITY 64u
+#define R2_WIN_OWNED_THREAD_SCAN_CAPACITY 65536u
+#define R2_WIN_OWNED_EXPORT __declspec(dllexport)
+
+enum r2_win_owned_status_v1 {
+    R2_OWN_OK = 1, R2_OWN_PENDING = 2, R2_OWN_EXITED = 3,
+    R2_OWN_NEEDS_CLEANUP = 4, R2_OWN_FINISHED = 5,
+    R2_OWN_RESIDUAL = 6, R2_OWN_BAD_ARGUMENT = 7,
+    R2_OWN_BAD_STATE = 8, R2_OWN_BUSY = 9
+};
+enum r2_win_owned_lifecycle_v1 {
+    R2_OWN_UNUSED = 0, R2_OWN_INITIALIZING = 1, R2_OWN_INTENT_HELD = 2,
+    R2_OWN_SUSPENDED = 3, R2_OWN_RUNNING = 4, R2_OWN_STOPPING = 5,
+    R2_OWN_JOINING = 6, R2_OWN_FINAL_SAMPLING = 7,
+    R2_OWN_CLOSING = 8, R2_OWN_DONE = 9, R2_OWN_RETAINED = 10
+};
+enum r2_win_owned_operation_v1 {
+    R2_OWN_OP_ARGUMENT = 1, R2_OWN_OP_FIRST_CLOCK, R2_OWN_OP_FREQUENCY,
+    R2_OWN_OP_CLOCK, R2_OWN_OP_CREATOR_DUPLICATE, R2_OWN_OP_CREATOR_PID,
+    R2_OWN_OP_CREATOR_TIMES, R2_OWN_OP_GROUPS, R2_OWN_OP_COUNT,
+    R2_OWN_OP_AFFINITY, R2_OWN_OP_CREATE_JOB, R2_OWN_OP_SET_LIMITS,
+    R2_OWN_OP_SET_CPU, R2_OWN_OP_QUERY_LIMITS, R2_OWN_OP_QUERY_CPU,
+    R2_OWN_OP_QUERY_ACCOUNTING, R2_OWN_OP_ATTRIBUTE_SIZE,
+    R2_OWN_OP_ATTRIBUTE_INIT, R2_OWN_OP_ATTRIBUTE_UPDATE,
+    R2_OWN_OP_CREATE_PROCESS, R2_OWN_OP_CHILD_PID, R2_OWN_OP_CHILD_TID,
+    R2_OWN_OP_PROCESS_TIMES, R2_OWN_OP_THREAD_TIMES,
+    R2_OWN_OP_MEMBERSHIP, R2_OWN_OP_RESUME, R2_OWN_OP_WAIT_PROCESS,
+    R2_OWN_OP_WAIT_THREAD, R2_OWN_OP_EXIT_CODE, R2_OWN_OP_TERMINATE_JOB,
+    R2_OWN_OP_TERMINATE_PROCESS, R2_OWN_OP_SNAPSHOT,
+    R2_OWN_OP_THREAD_FIRST, R2_OWN_OP_THREAD_NEXT,
+    R2_OWN_OP_CLOSE_SNAPSHOT, R2_OWN_OP_CLOSE_THREAD,
+    R2_OWN_OP_CLOSE_PROCESS, R2_OWN_OP_CLOSE_JOB,
+    R2_OWN_OP_CLOSE_CREATOR, R2_OWN_OP_FINAL_CLOCK,
+    R2_OWN_OP_THREAD_LIMIT, R2_OWN_OP_BIRTH_HISTORY, R2_OWN_OP_STATE,
+    R2_OWN_OP_CREATOR_WAIT
+};
+enum r2_win_owned_residual_v1 {
+    R2_OWN_RESIDUAL_DEADLINE = 1u, R2_OWN_RESIDUAL_CLOCK = 2u,
+    R2_OWN_RESIDUAL_JOIN = 4u, R2_OWN_RESIDUAL_SAMPLE = 8u,
+    R2_OWN_RESIDUAL_CLOSE = 16u
+};
+struct r2_win_owned_text_v1 {
+    const uint16_t *text;
+    uint32_t units, reserved;
+};
+struct r2_win_owned_spec_v1 {
+    uint32_t abi, size;
+    int64_t lease_epoch_qpc, lease_qpc_frequency;
+    int64_t stop_deadline_qpc, cleanup_deadline_qpc;
+    uint64_t intent_serial;
+    struct r2_win_owned_text_v1 application, command_line;
+    struct r2_win_owned_text_v1 current_directory, environment;
+};
+struct r2_win_owned_fault_v1 {
+    uint32_t operation, kind, code, win32_error, win32_error_valid, occurrences;
+};
+struct r2_win_owned_handle_state_v1 {
+    uint32_t acquired, consumed, close_state, reserved;
+};
+struct r2_win_owned_report_v1 {
+    uint32_t abi, size, status, lifecycle;
+    uint32_t attempt_consumed, stop_new, birth_attempted, resume_attempted;
+    uint32_t finish_started, membership, process_signaled, thread_signaled;
+    uint32_t job_empty, final_complete, residual_bits, fault_count;
+    uint32_t configured_valid, latest_valid, final_valid, clock_valid;
+    uint32_t creator_pid, creator_tid, child_pid, child_tid;
+    uint32_t terminate_job_state, terminate_process_state;
+    uint32_t attribute_initialized, attribute_deleted;
+    uint32_t thread_scan_state, thread_scan_entries, parent_threads, child_threads;
+    uint32_t thread_live_at_both_polls, thread_warning_limit;
+    uint32_t thread_transient_coverage, complete_birth_history;
+    uint64_t intent_serial;
+    int64_t lease_epoch_qpc, qpc_frequency, context_observed_qpc;
+    int64_t stop_deadline_qpc, cleanup_deadline_qpc, last_qpc;
+    struct r2_win_job_raw_u64_v1 creator_creation_100ns;
+    struct r2_win_job_raw_u64_v1 child_creation_100ns, primary_creation_100ns;
+    struct r2_win_job_raw_u64_v1 final_exit_100ns, final_kernel_100ns, final_user_100ns;
+    struct r2_win_job_raw_u64_v1 final_thread_kernel_100ns, final_thread_user_100ns;
+    struct r2_win_job_raw_u32_v1 final_exit_code, wait_before, wait_after, thread_wait;
+    struct r2_win_job_raw_u32_v1 processor_groups, processor_count;
+    struct r2_win_job_raw_u64_v1 allowed_affinity, system_affinity, selected_affinity;
+    struct r2_win_owned_handle_state_v1 creator, job, process, thread, snapshot;
+    struct r2_win_owned_fault_v1 primary;
+    struct r2_win_owned_fault_v1 faults[R2_WIN_OWNED_FAULT_CAPACITY];
+    struct r2_win_job_raw_snapshot_v1 configured, latest, final_sample;
+};
+struct r2_win_owned_abi_v1 {
+    uint32_t abi, size, spec_size, report_size;
+    uint32_t pointer_size, text_size, fault_size, handle_state_size;
+    uint32_t snapshot_size, report_faults_offset, report_configured_offset, reserved;
+};
+
+/* One never-reclaimed private singleton per loaded native component. All
+ * successful acquisitions are stored in C before any subsequent API/FFI
+ * conversion. No HANDLE values leave this ABI. Original creator identity is
+ * current-context identity, not pre-load ancestry. Caller memory must be
+ * accessible, stable and exclusive through each call; size/range checks do
+ * not establish that property. Text lengths include NUL; environment includes
+ * final double NUL. Explicit absolute application/directory, no shell search.
+ * Inputs are raw intent, never a verified lease or permission receipt.
+ * begin consumes its sole chance even on bad arguments/failure. Subsequent
+ * begin/birth/resume never reset history. copy bad output changes no history.
+ * STOP_NEW is an independent Interlocked latch, including when another call
+ * is BUSY. A reserved in-flight birth/resume may finish and must be cleaned.
+ * Waits are <=1s and use the SAME supplied absolute cleanup deadline; native
+ * synchronous calls and a stalled caller have no independent hard executor.
+ * Raw Job commit4GiB/active1/affinity<=2/CPU are not RAM/thread/VM certification.
+ * Toolhelp counts are bounded point snapshots of the original parent/child
+ * only; >4 or incomplete scan stops new work. No transient/lifetime coverage,
+ * whole-group scope or original HANDLE for each observed TID is claimed.
+ * finish repeats bounded JOINING steps, then final raw sample and once-close.
+ * Unjoined, late, failed required query/final sample retains native anchors;
+ * a failed close consumes its usable slot but never claims actual release.
+ * Residual context/library/monitor ownership MUST remain strongly retained.
+ * DONE requires local join/final facts/closes, not absence of earlier faults,
+ * complete fees, service/provider join, durable handoff or application PASS.
+ */
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_describe_v1(
+    struct r2_win_owned_abi_v1 *, size_t);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_begin_once_v1(
+    const struct r2_win_owned_spec_v1 *, size_t);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_birth_suspended_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_resume_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_observe_step_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_stop_new_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_finish_step_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_child_copy_report_v1(
+    struct r2_win_owned_report_v1 *, size_t);
+#endif
+#endif
