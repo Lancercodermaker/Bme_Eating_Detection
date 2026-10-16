@@ -3681,3 +3681,355 @@ OriginalindependentSPEC FIRST2026-10-15 23:35:24/initialSTOP23:40:48, targetedre
 Actualnewbody implements borrowed-filebyte AMD64PE32+ header/uniqueRVA/import/delay/TLS parsing with fixedwork/name/section/descriptor/symbol/callback limits and209984B rawreportdeclaration. It returns rawfact/partial/rejection statuses and PRELOAD_CLOSURE_UNPROVEN, never scopeproof. NonemptyapplicationTLS rejects; emptyTLS doesnotprove absenceofCRT/DllMain. Exportforwarders/API-set/SxS/loadersearch/provider/transitiveclosure and ELF/interpreter/stdlib/40Btransport stilloutside thisslice andUNPROVEN. Noimmutableinputownership, calleraccessibility, pre-loadancestor, installedbinaryABI or actualruntime/OSsupport is established. Nativecaller accessible/stable/disjoint/exclusivememory remains required independently. Reportlimits are notbudgetgrants/hardwall proof. Newparserunexportedbyexisting17symbol.def; no loader/wiring/approvalfactoryorwholeC03PASS. Harness contains sourceassertions againstactualbody, uncompiled/unrun.
 
 Root will commitexactnativeC/H,newharness,original3 only; itsfreshpreservation/prefix/indexchecks andactualnonforcepush/remoteheads arerecordedbyactualcommands. H4sourceauthor startsindependentlyonlyafterthisqualityclosure, in newrecordedSOURCEwindow, writingONLYnewscript+harness; excludedfromC03commit. H4finalcandidatev3/policy9995B/f0f1e60bd8ae0bb7e652f3b774a8c80064a51770a3203c71fc02083e6b9ceeec remains unapproved/unconsumed. Rootpreparescompletepin+launcher+SPECthenfreshQUALITYbeforeanyspecificH4ownerd ecision; no ZIP existence/metadata/payloadchecks. H3consumedfailedpartial/noretry,H1approvedunstarted,C00allthreeUNPROVEN,wholeC01-C03incomplete,C04-C12STOP/fullfreezeNone/oldfullFAIL/Stage0 retained. AllfeesUNKNOWN_NOT_ZERO; noStageorF1conclusion.
+
+<a id="c03-git-receipt-and-h4-source-entry-20261016"></a>
+### Actual C03 Git receipt; H4 source author window and whole-root issuer
+
+Root actual preservation check2026-10-15 23:54:10UTC found418 working files/185 full index rows, no unrelated identity/path additions/deletions, exact protected original3 prefixes, exact finalC03 and unchangedC02 pins. Exact6-path commit0e4a0ad6a2607f5cc9eeba68e1de089a02ce6fe5 contains only nativeC/H/newPEharness and original3 appends. git diff --cached --check returned0 before commit. After commit186 full index rows reflect only exact intended paths; complete original11 staged mode/blob/stage/path identities unchanged. Nonforce push succeeded; actual23:54:30UTC remote feature=0e4a0ad6a2607f5cc9eeba68e1de089a02ce6fe5 and main=dd05aa128f8d62a85c20a83f8af72fe13fcfa27b; independently rechecked at2026-10-16 00:01UTC. This is Git/preservation evidence, not compile/test/install/freeze or admission.
+
+H4 soleauthor /root/official_inspection_boundary_design actual sourceFIRST2026-10-15 23:53:28UTC, fixed1200s cutoff2026-10-16 00:13:28UTC. Only two previously absent paths may be written: scripts/route2_official_package_inspection.ps1 and tests/native/route2_official_package_inspection_harness.ps1. Root alone appends original3 and prepares FINAL launcher; source author does not modify H3, native/C02/C03, Git or policyv3. Source STOP/pins and subsequent independent SPEC then differentfreshQUALITY are not asserted until their actual receipts. No actual archive existence/size/hash/enum/open/payload fact has been collected; no script/harness has run. Static PowerShell AST parsing is source inspection only. Source/runtime/old/new charges remain UNKNOWN_NOT_ZERO.
+
+Future H4 issuer, only after actual approval of the complete reviewed tuple: trusted host reads the entire FINAL LF-framed launcher, verifies its source/policy/launcher pins, substitutes ONLY the two owner assignment literals using correct PowerShell single-quote escaping, and encodes the WHOLE resulting launcher as UTF16LE EncodedCommand. The fixed System32 PowerShell tool shell with login:false issues fixed C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe with explicit -NoProfile -NonInteractive -EncodedCommand for that whole root. The inner root first rawQPC precedes binding/receipt persistence; that SAME process invokes the fixed script after all3 Flush(true). No replacement parent/clock after epoch. A tool wrapper or pre-entry creator has no invented zero cost; all its preload/creator/waiter/kernel/service/physical costs remain UNKNOWN_NOT_ZERO under the exact proposed exception. Requested flags/issued command are recorded precisely; no unsupported claim of complete native parent commandline or ancestor closure follows. H3 historical parent-flag proof remains UNPROVEN and is not repaired or retried by this proposal.
+
+H4 remains PROPOSAL_ONLY / UNAPPROVED_UNSTARTED, policyv3/id0039995ASCII bytes SHA256f0f1e60bd8ae0bb7e652f3b774a8c80064a51770a3203c71fc02083e6b9ceeec; no H4 consumption block/nonce/PID/epoch exists. H1 APPROVED_UNSTARTED, H3 CONSUMED_FAILED_PARTIAL/NO_RETRY, C00 AUDITED_UNPROVEN/allthree missing mechanisms, wholeC01-C03 incomplete and dependentC04-C12 SOURCE STOP retain authority. Conditional owner permission for lawful future Stage A/B is already granted once every complete prerequisite is actually met; no generic final scientific approval will be requested. This condition is not met now; Stage runs/results remain0.
+
+<a id="h4-final-candidate-tuple-20261016"></a>
+### H4 complete concrete source/policy/FINAL-launcher candidate: frozen for scoped review
+
+H4 source soleauthor FIRST2026-10-15 23:53:28UTC / WRITESTOP2026-10-16 00:08:41UTC, elapsed913s within original1200s cutoff00:13:28. Only new scripts/route2_official_package_inspection.ps155609ASCII bytes SHA25623affcf904ad9e6ffbc2d53e3ab85dcdfeae81490c38025c89cc2234c7a70716 and tests/native/route2_official_package_inspection_harness.ps114040ASCII bytes SHA2561d3bf3792d1da2b19f7cfadb31f7644596bb3bab272c1097b0db1edc2ead2e17 were written. Both author static Parser.ParseFile checks returned0 errors; source/harness never executed. Root00:10:38 independently verified both pins, unchanged H3 source45344/4cd47ee739897513af1f17fe65862ad15dbafe565a63ad34a063af52ed104634, finalv3 policy in all3 originaldocs9995ASCII/f0f1e60bd8ae0bb7e652f3b774a8c80064a51770a3203c71fc02083e6b9ceeec and absent H4 consumption markers. The first combined root source-report formatter returned unparsed warning/nonJSON and was discarded; separate rawbyte/hash/static checks above succeeded. No script invocation or H4 attempt occurred in any such source check.
+
+The complete review/possible-approval tuple is the above two SOURCE files, canonicalv3/id003 policy at h4-final-policy-v3-before-source-20261015 and the following FINAL fenced launcher. FINAL launcher content is6324UTF8 bytes INCLUDING leading/trailing LF, SHA256c3c525f38bd4dab4986848ce5c3ded2cdcaa02d80a24f8d6856929c3359e971a; root static Parser.ParseInput at00:10:27 returned0 errors. It binds only final source23affcf9.../policyf0f1e6..., keeps actual owner text/reference placeholders and is NOT executable authority until actual owner approval of this complete tuple and named exceptions. The previously described explicit whole-root EncodedCommand issuer is part of this proposed entry; no parent/clock replacement after the first rawQPC. Operator changes ONLY the two owner assignment literals, not guard comparisons, preserving correct literal quoting.
+
+Accepted input profile is deliberately narrower than all legal ZIPs: single-disk ZIP32, no archive comment or extra fields, stored/deflate, strictUTF8/ASCII names, DOS/UNIX creator types and contiguous local records from offset0. ZIP64 sentinels including count65535, unsupported/ambiguous encodings/metadata/flags/paths, more than8 safe candidates, bounds/failures or inability to carry full text produce refusal/partial/unresolved facts; no automatic retry or classifier expansion. These known limits mean the uninspected actual official package might be unsupported. All local metadata/ranges are validated before selected payload reads; exact compressed slices, CRC/UTF8/text validation, original ASCII/Chinese deny rules, read-attempt/partial byte ledger and fixed aggregate transport limits are implemented. GZip fixed buffer failures/disposal never create full=true. Helper/harness fixtures contain source assertions only, not test-pass evidence.
+
+All nine exact exceptions remain those in policy003: adopt already-loaded tool root/creator; .NET original Process rather than native PI/thread join; H4 sampled MONITORED64 rather than formal4; incomplete causal resource caps; unjoined shared runtime/service tails; unproved E/nonE finite physical/allwriter billing; unproved hard deadline under synchronous stalls; trusted-host manual one-shot rather than script antireplay; exactly one ADDITIONAL180s rather than H1/H3 credit. Malicious archive offsets can mislabel bounded raw structural-candidate bytes; fixed filename classification is not proof against arbitrary semantic mislabeling. These limitations require explicit acceptance for this inspection only, never full budget/Stage PASS. H1approved/unstarted,H3consumedfailedpartial/noretry and all unknown costs remain unchanged.
+
+FINAL candidate launcher (source review only; actual-owner literals remain placeholders):
+```powershell
+# SOURCE TEMPLATE ONLY: do not execute before the actual owner approves
+# final source SHA + policy SHA + the nine named H4 exceptions.
+# Operator replaces ONLY the actual owner text and its local reference.
+# Trusted host issues this WHOLE launcher through fixed System32 PowerShell5.1
+# with explicit -NoProfile -NonInteractive -EncodedCommand (UTF16LE), login:false.
+# Pre-entry creator/tool-host/waiter costs remain UNKNOWN_NOT_ZERO exceptions.
+# No second root, process or clock may replace this parent AFTER its epoch.
+$h4Epoch = [Diagnostics.Stopwatch]::GetTimestamp()
+$h4Frequency = [Diagnostics.Stopwatch]::Frequency
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$h4Root = 'E:\bme_compitition\.worktrees\high-f1-event-stack-execution\bme_compitition_next'
+$h4SourceSha = '23affcf904ad9e6ffbc2d53e3ab85dcdfeae81490c38025c89cc2234c7a70716'
+$h4ContractSha = 'f0f1e60bd8ae0bb7e652f3b774a8c80064a51770a3203c71fc02083e6b9ceeec'
+$h4OwnerText = '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__'
+$h4OwnerRef = '__ACTUAL_OPERATOR_LOCAL_REFERENCE__'
+$h4Script = [IO.Path]::Combine($h4Root, 'scripts\route2_official_package_inspection.ps1')
+$h4Docs = @(
+    'docs\superpowers\specs\2026-09-27-route2-candidate-interval-validation-design.md',
+    'docs\superpowers\plans\2026-09-28-route2-wsl-controller-execution.md',
+    'docs\decisions\2026-09-27-route2-design-review.md'
+)
+$h4ExceptionIds = 'ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H4_MONITORED64_NOT_FORMAL4|H4_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H4_SHARED_RUNTIME_SERVICE_TAIL_UNJOINED|H4_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H4_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H4_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H4_ADDITIONAL_ONE180_NOT_H1_OR_H3'
+$h4Utf8 = [Text.UTF8Encoding]::new($false, $true)
+function H4-Hash([byte[]] $Bytes) {
+    $h4Hash = [Security.Cryptography.SHA256]::Create()
+    try { ([BitConverter]::ToString($h4Hash.ComputeHash($Bytes))).Replace('-', '').ToLowerInvariant() }
+    finally { $h4Hash.Dispose() }
+}
+function H4-ReadBounded([string] $Path, [int] $Limit) {
+    $h4Stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        if ($h4Stream.Length -gt $Limit) { throw 'H4_SOURCE_OR_DOCUMENT_TOO_LARGE' }
+        $h4Bytes = New-Object byte[] ([int]$h4Stream.Length)
+        $h4Read = 0
+        while ($h4Read -lt $h4Bytes.Length) {
+            $h4Count = $h4Stream.Read($h4Bytes, $h4Read, $h4Bytes.Length - $h4Read)
+            if ($h4Count -eq 0) { throw 'H4_SHORT_READ' }
+            $h4Read += $h4Count
+        }
+        if ($h4Stream.ReadByte() -ne -1) { throw 'H4_FILE_GREW' }
+        return ,$h4Bytes
+    } finally { $h4Stream.Dispose() }
+}
+if ($h4OwnerText -eq '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__' -or $h4OwnerText.Length -eq 0 -or $h4OwnerText.Length -gt 8192 -or $h4OwnerRef -notmatch '^[A-Za-z0-9:/._-]{1,200}$' -or $h4OwnerRef -eq '__ACTUAL_OPERATOR_LOCAL_REFERENCE__') { throw 'H4_ACTUAL_OWNER_MESSAGE_REQUIRED' }
+if ((H4-Hash (H4-ReadBounded $h4Script 262144)) -cne $h4SourceSha) { throw 'H4_SOURCE_HASH_CHANGED_NO_RETRY' }
+$h4ActiveDecimal = [decimal]$h4Epoch + [decimal]$h4Frequency * 120
+$h4CleanupDecimal = [decimal]$h4Epoch + [decimal]$h4Frequency * 180
+if ($h4Frequency -le 0 -or $h4ActiveDecimal -gt [long]::MaxValue -or $h4CleanupDecimal -gt [long]::MaxValue) { throw 'H4_QPC_RANGE_NO_RETRY' }
+$h4Receipt = [ordered]@{
+    schema='route2_h4_official_nongt_inspection_activation_v1'
+    policy_id='route2-h4-official-nongt-inspection-2026-10-15-003'
+    source_sha256=$h4SourceSha
+    contract_sha256=$h4ContractSha
+    owner_message_sha256=(H4-Hash ($h4Utf8.GetBytes($h4OwnerText)))
+    owner_approval_reference=$h4OwnerRef
+    invocation_nonce=([Guid]::NewGuid().ToString('N'))
+    one_shot_state='CONSUMED_FOR_THIS_INVOCATION'
+    parent_pid=$PID
+    qpc_epoch=$h4Epoch
+    qpc_frequency=$h4Frequency
+    active_stop_qpc=[long]$h4ActiveDecimal
+    cleanup_stop_qpc=[long]$h4CleanupDecimal
+    active_seconds=120
+    cleanup_seconds=60
+    total_seconds=180
+    max_attempts=1
+    exception_ids=$h4ExceptionIds
+}
+$h4Json = $h4Receipt | ConvertTo-Json -Depth 4 -Compress
+if ($h4Json -cmatch '[^\x20-\x7e]') { throw 'H4_NON_ASCII_CANONICAL_JSON_NO_RETRY' }
+$h4ActivationSha = H4-Hash ([Text.Encoding]::ASCII.GetBytes($h4Json))
+$h4MarkerStem = 'ROUTE2_H4_OFFICIAL_NONGT_INSPECTION_ACTIVATION_V1'
+$h4Begin = '<!-- ' + $h4MarkerStem + '_BEGIN -->'
+$h4End = '<!-- ' + $h4MarkerStem + '_END -->'
+# Precheck ALL documents before any append. A failed/interrupted launch still
+# consumes the trusted host's sole attempt; absent/partial receipts permit NO retry.
+foreach ($h4Relative in $h4Docs) {
+    $h4Text = $h4Utf8.GetString((H4-ReadBounded ([IO.Path]::Combine($h4Root, $h4Relative)) 4194304))
+    if ($h4Text.Contains($h4Begin) -or $h4Text.Contains($h4End)) { throw 'H4_ALREADY_CONSUMED_OR_PARTIAL_RECEIPT_NO_RETRY' }
+}
+$h4OwnerBase64 = [Convert]::ToBase64String($h4Utf8.GetBytes($h4OwnerText))
+$h4Append = [string]::Join([char]10, @(
+    '', '',
+    'H4 actual owner decision and sole official-package inspection consumption:',
+    ('Actual-owner-message UTF8 base64: ' + $h4OwnerBase64),
+    ('Operator-local reference (not a platform-issued message ID): ' + $h4OwnerRef),
+    'Trusted root verified the actual owner grant outside this script. CONSUMED before invocation; interruption, refusal or failed persistence grants no retry.',
+    $h4Begin, $h4Json, $h4End, ''
+))
+$h4AppendBytes = $h4Utf8.GetBytes($h4Append)
+foreach ($h4Relative in $h4Docs) {
+    if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h4ActiveDecimal) { throw 'H4_ACTIVE_STOP_DURING_RECEIPT_NO_RETRY' }
+    $h4AppendStream = [IO.File]::Open([IO.Path]::Combine($h4Root, $h4Relative), [IO.FileMode]::Append, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+    try {
+        $h4AppendStream.Write($h4AppendBytes, 0, $h4AppendBytes.Length)
+        $h4AppendStream.Flush($true)
+    } finally { $h4AppendStream.Dispose() }
+}
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h4ActiveDecimal) { throw 'H4_ACTIVE_STOP_BEFORE_INVOCATION_NO_RETRY' }
+& $h4Script -ActivationSha256 $h4ActivationSha
+$h4ExitCode = $LASTEXITCODE
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h4CleanupDecimal) { exit 1 }
+exit $h4ExitCode
+```
+
+
+H4 tuple is now frozen for independent SPEC, followed only after its scoped P1/P2 closure by DIFFERENT fresh QUALITY. No H4 approval, actual nonce/PID/QPC/consumption/result/archive fact exists. C00/full14/C04-C12STOP and no new-official compatibility conclusion remain. This proposal does not reopen unchanged H3/C02/C03 reviews.
+
+<a id="h4-spec-p2-and-final-policy-v4-20261016"></a>
+### H4 initial SPEC P2: explicit GT separator aliases, targeted contract repair
+
+IndependentSPEC /root/h4_official_inspection_spec actualFIRST2026-10-16 00:11:47UTC / READSTOP00:14:49 (182s within1200, originalcutoff00:31:47 unchanged) checked complete source/harness/policyv3/FINALlauncher pins and all new bodies. It found one scopedP2/noP1: source272-289 rejects literal groundtruth/ground_truth but not ground truth/README.md or ground-truth/README.md; common-wrapper removal then produces positive README and line448 reads payload. Canonicalv3 classifier had the same deficiency against the explicit known/ambiguous label/data prohibition. Root confirmed the exact source path and user prohibition; arbitrary semantic-mislabeling acknowledgement does not permit these ordinary knownGT names. This is not a demand for impossible universal semantic proof. Other scoped tuple checks had no finding. Neither logical counterexample nor targetcode/harness/ZIP was executed.
+
+Final candidatev4/id004 corrects ONLY classifier separator canonicalization and version/identity: before compound deny comparison, runs of non-ASCII-alphanumeric characters fold to one underscore; preserve token boundaries, match known ground_truth separator aliases, and keep Chinese denial on original components. Original-path deny still precedes wrapper removal; positive filenames/locations, input path, limits, clocks, nine exceptions, cost unknowns and all scientific/Stage prohibitions stay fixed. v3/id003 including its23affcf9 source and c3c525f3 launcher is SUPERSEDED_UNAPPROVED; initial SPEC P2 remains history. No H4 approval/attempt/nonce/PID/QPC/consumption exists and none is reset. v1/v2 remain superseded.
+
+Canonical new candidate policyv4, 10307ASCII bytes SHA256695efa21fea9c51652602f898f5da1936810801696e1538139a50e249d327ec2, excluding surrounding LF:
+```json
+{"schema":"route2_h4_official_nongt_inspection_policy_v4","policy_id":"route2-h4-official-nongt-inspection-2026-10-16-004","study_id":"route2-candidate-overlap-v1-001","purpose":"One bounded official-package central-directory inventory and fixed-classifier nonGT documentation/evaluator/schema text preview; no scientific compatibility or admission conclusion until actual evidence is interpreted.","authority":"PROPOSAL ONLY. A later actual owner decision must bind final source, this canonical policy, and FINAL same-parent launcher after scoped independent SPEC then different fresh QUALITY. Prior H1/H3 approval and caller parameters issue no H4 authority.","entry":"Fixed System32 Windows PowerShell5.1 NoProfile NonInteractive login:false, adopted already-loaded .NET root and one fixed self-child. SAME root takes raw QPC before source binding, durably flushes sole consumption to original3, invokes fixed source in SAME process. Manual serialized trusted-host one-shot; no script-issued approval.","clock":{"active_seconds":120,"cleanup_seconds":60,"total_seconds":180,"max_attempts":1,"epoch":"Original trusted root raw QPC/frequency before binding and receipt writes. Parent/child retain original absolute120/180 stops, no subgroup/restart/clock renewal.","supervision":"Runnable parent samples at most100ms cadence, stops new work on failure/excess/staleness/active deadline, retains original child Process for terminate/join/drain inside cleanup. Failed/interrupted/partial receipt/launch consumes attempt.","limitations":"Scheduling, synchronous start/query/read/terminate/flush stalls, hard exit deadline and all-service completion remain UNPROVEN."},"scope":{"script":"scripts/route2_official_package_inspection.ps1","input":"E:/e091f6df5b8f4fd1a62a5e43dda404b1_\u8d5b\u98982.zip","runtime":"Windows PowerShell5.1 and already-present .NET; one fixed self-child only. No Add-Type/compiler/Python/native/project/WSL/GPU workload.","forbidden":"No whole archive hash, extraction, package code execution/import, data/GT member opening or decompression, scientific evaluation, existing input overwrite, install/download, disk/config change or Stage. Only trusted-root original3 approval/consumption/factual appends are intentional writes. No H3 metadata query/retry.","writes":"No output/temp/cache/extracted files. Runtime/kernel/cache/service implicit writers and complete physical growth remain UNPROVEN, never zero."},"zip":{"format":"Strict single-disk ZIP32, zero-comment EOCD at final22 bytes, exact central end before EOCD; no ZIP64/encryption/AES/data-descriptor/unsupported-extra ambiguity. Unsupported format refuses honestly.","entries_max":65535,"central_bytes_max":8388608,"structural_read_bytes_max":16777216,"name_bytes_max":512,"path_components_max":16,"duplicate_state":"Bounded normalized names with case-alias rejection; no payload allocation or all-entry object graph beyond declared finite bounds.","names":"Strict UTF8 with bit11, otherwise ASCII only. No Unicode override extras, absolute/UNC/drive/backslash/colon/control/dot/dotdot/device/trailing-dot-space/symlink/device paths. Checked ranges, unique mapping and complete central scan before payload selection.","reads":"Retain one readonly FileStream with mutation-denying sharing through disposal; source runtime checks length before/after. Path-versus-handle replacement/complete immutable identity remains UNPROVEN. A malicious archive can lie about structural offsets, so at most16MiB raw structural-candidate bytes are explicitly in scope; no claim they were semantically proved metadata before reading.","identity":"Central-directory bytes SHA256 only; archive_sha256=UNVERIFIED. No scientific input freeze or whole archive identity follows."},"classifier":{"version":"route2-h4-safe-text-v4","locations":["","doc","docs","rules","spec","schema","evaluation","evaluator"],"wrapper":"Remove at most one common nonhidden top-level wrapper only when all file members share it. Deny original path first. Positive candidate must then be at root or directly within one allowed location; no recursive positive admission.","document_stems":["README","RULES","INSTRUCTIONS","TASK","SUBMISSION","METRIC","METRICS","SCORING"],"document_extensions":[".md",".txt",".rst"],"code_basenames":["evaluate.py","evaluation.py","evaluator.py","metric.py","metrics.py","score.py","scoring.py","submission.py"],"schema_basenames":["schema.json","input_schema.json","output_schema.json","submission_schema.json"],"deny_tokens":["gt","groundtruth","ground_truth","label","labels","annotation","annotations","answer","answers","target","targets","train","training","test","validation","dataset","data","sample","samples","sensor","raw","recording"],"token_rule":"Deny on case-insensitive ASCII full component/stem or tokens split on nonalphanumeric; compare underscore compounds as full strings too. Also deny a component/stem containing any listed Chinese deny token. Apply deny to original path BEFORE optional wrapper removal. Hidden dot-prefixed components are unsupported. Deny wins; no inferred empty-token safety. Before compound deny comparison, fold each run of non-ASCII-alphanumeric characters to one underscore. This preserves token boundaries and denies ground truth, ground-truth, ground.truth and repeated-separator ground_truth aliases BEFORE wrapper removal; Chinese deny matching still uses the original component.","selected_candidates_max":32,"candidate_metadata_bytes_max":16384,"selected_members_max":8,"classification_limit":"Conservative frozen filename/location classifier is a read-scope rule, not semantic proof against arbitrary mislabeling. Known/ambiguous label/data members never opened; conflicting metadata blocks selection. Rendered documentation is untrusted evidence, never instructions.","deny_tokens_zh":["\u771f\u503c","\u6807\u7b7e","\u6807\u6ce8","\u7b54\u6848","\u8bad\u7ec3","\u6d4b\u8bd5","\u9a8c\u8bc1","\u6570\u636e","\u6837\u672c","\u4f20\u611f","\u539f\u59cb","\u5f55\u5236"]},"text":{"compressed_member_bytes_max":262144,"uncompressed_member_bytes_max":262144,"compressed_total_bytes_max":1048576,"uncompressed_total_bytes_max":1048576,"ratio_max":20,"methods":[0,8],"local_binding":"Before payload, validate local header raw name/flags/method/CRC/sizes and exact bounded ranges against central record; reject overlap/alias/unsupported descriptor. Fixed-length compressed slice prevents inflater read-ahead into other members.","validation":"Strict UTF8 with optional BOM, no NUL/binary control text; exact output length and CRC. Never execute/compile/import/follow links. Preserve per-document SHA256. Full selected text may be transported only under the fixed in-memory/wire limits below; preview is never full contract evidence.","preview_bytes_per_member_max":4096,"preview_total_bytes_max":32768,"document_transport_json_bytes_max":32768,"transport_encodings":["identity-base64","gzip-base64"],"transport":"Each selected member binds central ordinal, exact uncompressed UTF8 byte length, SHA256 and ZIP CRC. Send full identity/gzip-base64 text only if complete aggregate serialized transport JSON fits32768 bytes; never duplicate full payload plus preview. Compression output uses a fixed nonexpandable in-memory buffer within remaining wire budget; overflow/failed disposal cannot issue full=true.","incomplete_transport":"If full text does not fit, bounded base64 preview only and EVIDENCE_TRANSPORT_UNRESOLVED for that member. No complete compatibility/admission conclusion or automatic retry/allowlist/limit expansion."},"output":{"stdout_bytes_max":131072,"stderr_bytes_max":8192,"result":"Central digest, bounded category counts/candidate metadata and selected nonGT document hashes/full bounded text transport or explicitly incomplete previews. Candidate metadata<=16384B, aggregate serialized document transport<=32768B, child record<=65536B, parent result<=131072B including child+stderr base64 and fixed supervisor facts. No sensor/sample filename dump.","empty_or_unsupported":"METADATA_COMPLETE_DOCUMENT_SELECTION_UNRESOLVED if no safe selection; unsupported profile/overflow/failure produces partial facts only. No automatic retry or allowlist expansion.","child_record_bytes_max":65536},"resources":{"application_threads":"H4 aggregate parent+child MONITORED64 sampled only; failures/staleness/excess STOP_NEW. Original formal MONITORED4 unchanged.","rss":"Parent<=536870912 child<=536870912 combined<=1073741824 sampled; no complete causal/hard RAM cap.","cpu":"Parent and child same one-core affinity, applied and read back before archive work; pre-affinity loader and total causal CPU remain UNPROVEN.","whole":"Original whole16GiB/VRAM8GiB/E30GiB/nonE512MiB monitored384stop128nominal cleanup retained outside exact exception. Complete kernel/service/loader/physical/all-writer causal scope UNPROVEN."},"exceptions":"ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H4_MONITORED64_NOT_FORMAL4|H4_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H4_SHARED_RUNTIME_SERVICE_TAIL_UNJOINED|H4_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H4_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H4_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H4_ADDITIONAL_ONE180_NOT_H1_OR_H3","join":"Retained original Process only; process join is not complete provider/runtime/service/kernel/cohort join. All unjoined actors/tails remain UNKNOWN_NOT_ZERO; failure/expiry is no accounting end.","accounting":"One proposed ADDITIONAL180s only after exact owner approval. H1 APPROVED_UNSTARTED prospective1800/6000 unchanged; H3 CONSUMED_FAILED_PARTIAL cannot be retried. All old/new unknown fees aggregate UNKNOWN_NOT_ZERO; no historical/original budget PASS.","activation":"One unique canonical ASCII activation block in fixed original design-review binds final source/policy/actual message/reference/nonce/sameparent PID/original rawQPC. Trusted root Flush(true) to all3 before invoke; source binds receipt, never issues approval. Partial receipt/launch no retry.","result":"H4 evidence only; no C00/full resources/physical/first-load/service-exit closure, full freeze/review, scientific compatibility or Stage admission is granted. New official evidence reopens only specifically affected contracts.","risk_acknowledgement":"H4_FIXED_OFFICIAL_NONGT_INSPECTION_ONLY"}
+```
+
+
+Same soleauthor will repair ONLY newH4source/harness under a separately recorded bounded SOURCE repair window: bind v4/schema/id/length/hash, canonicalize original path deny, add ground truth/ground-truth and repeated/dot separator zero-payload regressions. Root alone binds newsource hash into revised FINALlauncher/source tuple. OriginalSPEC targetedrecheck remains inside its original00:31:47cutoff; differentfreshQUALITY starts only after scoped P1/P2 closure. No runtime credit or H1/H3/H4 attempt is granted by these source windows.
+
+<a id="h4-final-v4-tuple-20261016"></a>
+### H4 targeted author repair STOP and FINAL v4 tuple for original SPEC recheck
+
+Sameauthor actualFIRST2026-10-16 00:16:15UTC / WRITESTOP00:17:29 (74s within600, cutoff00:26:15). Original source23:53:28-00:08:41 and SPEC00:11:47-00:14:49 histories stay visible. Repair only folds separator runs in original-path compounddeny before wrapper removal, keeps original Chinese and positiveclassifiers, binds canonicalv4 and adds eight zero-candidate/document/payloadledger counterexample assertions, allUNRUN. Source/harness ASCII/noBOM/LF-only/finalLF; no project/runtime/archive/native/WSL/GT/harness operation occurred.
+
+Root independent bytehash and static Parser checks at2026-10-16T00:18:19.1461005Z matched the following complete FINAL tuple:
+
+| Bound object | Bytes | SHA256 |
+|---|---:|---|
+| scripts/route2_official_package_inspection.ps1 | 55899 | 0fad706f5509f72a931ae5082a0fabfcc1f474de6f714f0e827f3bc410d8ac60 |
+| tests/native/route2_official_package_inspection_harness.ps1 | 15139 | 8d4f6c4a19ffb70962319d8fb46829003bdcd3854bf7c4a8f75bea2eb4fa17d1 |
+| Canonical policyv4/id004, original3 anchor h4-spec-p2-and-final-policy-v4-20261016, one ASCII JSON line excluding LF | 10307 | 695efa21fea9c51652602f898f5da1936810801696e1538139a50e249d327ec2 |
+| FINAL v4 fenced launcher below, UTF8 INCLUDING leading/trailing LF | 6324 | c500864f72fbe883eadd64198b96e0ab6cb340d29211c6939de8bf20ac240ab1 |
+
+All3 policyv4 lines matched; all3 H4 consumptionmarkers absent. Each targetsource/harness and FINALlauncher AST had0 errors. V3 tuple23affcf9/1d3bf379/f0f1e60b/c3c525f3 is superseded UNAPPROVED; the one historical SPEC P2 is closed only by actual originalSPEC targetedrecheck, not by this author report. All previously stated strictZIP32 profile, output/resource/stop/cost/mislabeling limits, explicit whole-root issuer, exact nine exceptions and H1/H3/C00/full14 limits remain, except the explicit narrower alias-denial revision above. No repeat review of unchanged H3/C02/C03.
+
+FINAL v4 launcher (proposal source only, actual owner placeholders unchanged):
+```powershell
+# SOURCE TEMPLATE ONLY: do not execute before the actual owner approves
+# final source SHA + policy SHA + the nine named H4 exceptions.
+# Operator replaces ONLY the actual owner text and its local reference.
+# Trusted host issues this WHOLE launcher through fixed System32 PowerShell5.1
+# with explicit -NoProfile -NonInteractive -EncodedCommand (UTF16LE), login:false.
+# Pre-entry creator/tool-host/waiter costs remain UNKNOWN_NOT_ZERO exceptions.
+# No second root, process or clock may replace this parent AFTER its epoch.
+$h4Epoch = [Diagnostics.Stopwatch]::GetTimestamp()
+$h4Frequency = [Diagnostics.Stopwatch]::Frequency
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$h4Root = 'E:\bme_compitition\.worktrees\high-f1-event-stack-execution\bme_compitition_next'
+$h4SourceSha = '0fad706f5509f72a931ae5082a0fabfcc1f474de6f714f0e827f3bc410d8ac60'
+$h4ContractSha = '695efa21fea9c51652602f898f5da1936810801696e1538139a50e249d327ec2'
+$h4OwnerText = '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__'
+$h4OwnerRef = '__ACTUAL_OPERATOR_LOCAL_REFERENCE__'
+$h4Script = [IO.Path]::Combine($h4Root, 'scripts\route2_official_package_inspection.ps1')
+$h4Docs = @(
+    'docs\superpowers\specs\2026-09-27-route2-candidate-interval-validation-design.md',
+    'docs\superpowers\plans\2026-09-28-route2-wsl-controller-execution.md',
+    'docs\decisions\2026-09-27-route2-design-review.md'
+)
+$h4ExceptionIds = 'ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H4_MONITORED64_NOT_FORMAL4|H4_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H4_SHARED_RUNTIME_SERVICE_TAIL_UNJOINED|H4_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H4_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H4_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H4_ADDITIONAL_ONE180_NOT_H1_OR_H3'
+$h4Utf8 = [Text.UTF8Encoding]::new($false, $true)
+function H4-Hash([byte[]] $Bytes) {
+    $h4Hash = [Security.Cryptography.SHA256]::Create()
+    try { ([BitConverter]::ToString($h4Hash.ComputeHash($Bytes))).Replace('-', '').ToLowerInvariant() }
+    finally { $h4Hash.Dispose() }
+}
+function H4-ReadBounded([string] $Path, [int] $Limit) {
+    $h4Stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        if ($h4Stream.Length -gt $Limit) { throw 'H4_SOURCE_OR_DOCUMENT_TOO_LARGE' }
+        $h4Bytes = New-Object byte[] ([int]$h4Stream.Length)
+        $h4Read = 0
+        while ($h4Read -lt $h4Bytes.Length) {
+            $h4Count = $h4Stream.Read($h4Bytes, $h4Read, $h4Bytes.Length - $h4Read)
+            if ($h4Count -eq 0) { throw 'H4_SHORT_READ' }
+            $h4Read += $h4Count
+        }
+        if ($h4Stream.ReadByte() -ne -1) { throw 'H4_FILE_GREW' }
+        return ,$h4Bytes
+    } finally { $h4Stream.Dispose() }
+}
+if ($h4OwnerText -eq '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__' -or $h4OwnerText.Length -eq 0 -or $h4OwnerText.Length -gt 8192 -or $h4OwnerRef -notmatch '^[A-Za-z0-9:/._-]{1,200}$' -or $h4OwnerRef -eq '__ACTUAL_OPERATOR_LOCAL_REFERENCE__') { throw 'H4_ACTUAL_OWNER_MESSAGE_REQUIRED' }
+if ((H4-Hash (H4-ReadBounded $h4Script 262144)) -cne $h4SourceSha) { throw 'H4_SOURCE_HASH_CHANGED_NO_RETRY' }
+$h4ActiveDecimal = [decimal]$h4Epoch + [decimal]$h4Frequency * 120
+$h4CleanupDecimal = [decimal]$h4Epoch + [decimal]$h4Frequency * 180
+if ($h4Frequency -le 0 -or $h4ActiveDecimal -gt [long]::MaxValue -or $h4CleanupDecimal -gt [long]::MaxValue) { throw 'H4_QPC_RANGE_NO_RETRY' }
+$h4Receipt = [ordered]@{
+    schema='route2_h4_official_nongt_inspection_activation_v1'
+    policy_id='route2-h4-official-nongt-inspection-2026-10-16-004'
+    source_sha256=$h4SourceSha
+    contract_sha256=$h4ContractSha
+    owner_message_sha256=(H4-Hash ($h4Utf8.GetBytes($h4OwnerText)))
+    owner_approval_reference=$h4OwnerRef
+    invocation_nonce=([Guid]::NewGuid().ToString('N'))
+    one_shot_state='CONSUMED_FOR_THIS_INVOCATION'
+    parent_pid=$PID
+    qpc_epoch=$h4Epoch
+    qpc_frequency=$h4Frequency
+    active_stop_qpc=[long]$h4ActiveDecimal
+    cleanup_stop_qpc=[long]$h4CleanupDecimal
+    active_seconds=120
+    cleanup_seconds=60
+    total_seconds=180
+    max_attempts=1
+    exception_ids=$h4ExceptionIds
+}
+$h4Json = $h4Receipt | ConvertTo-Json -Depth 4 -Compress
+if ($h4Json -cmatch '[^\x20-\x7e]') { throw 'H4_NON_ASCII_CANONICAL_JSON_NO_RETRY' }
+$h4ActivationSha = H4-Hash ([Text.Encoding]::ASCII.GetBytes($h4Json))
+$h4MarkerStem = 'ROUTE2_H4_OFFICIAL_NONGT_INSPECTION_ACTIVATION_V1'
+$h4Begin = '<!-- ' + $h4MarkerStem + '_BEGIN -->'
+$h4End = '<!-- ' + $h4MarkerStem + '_END -->'
+# Precheck ALL documents before any append. A failed/interrupted launch still
+# consumes the trusted host's sole attempt; absent/partial receipts permit NO retry.
+foreach ($h4Relative in $h4Docs) {
+    $h4Text = $h4Utf8.GetString((H4-ReadBounded ([IO.Path]::Combine($h4Root, $h4Relative)) 4194304))
+    if ($h4Text.Contains($h4Begin) -or $h4Text.Contains($h4End)) { throw 'H4_ALREADY_CONSUMED_OR_PARTIAL_RECEIPT_NO_RETRY' }
+}
+$h4OwnerBase64 = [Convert]::ToBase64String($h4Utf8.GetBytes($h4OwnerText))
+$h4Append = [string]::Join([char]10, @(
+    '', '',
+    'H4 actual owner decision and sole official-package inspection consumption:',
+    ('Actual-owner-message UTF8 base64: ' + $h4OwnerBase64),
+    ('Operator-local reference (not a platform-issued message ID): ' + $h4OwnerRef),
+    'Trusted root verified the actual owner grant outside this script. CONSUMED before invocation; interruption, refusal or failed persistence grants no retry.',
+    $h4Begin, $h4Json, $h4End, ''
+))
+$h4AppendBytes = $h4Utf8.GetBytes($h4Append)
+foreach ($h4Relative in $h4Docs) {
+    if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h4ActiveDecimal) { throw 'H4_ACTIVE_STOP_DURING_RECEIPT_NO_RETRY' }
+    $h4AppendStream = [IO.File]::Open([IO.Path]::Combine($h4Root, $h4Relative), [IO.FileMode]::Append, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+    try {
+        $h4AppendStream.Write($h4AppendBytes, 0, $h4AppendBytes.Length)
+        $h4AppendStream.Flush($true)
+    } finally { $h4AppendStream.Dispose() }
+}
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h4ActiveDecimal) { throw 'H4_ACTIVE_STOP_BEFORE_INVOCATION_NO_RETRY' }
+& $h4Script -ActivationSha256 $h4ActivationSha
+$h4ExitCode = $LASTEXITCODE
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h4CleanupDecimal) { exit 1 }
+exit $h4ExitCode
+```
+
+
+OriginalSPEC targetedrecheck now reviews the exact changed tuple under its original00:31:47 cutoff. DifferentfreshQUALITY waits for scoped closure. H4 UNAPPROVED_UNSTARTED; no real ownerapproval/PID/nonce/nativeepoch/consumption/archivefact exists. No H1/H3 renewal or Stage authorization/freeze occurs.
+
+<a id="h4-spec-closed-and-checkout-byte-preservation-20261016"></a>
+### H4 original SPEC closure and exact new-path checkout-byte preservation
+
+OriginalindependentSPEC actual targetedFIRST00:18:53/READSTOP00:19:58UTC (65s), retaining original00:11:47 FIRST/00:14:49 initialSTOP/00:31:47cutoff, returned NO_REMAINING_SCOPED_P1_P2 / H4_OFFICIAL_NONGT_INSPECTION_PROPOSAL_SOURCE_ONLY. Eight GTseparator cases deny BEFORE wrapper removal and assert actual productionhelper metadata denied1/candidate0/document0/payloadordinal0/payloadreadledger0. Reviewer inverse-reconstructed old fullsource55609/23affcf9 and harness14040/1d3bf379 in memory to verify repair-only changes; all other policyfields unchanged exceptschema/id/classifier.version/token_rule, FINAL changed only source/policy/id bindings. Final55899/0fad706f,15139/8d4f6c4a,10307/695efa21,6324/c500864f matched all3; AST0 and noactivationmarkers. No invocation/archive/GT/test/filewrite/Git mutation. InitialP2 retained and closed by this actual targeted recheck.
+
+Root then found a new checkout-preservation issue while preparing exact-path commit: core.autocrlf=true and git check-attr showed no exact-byte rule for either newPS1. A future checkout could change approved LF script bytes before its one-shot binding. Root read actual .gitattributes347B SHA7bbc0ff1867d04380846e42dd42698b68d3c2af78d7be6bcddda64a0ed6f1bf7 and APPENDED ONLY two exact-path -text rules for scripts/route2_official_package_inspection.ps1 and tests/native/route2_official_package_inspection_harness.ps1. Root WRITESTOP2026-10-16 00:20:50.9810870UTC; current466B SHA17a9fc6df3f2151c67534d14304ee1d84c7e7ea5f06277211a69fe2c372d2d95. git diff shows only those2 added lines, git check-attr text now unset for both. No H3/native/C02/C03/other-path attribute rule changed; source/harness/policy/launcher finalpins remain fixed. This is exact-path Git reproducibility work, not a new runtime proof. OriginalSPEC receives ONLY this new2-line metadata delta before differentfreshQUALITY; closed component bodies are not repeatedly re-reviewed.
+
+Precision correction for the earlier Git-recheck phrase: initial C03 remote verification has captured23:54:30UTC; the subsequent query also returned feature0e4a0ad/main dd05aa1, but its standalone UTC was not captured in that command. Earlier00:01UTC is approximate commentary context, not independent timing proof. No role/resource/native epoch is inferred from it.
+
+<a id="h4-quality-interruption-resume-20261016"></a>
+### Actual platform interruption and bounded continuation, no attempt renewal
+
+The first freshQUALITY /root/h4_official_inspection_quality had actualFIRST2026-10-16 00:22:18UTC and original1200s cutoff00:42:18. It reported having read the complete new tuple and preliminary no scopedP1/P2, plus one diagnosticP3, but platform usage-limit failure interrupted it BEFORE final receipt. Its actual STOP is UNKNOWN; no final scoped closure is backfilled and the old window is not extended. The later owner instruction was only continued work, not a concrete H4 exception approval. No source author write or runtime launch followed that preliminary report.
+
+Root actual resumed clock2026-10-16 07:08:25UTC; localHEAD/remote feature=0e4a0ad6a2607f5cc9eeba68e1de089a02ce6fe5, remote main=dd05aa128f8d62a85c20a83f8af72fe13fcfa27b. Fresh full source-preservation capture07:09:42.3737036UTC found420 workfiles/186 complete index rows. All non6-scope workfile identities and ALL186 index rows exactly match preceding captured identities; no unexpected path added/deleted. All3 complete00:13:24 document prefixes and exact known v4-policy/v4-tuple/attribute-receipt suffixes match, with no unexplained append or consumption. Newsource55899/0fad706f, harness15139/8d4f6c4a and attribute466/17a9fc6d match frozenpins. Original11 complete staged identities remain untouched. This is per-file source/preservation evidence, not atomic freeze or installed validation.
+
+Same independentQUALITY now resumes actualFIRST07:09:19UTC in one explicitly bounded600s SOURCE window, absolutecutoff07:19:19, while retaining its original FIRST/cutoff/UNKNOWN interruptedSTOP and prior complete body reads. It first revalidates tuple/no-consumption, then finishes remaining diagnostic/exception review and actual final receipt. No repeated H3/C02/C03 closed-scope review. All original/current/source/runtime costs remain UNKNOWN_NOT_ZERO; this source window is not renewed H1/H3/H4 or Stage budget. H4=UNAPPROVED_UNSTARTED, source/harness unrun, officialZIP entirely untouched; H1=APPROVED_UNSTARTED,H3=CONSUMED_FAILED_PARTIAL/NO_RETRY and C00/full14/C04-C12STOP unchanged.
+
+<a id="h4-source-dual-review-closed-20261016"></a>
+### H4 complete scoped SOURCE dual-review receipt; no execution/admission grant
+
+Scoped review ID route2-h4-official-package-inspection-source-review-2026-10-16-001 covers ONLY H4 newproduction PS1/harness, canonicalv4/id004, FINALv4 same-parent launcher/explicit whole-root issuer and the two exact new-path .gitattributes rules. Production55899B SHA0fad706f5509f72a931ae5082a0fabfcc1f474de6f714f0e827f3bc410d8ac60; harness15139B SHA8d4f6c4a19ffb70962319d8fb46829003bdcd3854bf7c4a8f75bea2eb4fa17d1; policy10307ASCII SHA695efa21fea9c51652602f898f5da1936810801696e1538139a50e249d327ec2; FINALlauncher6324UTF8 including leading/trailingLF SHAc500864f72fbe883eadd64198b96e0ab6cb340d29211c6939de8bf20ac240ab1; attribute466B SHA17a9fc6df3f2151c67534d14304ee1d84c7e7ea5f06277211a69fe2c372d2d95 with unchanged347B/7bbc0ff1 prefix. Canonical policy/FINALlauncher are identical across all3; actual H4 consumption BEGIN/END absent. Static production/harness/launcher AST0 errors. No targetcode/harness execution.
+
+Soleauthor23:53:28-00:08:41; targetedrepair00:16:15-00:17:29. IndependentSPEC /root/h4_official_inspection_spec initial00:11:47-00:14:49 found1P2/noP1, corrected by sameauthor; targetedrecheck00:18:53-00:19:58 closedP2, additional newattribute-only recheck00:21:37-00:21:38 noP1/P2, all within original00:31:47cutoff. No re-review of inherited H3/C02/C03 ranges.
+
+DIFFERENTfreshQUALITY /root/h4_official_inspection_quality originalFIRST00:22:18/cutoff00:42:18 completed full reads and preliminary findings, then platform-interrupted actualSTOPUNKNOWN, not retrospectively closed. Explicit source resumeFIRST07:09:19/cutoff07:19:19 actualREADSTOP07:10:04 (45s), revalidated every frozenidentity/no-consumption and finished exception/diagnostic branches. FINAL verdict NO_REMAINING_SCOPED_P1_P2 / H4_OFFICIAL_NONGT_INSPECTION_PROPOSAL_SOURCE_ONLY. It independently checked complete parsing/ranges/originalpath-deny-before-wrapper/fixedcompressed slice/CRC+UTF8/inmemory+actual serialized caps/partialreadledger/receipt+hash+sameparentoriginalclock/resourcefailures/stop-originalProcesskilljoin-drain/finaloutput. No scope/authority/budget/Stage false-positive found. This is scoped SOURCE proposal review, not full implementation/install/noGT runtime/formal Stage admission.
+
+Retained nonblockingP3 source582-585,746: stdout Write/Flush may succeed then Check-Active cross120s before childCompleted=true, so stderr record_written can conservatively befalse despite bytes having been written. Parent rawcapture/readstates and actual childexit remain independently retained; child exits1. That flag ALONE must NEVER prove no stdout/no payload/no costs. No false success or budget/admission results; do not modify/re-review this tuple solely for theP3. Future actual-result interpretation must retain rawpartialbytes and uncertainty.
+
+Counters: one H4source implementor, one rootlauncher/config author; one verifiedclassifierP2 and boundedtargetedrepair, originalSPECrecheck plus separately new2-line metadata delta, DIFFERENTfreshQUALITY with honestly recorded platforminterruption/resume. No native/scientific experiment/test execution. H4=REVIEWED_PROPOSAL_UNAPPROVED_UNSTARTED/zeroattempts, H1approvedunstarted,H3consumedfailedpartial/noretry, all old/new costs UNKNOWN_NOT_ZERO. New ZIP has not even had existence/size/hash/directory/content checked. No new-official difference/compatibility/freeze/Stage conclusion exists.
+
+<a id="complete-fourteen-gate-closeout-20261016"></a>
+### Complete original fourteen-item A+B card: actual closeout of this source/inspection-boundary work
+
+This append updates all fourteen original rows together, in original order. It is not a new authorization card/prompt, not a new freeze and not a declaration of full implementation. H1=APPROVED_UNSTARTED; H3=CONSUMED_FAILED_PARTIAL/NO_RETRY; H4=REVIEWED_PROPOSAL_UNAPPROVED_UNSTARTED only after the actual scoped reviews recorded above. C00=AUDITED_UNPROVEN, wholeC01/C02/C03 incomplete, dependentC04-C12 SOURCE STOP under plan2238-2248. PREPARED_UNREVIEWED / APPLICATION_BLOCKED / NOT_APPROVAL_READY / FROZEN_ADMISSION=None; historical route2-ab-full-implementation-review-2026-09-29-FAIL-001 remains FAIL. All actual new/old costs and residual tails remain UNKNOWN_NOT_ZERO.
+
+| Original gate | Actual inherited/new evidence | Exact remaining admission dependency |
+|---:|---|---|
+|1|Owner already conditionally authorizes legal Stage A/B after complete criteria, full actual implementation/install/noGT validation, independent formal review and concrete full freeze. C02 rawobservations and C03 PEparser now add reviewed production SOURCE bodies.|Same complete installed, nonbypassable, fail-closed runner/owners and consumable complete FrozenAdmission; no source tuple or approval text supplies those facts. Do not ask generic final scientific permission again.|
+|2|Original saved scores/models/26D/HGB, thresholds .10/.25/.50, decoder600s/min180s, strictIoU>.25, only strict overlap next.start<end versus historical<=end+300000 are inherited. New official ZIP still uninspected.|Obtain lawful actual new-official rules and compare task/metrics/event matching/schema/splits+identities/time+sampling/inputs/evaluator/submission/dependencies; append only evidence-specific amendments. Never transfer old freeze/results to new package. Then legal105 reference ALL before105 treatment with exact discrete and symmetric atol1e-12/rtol1e-10.|
+|3|Existing bank/current-generation/sameFD/history/handoff SOURCE decisions unchanged. No GT/sample/archive payload read this turn.|Actual immutable bank creator, role input creator/publisher/history and sameFD consumer, no writable aliases, complete nested adapters with full input identities and installed ownership.|
+|4|25 fitattempts/25predict/65decode/20GT-backed+GT-free21st pooled reduction/pooledGTreads0 and2to4GiB design retained. No scientific invocation.|One actual enforcing ledger; legal Stage A N/M/S/B/R and Stage B projection/physical expansion. D_A strict2GiB capacityV2 is not a measured peak. All lifecycle/capacity charges need real producers.|
+|5|Original matched-GT gain/loss and finalize double-exception fixes, directory-v2/O_PATH110 registration/revocation remain pinned and unchanged; no repeat review.|Actual canonical legal A2-004 matched-origin/five-field projection/GT commitment/phase release+revoke and final matched-GT report. Candidate coverage remains a separate quantity.|
+|6|C01 interface/rejection declarations and existing Linux/GT lifecycle SOURCE retained; original roleSHA paths,4096history/256scan/nlink1 unchanged.|Actual SID/GUID/UID/namespace/IPC/FD/mount/cgroup/thread/readonly input and full scratch/history identities. At most one undeleted generation; exact .role-input/<generation>/data.img/tree.img and /run/route2-builder/role ownership.|
+|7|H3 returned two disk records only; partition query failed FACT_FIELD_SHAPE, so no E/volume/partition binding or task-specific target permission was proved.|Actual dedicated finite physical volume/extent across all writers, import/register/identity/cap/header/FS/allocation/baseline/headroom/history and same-invocation dual8GiB free floors. E30GiB=carrier24 inclguest20+external6; guestbaseline<=8GiB retained. No destructive disk command is approved; prepare exact actual identity/commands/impact before any necessary request.|
+|8|C02 actual Job-class8 sixIO/basicCPU and class9 commitpeaks plus creator/child memory/QPC sample bodies are SOURCE-reviewed, uncompiled/unrun. H3 application samples are exception observations only.|Native prebirth owner and actual applied WSL8GB/2CPU/guiOff plus effective C=min(4GiB,floor(3*M0/5)),AS=floor(C/2),swap0,CPU200%,Tasks2; StageA1200/study3600/fit900 with cleanup60 INSIDE. Complete peaks, hard enforcement and charges are not established by raw fields.|
+|9|H1 historical-gap approval is inherited without resetting1800/6000. H3 used its one extra180 attempt and failed partially. C02 I/O/memory observations do not account for complete VM/services.|Full wholeRAM16GiB/VRAM8GiB infrastructure/kernel/services, guestcontrol64MiB/hostcontrol16MiB inclusion; prep4GiB/200%/MONITORED4/1800 and external512MiB/100%/MONITORED4/6000 plus all tails. VM_SERVICE_SCOPE remains UNPROVEN; no invented zero/remaining balance. H4 proposed64-thread/sampled exceptions apply only to that exact future inspection if approved.|
+|10|Original nonE512MiB MONITORED,384MiB STOP_NEW,128MiB nominalcleanup with accepted overshoot UNKNOWN retained. H3 established no whole-writer AllocationSize/history.|Actual original native all-task writer/allocation/history observer, containment and charged scope/stop evidence. Current or deleted-file observations do not reset historical cost or prove finite physical scope.|
+|11|Unchanged compile-free gate/storage/deadline SOURCE components inherited. New bounded AMD64PE32+ header/import/delay/TLS rawparser SOURCE dualreview complete; existing raw original-identity capture retained.|Actual BEFORE first-load immutable PE/ELF/interpreter/stdlib/project/native/transitive/provider closure, exportforwarders/APIset/SxS/search resolution and continuous original host kill/startup producer. Empty TLS and rawPE parse never prove closure; no binary was built/loaded or ABI-validated.|
+|12|H3 original child was actually joined; streamsEOF/no outstanding tasks/no observed cleanupfaults. Complete creator/provider/runtime/service/physical tails remain UNKNOWN_NOT_ZERO. C02 deadline-residual samples conservatively stay unknown.|Actual bounded-stop/join/residual owners, crash/OOM/quarantine/remove/delete/cgroup/service/VM/observer cleanup, last-owner kernel witness and trustworthy surviving external final coordinator. Preserve q_exit_durable beforeflush and live q_accept_live afterflush; no stored postflush assertion, no fresh60s tail or accounting cutoff at FAIL. OWNER_EXIT_JOIN remains UNPROVEN.|
+|13|C02 ownedIO-memory and C03 PErawparser each have actual independent SPEC then differentfreshQUALITY with no remaining scopedP1/P2. H4 separate source/policy/launcher review is only an inspection proposal; original closed scopes inherited.|Complete installable formal review and actual noGT failure/cleanup validation, then whole source/runtime/input/pathmap/protocol/budget freeze and real FROZEN_ADMISSION. SOURCE hashes/AST/harness assertions or a state edit never replace full admission. Same-invocation facts may be produced only by the already reviewed nonbypassable path under legal authorization.|
+|14|Route2 legal Stage A/B runs/results=0. Route3 v1-003 remains legitimate COMPLETE with four quality-gate FAIL, no rerun. F1>=0.66 target OPEN.|After all BEFORE gates and new-official contract comparison, execute already conditionally authorized legal A/B directly. Report predeclared earlySTOP or complete5foldStageB separately from all four quality gates and real final matched-GT result. No model/science conclusion from engineering UNKNOWN.|
+
+Concrete next external decision is only the fully prepared reviewed H4 one-additional180s inspection exception tuple below/above, not H1 renewal, H3 retry, generic continuation or final scientific approval. Ordinary bounded inspection authorization already exists, but retained H1 BEFORE first-load/resources/physical/exit requirements are not currently met and frozen H3 excluded this ZIP; these existing contract facts cause the specific H4 dependency. No new skill-imposed approval rule is being invented. There is still no actual new-package difference or compatibility conclusion to report.
+
+<a id="h4-concrete-pending-owner-decision-20261016"></a>
+### Only concrete pending owner decision: one reviewed H4 official-package inspection exception
+
+The normal bounded, readonly, nonGT inspection intent is already authorized. The remaining decision is acceptance of NEW H4 exceptions: H1 still retains actual BEFORE first-load/fullresource/physical/exit obligations (plan h1-owner-approval-bound-20261014, especially2890); those are not currently satisfied, and frozen H3 explicitly excluded the official ZIP and has now consumed its sole failed-partial attempt. Continued-work instructions do not approve this new additional180s exception. H1/H3 are NOT being reopened or renewed. This dependency comes from those retained owner contracts, not from an invented skill approval gate.
+
+Approve or decline exactly this complete reviewed tuple, bound to route2-h4-official-package-inspection-source-review-2026-10-16-001 and FINALv4 tuple anchor h4-final-v4-tuple-20261016:
+production55899/0fad706f5509f72a931ae5082a0fabfcc1f474de6f714f0e827f3bc410d8ac60;
+harness15139/8d4f6c4a19ffb70962319d8fb46829003bdcd3854bf7c4a8f75bea2eb4fa17d1 (SOURCE binding only, NOT run by H4);
+policyv4/id00410307/695efa21fea9c51652602f898f5da1936810801696e1538139a50e249d327ec2;
+FINALlauncher6324/c500864f72fbe883eadd64198b96e0ab6cb340d29211c6939de8bf20ac240ab1 (UTF8 leading/trailingLF included).
+Exact-path .gitattributes rules preserve both newPS1 byteidentities; all original rules unchanged.
+
+Requested exception is ONE ADDITIONAL180s, active120+cleanup60 with original absolute stops and manual trusted-host serialized one-shot. Fixed System32 PS5.1 explicit NoProfile/NonInteractive/login:false whole-root launcher; first rawQPC BEFORE source/owner binding and sameparentPID/nonce/receipt persistence, all3 Flush(true) BEFORE SAMEprocess script invocation. Failed/interrupted/partial persistence or launch consumes the opportunity; no automaticretry. No unstarted H1 epoch is created/reset, no H3 remainder/retrycredit reused.
+
+Purpose is only fixed E:/e091f6df5b8f4fd1a62a5e43dda404b1_赛题2.zip central-directory classification and fixed positive nonGT docs/rules/evaluator/schema text inspection. Narrow strictZIP32/noextras/noarchivecomment/ASCII-or-strictUTF8/contiguouslocalprofile may refuse the uninspected package. Central<=8MiB, rawstructuralcandidates<=16MiB, metadata<=32candidates/16KiB, selected<=8, each compressed/uncompressed<=256KiB and aggregateeach<=1MiB, ratio<=20; actual documenttransportJSON<=32KiB, child<=64KiB,parent<=128KiB. Wholearchivehash UNVERIFIED; no extraction/overwrite/packageexecution/import/GTdata/science/harness/WSL/compiler/nativehelper/disk/config change. Source uses process-only affinity/module-path controls as specified; implicit kernel/cache/service writes and costs remain unproved. No positive classifier/limit expansion or retry ifunsupported/unresolved.
+
+Accept ONLY the nine exact policy exceptions: ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR; DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN; H4_MONITORED64_NOT_FORMAL4; H4_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS; H4_SHARED_RUNTIME_SERVICE_TAIL_UNJOINED; H4_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN; H4_HARD_DEADLINE_SYNC_STALL_UNPROVEN; H4_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY; H4_ADDITIONAL_ONE180_NOT_H1_OR_H3. Parent+child sameonecore after appliedreadback, sampled parent/child<=512MiBeach/combined<=1GiB and aggregateMONITORED64 are local H4 limits, not complete hard/causal accounting or originalformal4 PASS. Firstload/creator/providers/physical/allwriters/services/harddeadline/tails and all old/new fees stay UNKNOWN_NOT_ZERO. Malicious archive offsets can mislabel bounded raw structuralcandidate bytes; fixed filename/location classifier does not semantically prove arbitrary mislabeled content. KnownGT aliases are denied; any partial/unknown fact stays partial/unknown. The retained P3 field caution above applies to real results.
+
+Approval, if actually given later, accepts only this inspection-risk scope. It does not grant disk mutation, renewbudget, prove original fourteen gates, freeze newofficial inputs, approve GT payload evaluation or bypass Stage admission. It also is not generic final scientific approval: legal StageA/B remains already conditionally authorized after all complete criteria. After actual H4 evidence, compare all requested task/metric/matcher/schema/split+sampleidentity/time+rate/input/evaluation/submission/dependency dimensions, append only evidence-affected amendments, and continue the still-legal DAG. If the package/profile/evidence is unresolved, report exact partial result and specific remaining dependency without inventing compatibility.
+
+This is a PENDING proposed decision only. It contains no actual ownergrant, approvalmessagehash, invocationnonce,parentPID,rawexecutionQPC or consumption record. Do not activate from this card or call arguments.

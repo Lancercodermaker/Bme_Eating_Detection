@@ -7,3 +7,5 @@ docs/evidence/*route2* -text
 docs/handoffs/*route2* -text
 docs/superpowers/specs/*route2* -text
 docs/superpowers/plans/*route2* -text
+scripts/route2_official_package_inspection.ps1 -text
+tests/native/route2_official_package_inspection_harness.ps1 -text
