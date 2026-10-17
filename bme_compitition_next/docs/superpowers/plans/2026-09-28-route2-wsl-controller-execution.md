@@ -4688,3 +4688,43 @@ ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_N
 All missingfacts/fees remainUNPROVEN/UNKNOWN_NOT_ZERO. This grants noH1reset/originalbudgetPASS/physicaldiskmutation/fullStageadmission, evenifH5succeeds. Completeofficialtask/metrics/matching/schema/splits/time/inputs/evaluator/submission/dependenciescomparisonstillrequiresactualevidence; nooldfreeze/resultsapplynewZIP.
 
 Pendingdecision wording: Approve thisexactSOURCE-reviewed H5object foroneadditional180s(120+60) fixedofficialnonGTinspection, acceptingtheninenamedexceptionsandrawstructural/semanticmislabeling/DOCXencodedcontainercontactlimits? This is the ONLY newexecutiondecision currentlyneededforobtainingnewofficialtext. It is notaskeduntiltheconcreteobjectiscomplete; noactualgrantispresumedfromwritingthisparagraph.
+
+<a id="h5-reviewed-implementation-git-and-preservation-receipt-20261017"></a>
+## H5 reviewed implementation: actual Git and preservation receipt (2026-10-17)
+
+Append bookkeeping UTC: 2026-10-17T05:21:14.0333391Z. This is not a native execution t0, a budget reset, or a runtime grant.
+
+The concrete H5 proposal at h5-concrete-pending-owner-decision-20261017 now binds to implementation commit **935921c49e010eac0d945004cc799510070f42df**, parent **68f3169958e1a19ed500a8f79f3e76480acf4bd1**. Exact-path commit completed with exit 0 at 2026-10-17T05:19:49.1622676Z; the non-force push completed with exit 0. Actual ls-remote verification at 2026-10-17T05:20:05.4971937Z returned feature **935921c49e010eac0d945004cc799510070f42df** and main **dd05aa128f8d62a85c20a83f8af72fe13fcfa27b**. Git worktree root is E:/bme_compitition/.worktrees/high-f1-event-stack-execution; current project prefix is bme_compitition_next/. The commit contains exactly these six project-relative paths:
+
+- .gitattributes
+- scripts/route2_official_package_inspection_v2.ps1
+- tests/native/route2_official_package_inspection_v2_harness.ps1
+- docs/superpowers/specs/2026-09-27-route2-candidate-interval-validation-design.md
+- docs/superpowers/plans/2026-09-28-route2-wsl-controller-execution.md
+- docs/decisions/2026-09-27-route2-design-review.md
+
+The source object remains 96412 ASCII/LF bytes, SHA256 **1174da8e53c16776f850ab1b037141cdd683bd8498d28a974c1196d0518af2d9**, raw Git blob **12a76b7e4eae0a0c72357b95fbc0b1b5051dc658**. Its harness remains 33961 ASCII/LF bytes, SHA256 **3c0a9b00dd128f69c24667b528b7d9d1e0ea28899c96c68b91870842f99dac3f**, raw Git blob **485cb2ef46a5e12c67166d220be035f9de089b59**. Canonical v2 policy remains 16305 ASCII bytes / **3645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754**, and operative FINAL remains 6368 UTF8 bytes including its first/last LF / **37b1dc3e7132a70a9c7b7dfd73a4656bee117669ab809762548984fef1e3b9b8**. The final policy id remains route2-h5-official-nongt-inspection-2026-10-16-002. Superseded policy/launchers remain historical, unapproved and unexecuted. The .gitattributes append remains 591 bytes / **1a9dba1b606add2723cddb45412be1203dc4ecd577517fe20599ced583c5a289**; all prior prefixes and rules are preserved.
+
+Before staging, the actual 422-file inventory and 188 complete index rows were compared with the 2026-10-17T05:07:03 SOURCE snapshot. Only the original three documents had changed: each old byte prefix matched, and each exact suffix was the same final SPEC receipt plus final dual-review/complete-14-card/concrete-proposal append. All three final policy/FINAL byte objects matched; actual H5 consumption blocks were zero. Staging added only the two new H5 paths, giving 190 complete index rows. Every index row outside the exact six commit paths matched the pre-stage snapshot. All six staged blobs matched git hash-object --no-filters on their actual working bytes; scoped git diff --cached --check completed with exit 0. At 2026-10-17T05:20:25.1384296Z, all 422 actual working-file byte identities were unchanged across the commit/push, all 190 index rows exactly matched the verified staged snapshot, and the remaining staged paths were precisely the original eleven. Their complete mode/blob/stage/path identities remain:
+
+```text
+100644 603dbc2a57b9f093f7cb06a0cb92778f3fe3181c 0	configs/a2-context-verifier-v1-003.json
+100644 21a4eb322f4182db0cafb429c601e1b896eb3123 0	configs/a2-context-verifier-v1-003.sha256
+100644 e76d2f21201f4f264e5037641f211221896f751b 0	scripts/run_a2_context_verifier_003.py
+100644 382cf631e5a8bd0ba03ecbfc2580df30a47bbdeb 0	src/eating_event/a2/audit.py
+100644 1a803624244660e2f323b75863e8cf7a8c9cdbef 0	src/eating_event/a2/budget.py
+100644 6ee36f5db63ea84400de48064dff739dabd27f91 0	src/eating_event/a2/contracts.py
+100644 f36e8863060ef80d523e9a23dd2d6911a50500dc 0	src/eating_event/a2/control.py
+100644 c920474a71157aca1c186dba567f71df19c50cd5 0	src/eating_event/a2/worker.py
+100644 8631edd229b57d941fa7f0e208e6e1eb5c311cf3 0	tests/test_a2_resource_equivalence.py
+100644 8d44ece3dd9829e1207977d01e8f99c094e6e1af 0	tests/test_a2_resource_recovery_namespace.py
+100644 8a113001606f710e81e9c31b4c18c02cd9117d24 0	tests/test_a2_resource_supervisor.py
+```
+
+Two bookkeeping checks required correction, without running any H5 code or touching the official archive. An oversized read-only verification command was rejected before process creation with Windows error 206; it was replaced by a shorter read/hash check. After the successful exact-path add and whitespace check, a staged-blob query using : .gitattributes without the space failed because this project is a worktree subdirectory; the corrected check used the actual complete ls-files --stage rows. No additional add/retry of a runtime opportunity occurred, and no working bytes changed as a consequence. The normal core.autocrlf notice for .gitattributes did not alter its actual working bytes or staged blob. None of these bookkeeping/source checks is a production, harness, project-test, installation, original-budget, or Stage PASS.
+
+The actual final review remains **route2-h5-official-package-inspection-v2-source-review-2026-10-17-001**, independent final SPEC and different final QUALITY with zero remaining scope P1/P2; the already recorded Q4 P3 remains deferred. All runtime assertions remain UNRUN. No unchanged closed C02/C03/H3/H4 scope was reopened. The full fourteen original conditions were updated at complete-fourteen-gate-post-h5-source-review-20261017 and remain unsatisfied as individually recorded.
+
+**H5 remains UNAPPROVED_UNSTARTED, zero attempts.** This receipt is neither an actual owner approval nor a consumption record; there is no actual H5 owner text/reference, nonce, PID, execution raw QPC, or launch. The pending owner decision is only the fully specified one additional H5 180-second invocation (120 active + 60 cleanup) with the exact nine exceptions and structural-candidate/filename-semantic/whole-DOCX encoded-other-parts contact risks already listed at h5-concrete-pending-owner-decision-20261017. H3 and H4 remain CONSUMED_FAILED_PARTIAL_NO_RETRY; H1 remains APPROVED_UNSTARTED and its BEFORE facts are not created by this SOURCE work. Old approvals do not authorize the new additional H5 opportunity. Any future actual H5 grant must bind this committed source/policy/FINAL tuple; before executing, inherit newer HEAD and check the tuple and zero prior consumption. Fixed System32 PowerShell5.1 / NoProfile / NonInteractive / login:false and whole FINAL remain mandatory, with the first actual raw QPC and same-parent durable original-three consumption before calling the fixed source, no new clock/parent or automatic retry.
+
+Global state remains PREPARED_UNREVIEWED / APPLICATION_BLOCKED / NOT_APPROVAL_READY / FROZEN_ADMISSION=None. Legal Route2 Stage A/B and results remain zero; F1 >= 0.66 remains open. New-package scientific differences remain UNVERIFIED pending legal actual inspection. Complete causal/resource/physical/all-writer/service-tail/exit facts and SOURCE/tool fees remain UNPROVEN or UNKNOWN_NOT_ZERO as applicable; no unused exception seconds are budget credit. The user's conditional authorization to execute legal Stage A/B after full implementation, install, no-GT verification, independent formal reviews and concrete full freeze remains inherited. This new local H5 exception decision does not renew H1/H3/H4 or request another general scientific approval.
