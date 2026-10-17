@@ -4773,3 +4773,546 @@ This append updates all fourteen original rows together, in original order. It i
 |14|Route2 legal Stage A/B runs/results=0. Route3 v1-003 remains legitimate COMPLETE with four quality-gate FAIL, no rerun. F1>=0.66 target OPEN.|After all BEFORE gates and new-official contract comparison, execute already conditionally authorized legal A/B directly. Report predeclared earlySTOP or complete5foldStageB separately from all four quality gates and real final matched-GT result. No model/science conclusion from engineering UNKNOWN.|
 
 H4's approved sole attempt is now consumed; no newinspection permission is implied. H1 BEFORE requirements remain unmet, H3/H4 cannot be retried. Ordinary boundedinspection intent remains authorized only under a lawfulboundary. A practical inspection-v2 is being designed SOURCE-only against the actualpartialfacts; no newownerquestion occurs before its complete reviewabletuple exists. This is not H1renewal/genericcontinuation/finalsciencepermission. No newpackage rules/differences/compatibility conclusion has been obtained.
+
+<a id="h5-official-inspection-v2-source-plan-20261016"></a>
+### Practical H5 inspection-v2 design and bounded SOURCE implementation plan
+
+Actual design /root/official_package_v2_design FIRST2026-10-16 07:25:18UTC / STOP07:33:47 (509s before07:35:18cutoff), readonly/no newZIP/sourceexecution/file/Git mutation. It consulted primary PKWARE APPNOTE/Info-ZIP extra-field definitions and Context7/primary.NET XmlReader documentation for bounded DOCX body feasibility. This establishes format/API semantics, not actualpackage members or installed API behavior. [ZIP APPNOTE](https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT), [extra fields](https://libzip.org/specifications/extrafld.txt), [DTD control](https://learn.microsoft.com/en-us/dotnet/api/system.xml.xmlreadersettings.dtdprocessing?view=netframework-4.8.1), [resolver](https://learn.microsoft.com/en-us/dotnet/api/system.xml.xmlreadersettings.xmlresolver?view=netframework-4.8.1), [Word main document versus stories](https://learn.microsoft.com/en-us/office/open-xml/word/structure-of-a-wordprocessingml-document).
+
+workflow_path=STANDARD; execution_mode=SUBAGENT; actualbackend=collaboration.spawn_agent; capability_tags=boundedarchive/untrustedXML/source-contract; loaded_profiles=generic with inherited ML science/resource constraints. Recommendation GO_WITH_RISKS for SOURCE ONLY. Baseline=actualH4partialfacts plus recoveredoldcontract; criticalunknowns=actualrecordfields/membernames/type/schema/rules and .NET API runtime behavior. Validationorder=primaryformat/API design -> canonicalpolicy -> onefreshimplementor -> STOP/pins -> independentSPEC -> DIFFERENTfreshQUALITY -> only then concreteH5ownerexceptiondecision. No native/science workload. Telemetry=manualoriginal3 tool/clock records; localrecorder runtime not invoked under currentSOURCE-only boundary, missinglocaltelemetry recordedonce/no retry. Fallback at sourcecutoff=STOPwrites/reportpartial, not silentextension/runtimebudgetreset. No closedH3/H4/C02/C03 component re-review.
+
+Practical changes: finish all safely boundedcentral records BEFORE localbinding/pathsemantics/selection; preserve actualparsedcount and rawmetadata even if someextrasunsupported. Support documentedNTFS/timestamp/Unicodepath/comment/UID metadata, exact-boundary12/16B descriptors including signature-shapedCRC, inventory-only othercompression on unselectedmembers. Record original/raw/Unicodealiases and denyGT/data beforecommonwrapper; ambiguouslegacy/unknownsemanticextras cannot issuepayloadscope. FixedEnglish/Chinese ruletext/evaluator/schema candidates, UTF8/BOMUTF16 text, and atmost2 DOCX containers with only fixedword/document.xml payload opened inside. DOCXbodyonly/fields/math/drawing/otherstory limitations ALWAYSexplicit; no fullOOXML/rendering/compatibilityclaim. Packagecode/links/relations/embeddings/macros/GT/data not opened or executed.
+
+Root adopts stricter outputlimits than the design's optional large-output recommendation: retain child64KiB/parent128KiB/inventory16KiB/doctransport32KiB, with actualserialized size guards. This is supportable for this fixedsmall input: source H4 ReadAt charges22EOCD + centralSize + nonnegativeotherstructuralrequests, total1444, hence centralSize<=1422. Previous prohibition on inferring centralSize concerned an EXACTsize; this explicit sourcecounter inequality yields only an upperbound, not a measured exactsize or valid10-recordinventory. H5 pins expectedlength42549,EOCDdeclared10,centraldigest0b72...370a BEFOREpayload and enforces central<=1422. If actualbinding differs, refuse honestly; never apply oldpayload/freezes. Outer ratio20 retained; newDOCX innerXMLratio100 under explicit byte/node/depth caps. Formaloriginal resource/science budgets not relaxed.
+
+Singlefreshimplementor owns ONLY new scripts/route2_official_package_inspection_v2.ps1 and tests/native/route2_official_package_inspection_v2_harness.ps1, fixed1200s SOURCE window from actualFIRST recordedbyagent. Root owns policy/FINALsameparentlauncher/original3/.gitattributes exactnewpathrules/Git. No source/harness invocation, test, actualZIPexistence/enum/hash/open, compiler/Python/Add-Type/nativehelper/WSL/GT. H4source/harness entirebytes45344? PRECISION: H3source45344/4cd47ee7 and H4source55899/0fad706f plusH4harness15139/8d4f6c4a remain frozenunchanged; no H4 repair/retry. ExistingC02/C03newsourcebodies/pins inherited. C00allthree/wholeC01-C03incomplete,C04-C12SOURCESTOP and fullStageadmission stillunmet.
+
+Newauthor must implement actual bounded read/parse/decode/transport productionbodies, not only status/rejection stubs. Harness writes meaningful syntheticbytes calling whitelisted actualhelper AST bodies: ten-record outerinventory with knowncentralpin parameter internalfixture-only, benign/unknown/duplicate/truncatedextras and UnicodeCRC/GTalias, localextra-offset binding, unsigned/signeddescriptor andCRCsignature, overlaps/aliases/unsupportedunselectedmethod, plainUTF8/BOMUTF16, boundedDOCXbody/table/DTD/externalentity/depth/attribute/node/outputoverflow, exactbytes/ordinal/offset/ledgers and externalCRC oracle. Harness NEVER invoked by H5 and never reaches Collect/fixedarchive/receipt/ownerissuer. Fixtureinjection is confined to purehelper calls in isolatedtestmodule, never a productionCLI/path/authoritybypass. Allassertions UNRUN.
+
+H5 remains PROPOSAL_ONLY/UNAPPROVED_UNSTARTED with NO actualconsumption/PID/nonce/nativeepoch. It proposes ONE separately approvedADDITIONAL180s(120+60), nineexactexceptions plus structuralcandidate/mislabeling/DOCXcontainer risk; H1approvedunstarted/H3H4consumedfailedpartial cannot be renewed. No ownerquestion until complete reviewable tuple exists. Stage remains conditionalalready-authorized only after all real criteria; no genericscienceapproval is reopened.
+
+Canonical candidateH5policyv1, 15671ASCII bytes SHA25664c9a62e44599a98a9bb2bfb796d91cf2f8df18671878093ec8a076ee60ad388, one line excluding surroundingLF:
+```json
+{"schema":"route2_h5_official_nongt_inspection_policy_v1","policy_id":"route2-h5-official-nongt-inspection-2026-10-16-001","study_id":"route2-candidate-overlap-v1-001","purpose":"One practical fixed-package readonly directory inventory plus fixed-classifier nonGT plain text/evaluator/schema and bounded DOCX body evidence; no scientific evaluation or automatic compatibility/admission.","authority":"PROPOSAL ONLY. Actual later owner approval must bind final source, this exact canonical policy and FINAL same-parent launcher after independent SPEC then DIFFERENT fresh QUALITY. H1/H3/H4 approval and caller arguments issue no H5 authority.","entry":"Fixed System32 Windows PowerShell5.1 Desktop x64 NoProfile NonInteractive login:false, WHOLE root issued as UTF16LE EncodedCommand. Root first rawQPC precedes binding/receipt writes; same process binds actual owner/PID/nonce/original stops, Flush(true) sole consumption to original3, then invokes fixed source in SAME process. Trusted host serialized manual one-shot; never parameters as issuer.","clock":{"active_seconds":120,"cleanup_seconds":60,"total_seconds":180,"max_attempts":1,"epoch":"Original root rawQPC/frequency before source/message binding and durable receipt; parent/child retain same absolute120/180 stops. Failure/interruption/partial persistence/launch consumes attempt; no unused-seconds credit/retry/new clock.","supervision":"Runnable parent samples <=100ms cadence, latches STOP_NEW for fault/staleness/excess/active deadline; retains original .NET Process for terminate/join/drain, bounded original cleanup. Synchronous start/query/read/kill/flush stalls and complete hard-stop/all-service exits remain UNPROVEN; no unbilled tail or accounting cutoff at failure."},"scope":{"script":"scripts/route2_official_package_inspection_v2.ps1","input":"E:/e091f6df5b8f4fd1a62a5e43dda404b1_\u8d5b\u98982.zip","harness":"tests/native/route2_official_package_inspection_v2_harness.ps1 is SOURCE binding only, NEVER run by H5","runtime":"Already-present Windows PowerShell5.1/.NET Framework BCL only. One fixed self-child; MemoryStream/DeflateStream/GZipStream/XmlReader may load existing BCL with first-load/closure UNPROVEN. No Add-Type/compiler/Python/native helper/project/WSL/GPU/package code/import/install/download.","forbidden":"No whole archive hash, filesystem extraction/temp/cache/output files, oldinput overwrite, package execution/import/following instructions, data/GT member payload, scientific evaluation or Stage. Fixed readonly FileStream/FileShare.Read only; only trusted-root original3 approval/consumption/factual appends are intentional disk writes. No H3/H4 query/retry.","implicit":"Process-local affinity/module-path controls only as specified. Kernel/cache/runtime/service implicit writes and physical/causal costs remain UNKNOWN_NOT_ZERO."},"input_binding":{"expected_length":42549,"expected_eocd_declared_entries":10,"expected_central_sha256":"0b72b03ee9129dfaf4ba175f6bc838c09ca360c9fe11ba425df7cf6a2093370a","outer_central_bytes_max":1422,"bound_basis":"H4 computed central SHA after successful22-byte EOCD plus central read; its nonnegative structural requested-byte ledger totaled1444, hence centralSize<=1422. This is a SOURCE-counter-derived upper bound, NOT a measured exactcentralSize, validated10members or wholeinput identity.","sharing":"Retain one mutation-denying readonly FileStream length before/after through disposal; path/handle replacement/complete immutable identity UNPROVEN. No archive SHA; archive_sha256=UNVERIFIED. New length/count/digest mismatch refuses before any memberpayload.","provenance":"H4 actualapproval/source/epoch/result remain preserved. H5 is a new explicitly approved future opportunity, not H4 remainder or continuation."},"zip":{"profile":"Single-disk ZIP32, zero archivecomment EOCD final22, exact central end. No archive ZIP64/encryption/AES/strong-encryption/unsupported type semantics for selectedpayload. Record unsupported cases truthfully; no silent fallback.","outer_entries_max":10,"structural_candidate_read_bytes_max":131072,"name_bytes_max":1024,"path_components_max":16,"extra_bytes_per_header_max":4096,"extra_raw_prefix_bytes_max":256,"stages":"Complete central records FIRST; then local/range bindings; then path/type/extra semantics and original-path classification; only then selectedpayload. Unknown extras must not erase already parsed records or abort later centralinventory when record boundaries are safe. Invalid boundary stops with actual parsed_count.","completion_fields":["central_records_complete","local_bindings_complete","metadata_semantics_complete","directory_transport_complete","selection_complete","selected_evidence_complete"],"inventory":"Full outer central bytes base64/SHA within fixed inventoryJSON budget, all10 validated records with rawname identity, offsets/flags/method/versions/sizes/CRC/attributes/extras/alias/deny/selection/binding state. EOCDdeclared count and actual parsed count separate. Names/extras are untrusted metadata evidence, not executableinstructions. No sensorpayload/dump.","paths":"StrictUTF8 bit11; otherwise rawASCII direct. NonASCII legacy without valid Unicode path binding stays unresolved and never payloadcandidate. Optional CP437 display is metadata-only and NOT path authority. No traversal/absolute/UNC/drive/backslash/colon/control/dot/dotdot/hidden/device/trailing-dot-space/symlink/device/conflicting paths. Normalized duplicate/casealias and file/directoryalias refuse beforepayload.","extras":"Parse boundedTLV with raw ID/length/offset/hash/prefix and completeness. Recognize0x000a NTFS reserved+nestedtag1length24 rawtimestamps,0x5455 local/central timestamp layouts,0x7075 version1Unicodepath+rawnameCRC+strictUTF8noBOM,0x6375 Unicodecomment CRC+UTF8,0x7875 UID/GIDv1 exactlengths. Local and central extras need not byteequal. Duplicate recognizedID/NTFS timestamp tag, invalidUnicode binding/pathalias conflicts blockpayload. UnknownID/subtag remains opaque/unresolved and blocks global payloadselection if semanticpath/type safety cannot be proved. Never guess ZIP64/AES/encoding override.","aliases":"Deny on every original/rawASCII/authoritativeUnicode interpretation BEFORE commonwrapper. RawASCII renamed by Unicodeextra, pathsegment conflicts, differinglocal/central Unicodeauthority or any GT/unknown interpretation cannot become payloadcandidate. InvalidUnicodeextra never silently falls back.","ranges":"Checked localheader/rawname/flags/method/CRC/sizes and exact payload start including localextras. Complete unique local ranges sorted from0 tocentralstart with no overlap/alias/unclaimedgap. Data-descriptor extent determined only by exact nextlocal or centralboundary:12-byte unsigned or16-byte signed tuple matchingcentralCRC/csize/usize; signature-shapedCRC is unambiguous by extent. No searching inside payload.","methods":"Nonselectedunsupported compression methods may remain inventory-only if ranges/type/path semantics are safe; selectedpayload only methods0/8. Fixedcompressed slice prevents read-ahead into neighbors. Exact outputlen/CRC/SHA; no arbitrary decompression.","raw_candidate_limit":"Malicious offsets can mislabel rawstructural-candidate bytes; max131072 explicitly scoped, no claim metadata semantics were proved before reading. Kernel/cache physicalreads remain unproved."},"classifier":{"version":"route2-h5-safe-document-v1","locations":["","doc","docs","rules","spec","schema","evaluation","evaluator","\u6587\u6863","\u8bf4\u660e","\u89c4\u5219","\u89c4\u8303","\u8bc4\u6d4b","\u8bc4\u4ef7","\u63d0\u4ea4","\u63a5\u53e3"],"wrapper":"At mostone common nonhidden top-level wrapper only when allfiles share it. Deny original aliases first. Positive then root or directly one allowedlocation; never arbitrary recursive/smallfile admission.","deny_tokens":["gt","groundtruth","ground_truth","label","labels","annotation","annotations","answer","answers","target","targets","train","training","test","validation","dataset","data","sample","samples","sensor","raw","recording"],"deny_tokens_zh":["\u771f\u503c","\u6807\u7b7e","\u6807\u6ce8","\u7b54\u6848","\u8bad\u7ec3","\u6d4b\u8bd5","\u9a8c\u8bc1","\u6570\u636e","\u6837\u672c","\u4f20\u611f","\u539f\u59cb","\u5f55\u5236"],"token_rule":"Case-insensitiveASCII tokens with nonalphanumeric boundaries; fold nonASCII-alphanumeric separator runs to oneunderscore for compounddeny, preserving ground truth/ground-truth/ground.truth/repeated variants. OriginalChinese substringchecks remain. Deny wins on all aliases BEFORE wrapper stripping.","document_stems":["README","RULES","INSTRUCTIONS","TASK","SUBMISSION","METRIC","METRICS","SCORING","problem_statement","task_description","competition_rules","submission_guidelines","evaluation_protocol","scoring_rules","\u8d5b\u9898\u8bf4\u660e","\u4efb\u52a1\u8bf4\u660e","\u8d5b\u9898\u89c4\u5219","\u7ade\u8d5b\u89c4\u5219","\u63d0\u4ea4\u8bf4\u660e","\u8bc4\u6d4b\u8bf4\u660e","\u8bc4\u4ef7\u6307\u6807","\u8bc4\u5206\u89c4\u5219","\u8f93\u5165\u8f93\u51fa\u683c\u5f0f","\u63a5\u53e3\u8bf4\u660e","\u8d5b\u98982","\u8d5b\u98982\u8bf4\u660e","\u8d5b\u98982\u89c4\u5219"],"document_extensions":[".md",".txt",".rst",".docx"],"code_basenames":["evaluate.py","evaluation.py","evaluator.py","metric.py","metrics.py","score.py","scoring.py","submission.py"],"schema_basenames":["schema.json","input_schema.json","output_schema.json","submission_schema.json"],"selected_members_max":8,"docx_members_max":2,"limit":"Fixed conservativefilename/locationrule does not prove arbitrary semanticmislabeling. Known/ambiguous GT/data never opened. PDF/OfficeotherthanDOCX/binary/archives/exe only inventory metadata and explicit unsupported/unresolved; never assumedunderstood. No automaticallowlist expansion."},"plain_text":{"compressed_member_bytes_max":262144,"uncompressed_member_bytes_max":262144,"compressed_total_bytes_max":1048576,"uncompressed_total_bytes_max":1048576,"ratio_max":20,"encoding":"StrictUTF8 with optionalBOM or explicitBOM strictUTF16LE/BE; no non-BOM legacytext fallback, NUL/binarycontrols forbidden exceptTAB/LF/CR. Preserve originalbytes/len/CRC/SHA; encoding/derivedUTF8 are separate facts, never overwrite originalevidence.","code":"Evaluator/schema are textonly; never import/execute/automaticallyobey."},"docx":{"scope":"Only an outer positivelyclassifiedDOCX; read/decompress its bounded WHOLE containerbytes, which necessarily includes otherparts encodedbytes. Do NOT claim no contact with those containerbytes. Inside, only fixed word/document.xml payload is opened/decompressed; no .rels/images/embeddings/macros/externaltargets/otherstories.","outer_members_max":2,"nested_entries_max":128,"nested_central_bytes_max":32768,"nested_structural_read_bytes_max":131072,"selected_xml_bytes_per_member_max":524288,"selected_xml_bytes_total_max":1048576,"nested_ratio_max":100,"validation":"BoundednestedZIP32 central/local/ranges/duplicates/extras/descriptor checks; exactlyone unambiguous word/document.xml and no path/type ambiguity. No OpenXML SDK or externalXML schemas. XmlReader DtdProcessing=Prohibit,XmlResolver=null,ValidationType=None; maxcharacters524288,depth64,nodes100000,attributes_per_element64. Strict supportedWordprocessingML namespace document/body. No DTD/entity/externalrelationresolution.","formatter":"docx-fixed-body-v1: w:t originalorder,tab->TAB,br/cr->LF,p-end->LF,cell/row end->TAB/LF. RawXMLbyte len/CRC/SHA+boundedfulltransport and derivedUTF8body are distinctevidence objects under SAME aggregate transportbudget. Derivedbody<=524288UTF8bytes, no silenttruncation.","limitations":"scope=DOCX_FIXED_PART_BODY_ONLY,full_document_rendered=false always. Count fields/math/drawing/altChunk/revisions/footnote/header/otherstory references and unsupportedfeatures; never evaluate/follow. Bodyonly cannot become fullOOXML/document/scientificcompatibility proof. Unrenderedrelevantcontent staysunresolved."},"diagnostics":{"errors_max":32,"error_json_bytes_max":8192,"fields":["phase","code","ordinal","container_ordinal","absolute_offset","field","observed","expected","requested_bytes","returned_bytes","charged_bytes","retryable"],"rules":"Exactfield-specific codes, not combined NAME_EXTRA_OR_RECORD_RANGE. retryable=false. Keep actually parsed inventory, requested/returned payload read ledger and completion/partial-byte unknowns through decode/CRC/transport/dispose failure. Exceptiontype/HRESULT only; no raw exceptionmessages or terminal controlfilenames."},"transport":{"inventory_json_bytes_max":16384,"document_transport_json_bytes_max":32768,"preview_bytes_per_evidence_max":4096,"encodings":["identity-base64","gzip-base64"],"rules":"Bindordinal/container/kind/originalbyte length/SHA/CRC/encoding. Full only when ACTUAL serialized aggregateJSON fits. Gzip output fixednonexpandableMemoryStream(byte[]) initializedSetLength0/Position0; overflow or Disposefault neverfull=true. Otherwise UTF8-safe preview for derivedUTF8 (rawbinary/UTF16 previews byteidentified),full=false/EVIDENCE_TRANSPORT_UNRESOLVED. No duplicatefull+preview of sameobject. XMLraw+derivedbody distinct objects sharebudget. Inventory and doccomplete flags independent.","child_record_bytes_max":65536,"child_stdout_capture_bytes":65537,"stderr_bytes_max":8192,"stderr_capture_bytes":8193,"parent_result_bytes_max":131072,"overflow":"Always actualUTF8serializedsize check; if metadata/rawextra field transportcannotfit, honest partial/unresolved ratherthan oversizedrecord/fakefull. Preserve originalrawchildstreambytes/readstates before interpretingJSON."},"resources":{"application_threads":"H5 parent+child MONITORED64 sampled only, stale/failure/excess STOP_NEW. Formal MONITORED4 unchanged.","rss":"Parent<=536870912 child<=536870912 combined<=1073741824 sampled, not completecausal/hardcaps.","cpu":"Sameonecore parent/child applied+readback BEFORE archivework; pre-affinity loader/creator/fullcausalCPU unproven.","whole":"Originalwhole16GiB/VRAM8GiB/E30GiB/nonE512MiB384stop128nominalcleanup remain outsideexactexception, no originalPASS.","tail":"Sameoriginal .NET Process only, notnative PI/thread/fullkernel/service cohortjoin. qpc/outputprovisional; actualexit/postflush separate, no failedrecordendsbilling."},"exceptions":"ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H5_MONITORED64_NOT_FORMAL4|H5_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H5_SHARED_RUNTIME_SERVICE_TAIL_UNJOINED|H5_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H5_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H5_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H5_ADDITIONAL_ONE180_NOT_H1_H3_H4","accounting":"Only after specificactualapproval oneADDITIONAL180s. H1APPROVED_UNSTARTED1800/6000 unchanged; H3/H4CONSUMED_FAILED_PARTIAL no retry/remaindercredit. All historical/current/source/creator/loader/provider/kernel/service/physical/cleanup tails UNKNOWN_NOT_ZERO; failure/expiry/observationend is not accountingend or newpermission.","activation":"Unique canonicalASCII route2_h5_official_nongt_inspection_activation_v1 in originalreview binds actualownerhash/localreference/finalsource/policy/sameparentPID/nonce/originalrawQPC120/180. Trustedroot Flush(true) all3 BEFOREsameprocessinvoke. Manualtrustedhost verifies actualowner outside script; parameters/receipt do not authenticatehumans or mintapproval. Partial/no-persistence failedlaunch stillconsumesoneopportunity.","result":"H5 evidenceonly; no C00/fullresource/physical/firstload/exitclosure, formalinputfreeze/fullreview/Stage grant. Newofficialfacts reopen only affectedscientificimplementation scopes; remainingunknownpreventscompletecompatibility.","risk_acknowledgement":"H5_FIXED_OFFICIAL_NONGT_INSPECTION_ONLY"}
+```
+
+<a id="h5-final-policy-v2-opc-metadata-20261016"></a>
+### H5 pre-review final candidatev2: ordinary OPC metadata without hidden-path payload authority
+
+Before firstformalSPEC/QUALITY, root identified a specific interpretationgap: an otherwise ordinaryDOCX contains nonselected _rels/.rels metadata, which a generic outer hiddencomponent rule could reject before fixedword/document.xml. Newcandidatev2/id002 clarifies ONLY this standardnested metadata exception and explicit supported transitional/strict WordprocessingML namespaces. _rels/.rels and [Content_Types].xml are inventoried only, never opened/decompressed as parts; all nested traversal/absolute/control/symlink/type/alias protections remain. No arbitraryhiddenpositive path, relationfollowing, embedding, XMLexternal target or newpayloadclass is allowed. Alllength/digest/read/resource/output/180s/nineexception budgets unchanged. v1/id001 is SUPERSEDED_UNAPPROVED/zeroattempts; not a re-review of closedscope or newactualpermission. H4actualstateandallbytes stay unchanged.
+
+Canonical FINALcandidateH5policyv2: 16305ASCII bytes SHA2563645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754, excluding surroundingLF. The one sourceauthor retains originalFIRST07:42:47/absolute08:02:47cutoff; this refinement does NOT reset thatwindow or anyH1/H3/H4/H5nativebudget. Read exactv2 line beforefinalsourcebinding; rootFINALlauncher and laterreviews bind ONLYv2/id002. H5unapprovedunstarted/noactualnonce/PID/rawexecutionQPC/consumption.
+```json
+{"schema":"route2_h5_official_nongt_inspection_policy_v2","policy_id":"route2-h5-official-nongt-inspection-2026-10-16-002","study_id":"route2-candidate-overlap-v1-001","purpose":"One practical fixed-package readonly directory inventory plus fixed-classifier nonGT plain text/evaluator/schema and bounded DOCX body evidence; no scientific evaluation or automatic compatibility/admission.","authority":"PROPOSAL ONLY. Actual later owner approval must bind final source, this exact canonical policy and FINAL same-parent launcher after independent SPEC then DIFFERENT fresh QUALITY. H1/H3/H4 approval and caller arguments issue no H5 authority.","entry":"Fixed System32 Windows PowerShell5.1 Desktop x64 NoProfile NonInteractive login:false, WHOLE root issued as UTF16LE EncodedCommand. Root first rawQPC precedes binding/receipt writes; same process binds actual owner/PID/nonce/original stops, Flush(true) sole consumption to original3, then invokes fixed source in SAME process. Trusted host serialized manual one-shot; never parameters as issuer.","clock":{"active_seconds":120,"cleanup_seconds":60,"total_seconds":180,"max_attempts":1,"epoch":"Original root rawQPC/frequency before source/message binding and durable receipt; parent/child retain same absolute120/180 stops. Failure/interruption/partial persistence/launch consumes attempt; no unused-seconds credit/retry/new clock.","supervision":"Runnable parent samples <=100ms cadence, latches STOP_NEW for fault/staleness/excess/active deadline; retains original .NET Process for terminate/join/drain, bounded original cleanup. Synchronous start/query/read/kill/flush stalls and complete hard-stop/all-service exits remain UNPROVEN; no unbilled tail or accounting cutoff at failure."},"scope":{"script":"scripts/route2_official_package_inspection_v2.ps1","input":"E:/e091f6df5b8f4fd1a62a5e43dda404b1_\u8d5b\u98982.zip","harness":"tests/native/route2_official_package_inspection_v2_harness.ps1 is SOURCE binding only, NEVER run by H5","runtime":"Already-present Windows PowerShell5.1/.NET Framework BCL only. One fixed self-child; MemoryStream/DeflateStream/GZipStream/XmlReader may load existing BCL with first-load/closure UNPROVEN. No Add-Type/compiler/Python/native helper/project/WSL/GPU/package code/import/install/download.","forbidden":"No whole archive hash, filesystem extraction/temp/cache/output files, oldinput overwrite, package execution/import/following instructions, data/GT member payload, scientific evaluation or Stage. Fixed readonly FileStream/FileShare.Read only; only trusted-root original3 approval/consumption/factual appends are intentional disk writes. No H3/H4 query/retry.","implicit":"Process-local affinity/module-path controls only as specified. Kernel/cache/runtime/service implicit writes and physical/causal costs remain UNKNOWN_NOT_ZERO."},"input_binding":{"expected_length":42549,"expected_eocd_declared_entries":10,"expected_central_sha256":"0b72b03ee9129dfaf4ba175f6bc838c09ca360c9fe11ba425df7cf6a2093370a","outer_central_bytes_max":1422,"bound_basis":"H4 computed central SHA after successful22-byte EOCD plus central read; its nonnegative structural requested-byte ledger totaled1444, hence centralSize<=1422. This is a SOURCE-counter-derived upper bound, NOT a measured exactcentralSize, validated10members or wholeinput identity.","sharing":"Retain one mutation-denying readonly FileStream length before/after through disposal; path/handle replacement/complete immutable identity UNPROVEN. No archive SHA; archive_sha256=UNVERIFIED. New length/count/digest mismatch refuses before any memberpayload.","provenance":"H4 actualapproval/source/epoch/result remain preserved. H5 is a new explicitly approved future opportunity, not H4 remainder or continuation."},"zip":{"profile":"Single-disk ZIP32, zero archivecomment EOCD final22, exact central end. No archive ZIP64/encryption/AES/strong-encryption/unsupported type semantics for selectedpayload. Record unsupported cases truthfully; no silent fallback.","outer_entries_max":10,"structural_candidate_read_bytes_max":131072,"name_bytes_max":1024,"path_components_max":16,"extra_bytes_per_header_max":4096,"extra_raw_prefix_bytes_max":256,"stages":"Complete central records FIRST; then local/range bindings; then path/type/extra semantics and original-path classification; only then selectedpayload. Unknown extras must not erase already parsed records or abort later centralinventory when record boundaries are safe. Invalid boundary stops with actual parsed_count.","completion_fields":["central_records_complete","local_bindings_complete","metadata_semantics_complete","directory_transport_complete","selection_complete","selected_evidence_complete"],"inventory":"Full outer central bytes base64/SHA within fixed inventoryJSON budget, all10 validated records with rawname identity, offsets/flags/method/versions/sizes/CRC/attributes/extras/alias/deny/selection/binding state. EOCDdeclared count and actual parsed count separate. Names/extras are untrusted metadata evidence, not executableinstructions. No sensorpayload/dump.","paths":"StrictUTF8 bit11; otherwise rawASCII direct. NonASCII legacy without valid Unicode path binding stays unresolved and never payloadcandidate. Optional CP437 display is metadata-only and NOT path authority. No traversal/absolute/UNC/drive/backslash/colon/control/dot/dotdot/hidden/device/trailing-dot-space/symlink/device/conflicting paths. Normalized duplicate/casealias and file/directoryalias refuse beforepayload. The hidden-component prohibition applies to outer candidate paths. Nested DOCX may inventory the exact standard OPC _rels/.rels metadata entry without opening its payload; no other hidden-path payload is admitted.","extras":"Parse boundedTLV with raw ID/length/offset/hash/prefix and completeness. Recognize0x000a NTFS reserved+nestedtag1length24 rawtimestamps,0x5455 local/central timestamp layouts,0x7075 version1Unicodepath+rawnameCRC+strictUTF8noBOM,0x6375 Unicodecomment CRC+UTF8,0x7875 UID/GIDv1 exactlengths. Local and central extras need not byteequal. Duplicate recognizedID/NTFS timestamp tag, invalidUnicode binding/pathalias conflicts blockpayload. UnknownID/subtag remains opaque/unresolved and blocks global payloadselection if semanticpath/type safety cannot be proved. Never guess ZIP64/AES/encoding override.","aliases":"Deny on every original/rawASCII/authoritativeUnicode interpretation BEFORE commonwrapper. RawASCII renamed by Unicodeextra, pathsegment conflicts, differinglocal/central Unicodeauthority or any GT/unknown interpretation cannot become payloadcandidate. InvalidUnicodeextra never silently falls back.","ranges":"Checked localheader/rawname/flags/method/CRC/sizes and exact payload start including localextras. Complete unique local ranges sorted from0 tocentralstart with no overlap/alias/unclaimedgap. Data-descriptor extent determined only by exact nextlocal or centralboundary:12-byte unsigned or16-byte signed tuple matchingcentralCRC/csize/usize; signature-shapedCRC is unambiguous by extent. No searching inside payload.","methods":"Nonselectedunsupported compression methods may remain inventory-only if ranges/type/path semantics are safe; selectedpayload only methods0/8. Fixedcompressed slice prevents read-ahead into neighbors. Exact outputlen/CRC/SHA; no arbitrary decompression.","raw_candidate_limit":"Malicious offsets can mislabel rawstructural-candidate bytes; max131072 explicitly scoped, no claim metadata semantics were proved before reading. Kernel/cache physicalreads remain unproved."},"classifier":{"version":"route2-h5-safe-document-v1","locations":["","doc","docs","rules","spec","schema","evaluation","evaluator","\u6587\u6863","\u8bf4\u660e","\u89c4\u5219","\u89c4\u8303","\u8bc4\u6d4b","\u8bc4\u4ef7","\u63d0\u4ea4","\u63a5\u53e3"],"wrapper":"At mostone common nonhidden top-level wrapper only when allfiles share it. Deny original aliases first. Positive then root or directly one allowedlocation; never arbitrary recursive/smallfile admission.","deny_tokens":["gt","groundtruth","ground_truth","label","labels","annotation","annotations","answer","answers","target","targets","train","training","test","validation","dataset","data","sample","samples","sensor","raw","recording"],"deny_tokens_zh":["\u771f\u503c","\u6807\u7b7e","\u6807\u6ce8","\u7b54\u6848","\u8bad\u7ec3","\u6d4b\u8bd5","\u9a8c\u8bc1","\u6570\u636e","\u6837\u672c","\u4f20\u611f","\u539f\u59cb","\u5f55\u5236"],"token_rule":"Case-insensitiveASCII tokens with nonalphanumeric boundaries; fold nonASCII-alphanumeric separator runs to oneunderscore for compounddeny, preserving ground truth/ground-truth/ground.truth/repeated variants. OriginalChinese substringchecks remain. Deny wins on all aliases BEFORE wrapper stripping.","document_stems":["README","RULES","INSTRUCTIONS","TASK","SUBMISSION","METRIC","METRICS","SCORING","problem_statement","task_description","competition_rules","submission_guidelines","evaluation_protocol","scoring_rules","\u8d5b\u9898\u8bf4\u660e","\u4efb\u52a1\u8bf4\u660e","\u8d5b\u9898\u89c4\u5219","\u7ade\u8d5b\u89c4\u5219","\u63d0\u4ea4\u8bf4\u660e","\u8bc4\u6d4b\u8bf4\u660e","\u8bc4\u4ef7\u6307\u6807","\u8bc4\u5206\u89c4\u5219","\u8f93\u5165\u8f93\u51fa\u683c\u5f0f","\u63a5\u53e3\u8bf4\u660e","\u8d5b\u98982","\u8d5b\u98982\u8bf4\u660e","\u8d5b\u98982\u89c4\u5219"],"document_extensions":[".md",".txt",".rst",".docx"],"code_basenames":["evaluate.py","evaluation.py","evaluator.py","metric.py","metrics.py","score.py","scoring.py","submission.py"],"schema_basenames":["schema.json","input_schema.json","output_schema.json","submission_schema.json"],"selected_members_max":8,"docx_members_max":2,"limit":"Fixed conservativefilename/locationrule does not prove arbitrary semanticmislabeling. Known/ambiguous GT/data never opened. PDF/OfficeotherthanDOCX/binary/archives/exe only inventory metadata and explicit unsupported/unresolved; never assumedunderstood. No automaticallowlist expansion."},"plain_text":{"compressed_member_bytes_max":262144,"uncompressed_member_bytes_max":262144,"compressed_total_bytes_max":1048576,"uncompressed_total_bytes_max":1048576,"ratio_max":20,"encoding":"StrictUTF8 with optionalBOM or explicitBOM strictUTF16LE/BE; no non-BOM legacytext fallback, NUL/binarycontrols forbidden exceptTAB/LF/CR. Preserve originalbytes/len/CRC/SHA; encoding/derivedUTF8 are separate facts, never overwrite originalevidence.","code":"Evaluator/schema are textonly; never import/execute/automaticallyobey."},"docx":{"scope":"Only an outer positivelyclassifiedDOCX; read/decompress its bounded WHOLE containerbytes, which necessarily includes otherparts encodedbytes. Do NOT claim no contact with those containerbytes. Inside, only fixed word/document.xml payload is opened/decompressed; no .rels/images/embeddings/macros/externaltargets/otherstories.","outer_members_max":2,"nested_entries_max":128,"nested_central_bytes_max":32768,"nested_structural_read_bytes_max":131072,"selected_xml_bytes_per_member_max":524288,"selected_xml_bytes_total_max":1048576,"nested_ratio_max":100,"validation":"BoundednestedZIP32 central/local/ranges/duplicates/extras/descriptor checks; exactlyone unambiguous word/document.xml and no path/type ambiguity. No OpenXML SDK or externalXML schemas. XmlReader DtdProcessing=Prohibit,XmlResolver=null,ValidationType=None; maxcharacters524288,depth64,nodes100000,attributes_per_element64. Strict supportedWordprocessingML namespace document/body. No DTD/entity/externalrelationresolution. Standard _rels/.rels and [Content_Types].xml may be inventoried as NONSELECTED metadata only and MUST NOT make an otherwise safe DOCX fail solely under the outer hidden-positive rule. Neither payload is opened. Nested traversal/absolute/control/symlink/type/alias safety still applies.","formatter":"docx-fixed-body-v1: w:t originalorder,tab->TAB,br/cr->LF,p-end->LF,cell/row end->TAB/LF. RawXMLbyte len/CRC/SHA+boundedfulltransport and derivedUTF8body are distinctevidence objects under SAME aggregate transportbudget. Derivedbody<=524288UTF8bytes, no silenttruncation.","limitations":"scope=DOCX_FIXED_PART_BODY_ONLY,full_document_rendered=false always. Count fields/math/drawing/altChunk/revisions/footnote/header/otherstory references and unsupportedfeatures; never evaluate/follow. Bodyonly cannot become fullOOXML/document/scientificcompatibility proof. Unrenderedrelevantcontent staysunresolved.","word_namespaces":["http://schemas.openxmlformats.org/wordprocessingml/2006/main","http://purl.oclc.org/ooxml/wordprocessingml/main"]},"diagnostics":{"errors_max":32,"error_json_bytes_max":8192,"fields":["phase","code","ordinal","container_ordinal","absolute_offset","field","observed","expected","requested_bytes","returned_bytes","charged_bytes","retryable"],"rules":"Exactfield-specific codes, not combined NAME_EXTRA_OR_RECORD_RANGE. retryable=false. Keep actually parsed inventory, requested/returned payload read ledger and completion/partial-byte unknowns through decode/CRC/transport/dispose failure. Exceptiontype/HRESULT only; no raw exceptionmessages or terminal controlfilenames."},"transport":{"inventory_json_bytes_max":16384,"document_transport_json_bytes_max":32768,"preview_bytes_per_evidence_max":4096,"encodings":["identity-base64","gzip-base64"],"rules":"Bindordinal/container/kind/originalbyte length/SHA/CRC/encoding. Full only when ACTUAL serialized aggregateJSON fits. Gzip output fixednonexpandableMemoryStream(byte[]) initializedSetLength0/Position0; overflow or Disposefault neverfull=true. Otherwise UTF8-safe preview for derivedUTF8 (rawbinary/UTF16 previews byteidentified),full=false/EVIDENCE_TRANSPORT_UNRESOLVED. No duplicatefull+preview of sameobject. XMLraw+derivedbody distinct objects sharebudget. Inventory and doccomplete flags independent.","child_record_bytes_max":65536,"child_stdout_capture_bytes":65537,"stderr_bytes_max":8192,"stderr_capture_bytes":8193,"parent_result_bytes_max":131072,"overflow":"Always actualUTF8serializedsize check; if metadata/rawextra field transportcannotfit, honest partial/unresolved ratherthan oversizedrecord/fakefull. Preserve originalrawchildstreambytes/readstates before interpretingJSON."},"resources":{"application_threads":"H5 parent+child MONITORED64 sampled only, stale/failure/excess STOP_NEW. Formal MONITORED4 unchanged.","rss":"Parent<=536870912 child<=536870912 combined<=1073741824 sampled, not completecausal/hardcaps.","cpu":"Sameonecore parent/child applied+readback BEFORE archivework; pre-affinity loader/creator/fullcausalCPU unproven.","whole":"Originalwhole16GiB/VRAM8GiB/E30GiB/nonE512MiB384stop128nominalcleanup remain outsideexactexception, no originalPASS.","tail":"Sameoriginal .NET Process only, notnative PI/thread/fullkernel/service cohortjoin. qpc/outputprovisional; actualexit/postflush separate, no failedrecordendsbilling."},"exceptions":"ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H5_MONITORED64_NOT_FORMAL4|H5_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H5_SHARED_RUNTIME_SERVICE_TAIL_UNJOINED|H5_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H5_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H5_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H5_ADDITIONAL_ONE180_NOT_H1_H3_H4","accounting":"Only after specificactualapproval oneADDITIONAL180s. H1APPROVED_UNSTARTED1800/6000 unchanged; H3/H4CONSUMED_FAILED_PARTIAL no retry/remaindercredit. All historical/current/source/creator/loader/provider/kernel/service/physical/cleanup tails UNKNOWN_NOT_ZERO; failure/expiry/observationend is not accountingend or newpermission.","activation":"Unique canonicalASCII route2_h5_official_nongt_inspection_activation_v1 in originalreview binds actualownerhash/localreference/finalsource/policy/sameparentPID/nonce/originalrawQPC120/180. Trustedroot Flush(true) all3 BEFOREsameprocessinvoke. Manualtrustedhost verifies actualowner outside script; parameters/receipt do not authenticatehumans or mintapproval. Partial/no-persistence failedlaunch stillconsumesoneopportunity.","result":"H5 evidenceonly; no C00/fullresource/physical/firstload/exitclosure, formalinputfreeze/fullreview/Stage grant. Newofficialfacts reopen only affectedscientificimplementation scopes; remainingunknownpreventscompletecompatibility.","risk_acknowledgement":"H5_FIXED_OFFICIAL_NONGT_INSPECTION_ONLY"}
+```
+
+
+Source-plan pin precision: frozenH3source45344B/4cd47ee739897513af1f17fe65862ad15dbafe565a63ad34a063af52ed104634; frozenH4source55899B/0fad706f5509f72a931ae5082a0fabfcc1f474de6f714f0e827f3bc410d8ac60 andH4harness15139B/8d4f6c4a19ffb70962319d8fb46829003bdcd3854bf7c4a8f75bea2eb4fa17d1. The earlier stray45344?token inH5plan is not anH4pin. Root exactnew-path attributeappend STOP07:41:11.8493597UTC, current591B SHA1a9dba1b606add2723cddb45412be1203dc4ecd577517fe20599ced583c5a289; fullold466B/17a9fc6df3f2151c67534d14304ee1d84c7e7ea5f06277211a69fe2c372d2d95 prefixunchanged, gitdiff ONLY2newH5 -textlines, bothtextunset. No oldH4/otherpath rule changed.
+
+Actual H4result/baseline/full14 commit68f3169958e1a19ed500a8f79f3e76480acf4bd1 exactoriginal3 only,07:32:55.9607538UTC; pre-stage originals/prefixes/knownappend and188indexrows checked, postcommit188indexexactstaging, original11 preserved. Nonforcepush/query actual07:33:01.4337161UTC feature68f3169/main dd05aa128f8d62a85c20a83f8af72fe13fcfa27b. NoH4source/harness/Gitstageoutsideoriginal3 mutation, no newruntime/ZIPoperation.
+
+<a id="h5-source-start-and-read-ledger-fixture-precision-20261016"></a>
+### Actual H5 implementor start and precise pre-read versus post-read fixture contract
+
+Fresh soleauthor /root/implement_official_inspection_v2 actualFIRST2026-10-16 07:42:47UTC, fixed1200s absolutecutoff08:02:47. Only2newPS1paths may be written; root owns original3/policy/launcher/config/Git. Source remains underconstruction, not frozen/reviewed/executed. Root source-only launcher draft binds H5 schema/ID002/policyv2 and a SOURCEHASH placeholder, never issued; H5 has no actualownergrant/PID/nonce/rawexecutionepoch/consumption. H4actualconsumedstate and original frozenbytes remain unchanged.
+
+Normative precision for the SOURCEplan/harness shorthand: a ZERO payloadledger is required for preselection/pre-read refusals such as GTaliases, unsafe/ambiguousmetadata and invalidranges. A failure AFTER an authorized memberread (CRC/decode/XMLDTD/transport/dispose) MUST preserve its actual nonzero attempted/returned outer/nested readledger and partialbyte unknowns. Never impose a universal zero-ledger assertion or erase charges after reading. This clarification implements the already frozenv2 diagnostics/partialledger rule; no newreadscope/policybyte change. XMLDTD rejection inside an already-read DOCX/XML is a postread case. All such sourceassertions remain UNRUN; staticAST is not tests/runtimePASS.
+
+
+<a id="h5-frozen-source-policy-final-launcher-20261016"></a>
+### H5 exact frozen SOURCE candidate and FINAL same-parent launcher — NOT EXECUTED
+
+Singleauthor /root/implement_official_inspection_v2 actualFIRST07:42:47UTC, STOP08:00:56UTC on2026-10-16 (1089s, before original08:02:47cutoff). Root independently read/static-parsed exact2files at2026-10-16T08:01:46.8146629Z: production86776ASCII/LF bytes/1038LF lines SHA256b9624c6b33a38d4ffb729e35cd1de0cbcd8fce62ad73dfc058ac80af4532def4; synthetic harness17675ASCII/LF bytes/135LF lines SHA2563a4dec07f861090f8d9073817d6dc590632890cc381e1ee1d4e28202b3e1a45b. BothnoBOM/0CR/finalLF/ParseFile0errors. Actual production includes stagedcentral/localrange/semanticclassification/fixedslice reader, CRC/Unicode/extras/descriptor, plainUTF8/BOMUTF16, boundedDOCXrawXML+body evidence and originalProcess supervision. Harness has meaningful syntheticfixtures but ALLassertions UNRUN. No actualnewZIPexistence/stat/open/enum/hash/read, helper/source/harness/project/native/WSL/GT/science execution occurred during thisSOURCE phase.
+
+Reviewscope is the ENTIRE newproductioncopy andharness, canonicalv2/id00216305ASCII SHA2563645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754 at latestv2anchor, thisFINALlauncher and ONLY new2path-text attribute rules. No unchangedclosedH3/H4/C02/C03 re-review. .gitattributes591B SHA2561a9dba1b606add2723cddb45412be1203dc4ecd577517fe20599ced583c5a289 retains exactold466B prefixSHA25617a9fc6df3f2151c67534d14304ee1d84c7e7ea5f06277211a69fe2c372d2d95. Root07:54:23 full420oldworkfile/188index check found onlyallowed original3/.gitattributes changes;08:00 sourcephase new2paths are the only additions. Root07:56 verified all3 historicalprefixes and exactknownappend suffixes; no originalcard/prompt or unrelatedcontent was overwritten.
+
+FINALlauncher below is 6368UTF8bytes INCLUDING first/lastLF SHA256f053cd97c5ea058e246b08415becf611e71fd20034e3454ed218bb75111bf533; root ParseInput0errors. Only actualownertext and operator-localreference assignmentliterals may later be replaced, correctlysinglequoteescaped; leave placeholderguardcomparisonliterals unchanged. Trustedhost must first verifyactualspecificH5grant and alltuple/noactualconsumption, issueWHOLEroot once via fixedSystem32PS5.1 -NoProfile -NonInteractive -EncodedCommand UTF16LE usinglogin:false, and not execute a secondroot afterepoch. First rawQPC precedes allbinding/receiptwrites; original120/180/PID/nonce/ownerhash are persistedall3Flush(true) before SAMEprocessfixedscript. SettingProgressPreference only suppresses noisyprogress, neverprovespreload/modulecostzero. No two-step partialconsumption or runtime retry. The codefence is SOURCE ONLY until independentSPEC, DIFFERENTfreshQUALITY and a later concrete actualownergrant.
+
+H5=UNAPPROVED_UNSTARTED/zeroattempts/noactualPID/nonce/nativeepoch/consumption. H4andH3=CONSUMED_FAILED_PARTIAL/NO_RETRY; H1=APPROVED_UNSTARTED withBEFOREunmet. C00allthree/wholeC01-C03 incomplete/C04-C12SOURCESTOP/full14unmet/FROZEN_ADMISSION=None/fullFAILhistory/Stage0/F1open/Route3unchanged. Allfees/tails UNKNOWN_NOT_ZERO. None of the tuples/source-onlyclocks or callerarguments issuepermission.
+
+FINAL H5 same-parent launcher (reviewed object candidate):
+```powershell
+# SOURCE TEMPLATE ONLY: do not execute before the actual owner approves
+# final source SHA + policy SHA + the nine named H5 exceptions.
+# Operator replaces ONLY the actual owner text and its local reference.
+# Trusted host issues this WHOLE launcher through fixed System32 PowerShell5.1
+# with explicit -NoProfile -NonInteractive -EncodedCommand (UTF16LE), login:false.
+# Pre-entry creator/tool-host/waiter costs remain UNKNOWN_NOT_ZERO exceptions.
+# No second root, process or clock may replace this parent AFTER its epoch.
+$h5Epoch = [Diagnostics.Stopwatch]::GetTimestamp()
+$h5Frequency = [Diagnostics.Stopwatch]::Frequency
+$ProgressPreference = 'SilentlyContinue'
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$h5Root = 'E:\bme_compitition\.worktrees\high-f1-event-stack-execution\bme_compitition_next'
+$h5SourceSha = 'b9624c6b33a38d4ffb729e35cd1de0cbcd8fce62ad73dfc058ac80af4532def4'
+$h5ContractSha = '3645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754'
+$h5OwnerText = '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__'
+$h5OwnerRef = '__ACTUAL_OPERATOR_LOCAL_REFERENCE__'
+$h5Script = [IO.Path]::Combine($h5Root, 'scripts\route2_official_package_inspection_v2.ps1')
+$h5Docs = @(
+    'docs\superpowers\specs\2026-09-27-route2-candidate-interval-validation-design.md',
+    'docs\superpowers\plans\2026-09-28-route2-wsl-controller-execution.md',
+    'docs\decisions\2026-09-27-route2-design-review.md'
+)
+$h5ExceptionIds = 'ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H5_MONITORED64_NOT_FORMAL4|H5_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H5_SHARED_RUNTIME_SERVICE_TAIL_UNJOINED|H5_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H5_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H5_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H5_ADDITIONAL_ONE180_NOT_H1_H3_H4'
+$h5Utf8 = [Text.UTF8Encoding]::new($false, $true)
+function H5-Hash([byte[]] $Bytes) {
+    $h5Hash = [Security.Cryptography.SHA256]::Create()
+    try { ([BitConverter]::ToString($h5Hash.ComputeHash($Bytes))).Replace('-', '').ToLowerInvariant() }
+    finally { $h5Hash.Dispose() }
+}
+function H5-ReadBounded([string] $Path, [int] $Limit) {
+    $h5Stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        if ($h5Stream.Length -gt $Limit) { throw 'H5_SOURCE_OR_DOCUMENT_TOO_LARGE' }
+        $h5Bytes = New-Object byte[] ([int]$h5Stream.Length)
+        $h5Read = 0
+        while ($h5Read -lt $h5Bytes.Length) {
+            $h5Count = $h5Stream.Read($h5Bytes, $h5Read, $h5Bytes.Length - $h5Read)
+            if ($h5Count -eq 0) { throw 'H5_SHORT_READ' }
+            $h5Read += $h5Count
+        }
+        if ($h5Stream.ReadByte() -ne -1) { throw 'H5_FILE_GREW' }
+        return ,$h5Bytes
+    } finally { $h5Stream.Dispose() }
+}
+if ($h5OwnerText -eq '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__' -or $h5OwnerText.Length -eq 0 -or $h5OwnerText.Length -gt 8192 -or $h5OwnerRef -notmatch '^[A-Za-z0-9:/._-]{1,200}$' -or $h5OwnerRef -eq '__ACTUAL_OPERATOR_LOCAL_REFERENCE__') { throw 'H5_ACTUAL_OWNER_MESSAGE_REQUIRED' }
+if ((H5-Hash (H5-ReadBounded $h5Script 262144)) -cne $h5SourceSha) { throw 'H5_SOURCE_HASH_CHANGED_NO_RETRY' }
+$h5ActiveDecimal = [decimal]$h5Epoch + [decimal]$h5Frequency * 120
+$h5CleanupDecimal = [decimal]$h5Epoch + [decimal]$h5Frequency * 180
+if ($h5Frequency -le 0 -or $h5ActiveDecimal -gt [long]::MaxValue -or $h5CleanupDecimal -gt [long]::MaxValue) { throw 'H5_QPC_RANGE_NO_RETRY' }
+$h5Receipt = [ordered]@{
+    schema='route2_h5_official_nongt_inspection_activation_v1'
+    policy_id='route2-h5-official-nongt-inspection-2026-10-16-002'
+    source_sha256=$h5SourceSha
+    contract_sha256=$h5ContractSha
+    owner_message_sha256=(H5-Hash ($h5Utf8.GetBytes($h5OwnerText)))
+    owner_approval_reference=$h5OwnerRef
+    invocation_nonce=([Guid]::NewGuid().ToString('N'))
+    one_shot_state='CONSUMED_FOR_THIS_INVOCATION'
+    parent_pid=$PID
+    qpc_epoch=$h5Epoch
+    qpc_frequency=$h5Frequency
+    active_stop_qpc=[long]$h5ActiveDecimal
+    cleanup_stop_qpc=[long]$h5CleanupDecimal
+    active_seconds=120
+    cleanup_seconds=60
+    total_seconds=180
+    max_attempts=1
+    exception_ids=$h5ExceptionIds
+}
+$h5Json = $h5Receipt | ConvertTo-Json -Depth 4 -Compress
+if ($h5Json -cmatch '[^\x20-\x7e]') { throw 'H5_NON_ASCII_CANONICAL_JSON_NO_RETRY' }
+$h5ActivationSha = H5-Hash ([Text.Encoding]::ASCII.GetBytes($h5Json))
+$h5MarkerStem = 'ROUTE2_H5_OFFICIAL_NONGT_INSPECTION_ACTIVATION_V1'
+$h5Begin = '<!-- ' + $h5MarkerStem + '_BEGIN -->'
+$h5End = '<!-- ' + $h5MarkerStem + '_END -->'
+# Precheck ALL documents before any append. A failed/interrupted launch still
+# consumes the trusted host's sole attempt; absent/partial receipts permit NO retry.
+foreach ($h5Relative in $h5Docs) {
+    $h5Text = $h5Utf8.GetString((H5-ReadBounded ([IO.Path]::Combine($h5Root, $h5Relative)) 4194304))
+    if ($h5Text.Contains($h5Begin) -or $h5Text.Contains($h5End)) { throw 'H5_ALREADY_CONSUMED_OR_PARTIAL_RECEIPT_NO_RETRY' }
+}
+$h5OwnerBase64 = [Convert]::ToBase64String($h5Utf8.GetBytes($h5OwnerText))
+$h5Append = [string]::Join([char]10, @(
+    '', '',
+    'H5 actual owner decision and sole official-package inspection consumption:',
+    ('Actual-owner-message UTF8 base64: ' + $h5OwnerBase64),
+    ('Operator-local reference (not a platform-issued message ID): ' + $h5OwnerRef),
+    'Trusted root verified the actual owner grant outside this script. CONSUMED before invocation; interruption, refusal or failed persistence grants no retry.',
+    $h5Begin, $h5Json, $h5End, ''
+))
+$h5AppendBytes = $h5Utf8.GetBytes($h5Append)
+foreach ($h5Relative in $h5Docs) {
+    if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h5ActiveDecimal) { throw 'H5_ACTIVE_STOP_DURING_RECEIPT_NO_RETRY' }
+    $h5AppendStream = [IO.File]::Open([IO.Path]::Combine($h5Root, $h5Relative), [IO.FileMode]::Append, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+    try {
+        $h5AppendStream.Write($h5AppendBytes, 0, $h5AppendBytes.Length)
+        $h5AppendStream.Flush($true)
+    } finally { $h5AppendStream.Dispose() }
+}
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h5ActiveDecimal) { throw 'H5_ACTIVE_STOP_BEFORE_INVOCATION_NO_RETRY' }
+& $h5Script -ActivationSha256 $h5ActivationSha
+$h5ExitCode = $LASTEXITCODE
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h5CleanupDecimal) { exit 1 }
+exit $h5ExitCode
+```
+
+
+<a id="h5-first-spec-three-p2-and-bounded-source-repair-20261016"></a>
+### H5 first independent SPEC result and bounded same-author SOURCE repair
+
+Independent SPEC /root/h5_official_inspection_v2_spec FIRST2026-10-16 08:03:09UTC, STOP08:12:38UTC (569s, before original08:23:09cutoff) returned NOT_COMPLIANT /0P1/3P2 on production86776/b9624c6b33a38d4ffb729e35cd1de0cbcd8fce62ad73dfc058ac80af4532def4, harness17675/3a4dec07f861090f8d9073817d6dc590632890cc381e1ee1d4e28202b3e1a45b, unchangedpolicyv2/FINAL6368f053cd97 and exactnewattribute scope. It independently verified fulltuple/all3fences, read bothnewfiles in full, staticParse0errors. No actualZIP/helper/harness/native/science/GT execution or writes. Root read actualaffectedsource and accepted these concrete defects, not merely the reviewlabel.
+
+P2-1: production398-418/412 applies Unix/DOS externalattribute masks without validating made_by host; host0xff withattributes0 may selectREADME. Explicit supportedhost/attribute semantics required; unknownsemantics retain completecentral/localinventory and blockpayload. Requiredfixtures: recognizedregular-fileacceptance and host0xff14 refusal/zeropayload. [PKWARE4.4.2/4.4.15](https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT) defines host-dependent externalattributes; this does not prove actualpackagehost.
+
+P2-2: production509-515 exactnested _rels/.rels exception requiresUnicodepath extrasabsent, so validCRC-bound equalaliases get hiddenpathfalse-refusal. Permit ONLY exactstandardmetadata with allvalidaliasesagree, never read its payload. Malformed/stale/conflicting/renaming aliases remainblocked. Do not merely dropnullguards while rewritingrawname, which creates a newraw/Unicode conflict. Add positiveequalaliases and negativebindingfixtures; fixedinnerXML remains soleopenedpart.
+
+P2-3: production503/531/668/671/674 combine name/extralengths; payloadsizes/ratio; selected/DOCXcounts; selectedmethod/version/sizes/zero/ratio; and compressed/uncompressedaggregate limits. Splitcodes/field/actualobserved/applicableexpected and exact-codebranchfixtures. Examplemethod12 versusneeded45 must differ; selected9 versusDOCX3 must identify8 versus2; totalsidentifyeach1048576limit. Preservepre-read0ledger and post-readnonzeroactualcharges. This is the finite reviewedrepair scope, not generic refactoring.
+
+Later owner steering continued work; actualrootclock13:56:27UTC. The stoppedauthor/review windows are NOT extended. No new H5 ownergrant, consumption/PID/nonce/nativeepoch, H1reset or H3/H4retry follows from continuation. Interveningmachine/service/physical/sourcefees remain UNKNOWN_NOT_ZERO; sourceclock/pause duration does not create unused runtimecredit. Root13:57:01 currentfull422workfiles/188index snapshot recaptured exactoldH5pins, feature68f3169958e1a19ed500a8f79f3e76480acf4bd1 and alloriginal11 identities; remote feature68f3169/main dd05aa128f8d62a85c20a83f8af72fe13fcfa27b verified again. Volatile prior tool stores did not survive user-turn boundary; durable417per-file/183index documentarybaseline is being recovered to check unrelatedbytes, without pretending priorraw420snapshot survived. Currentnew422snapshot becomes the explicit repairstart baseline. No unrelatedbytes may be changed.
+
+Sameoriginalauthor may now repair ONLY the2newH5PS1paths under a separately bounded900s SOURCEfix window from its actualFIRST, then STOP/pin. Root alone updates original3 and replacementFINALlauncher afternewsourcehash. Canonicalpolicyv2/id00216305/3645c107 remainsunchanged; no newpayloadclass/resourcewaiver. AfterSTOP obtain independenttargetedSPEC with actualfreshboundedreadwindow, then DIFFERENTfreshQUALITY on wholefinalnewtuple. No questions toowner are needed for thisauthorizedreversibleSOURCErepair. H5runtime remainsUNAPPROVED_UNSTARTED/0attempts, H4/H3CONSUMED_FAILED_PARTIAL/NO_RETRY, H1APPROVED_UNSTARTED and full14/Stageblocks unchanged.
+
+
+<a id="h5-resumed-preservation-and-repair-clock-20261016"></a>
+### Recovered durable identities and actual SOURCE repair clock
+
+Root14:00-14:01UTC recovered only the repository documentarygzip+base64 baseline at resumed-durable-source-identities-20261015-2326, boundeddecompression96069UTF8bytes/SHA256bc69d11ca4d6533584365c36d19ce43666580f0d565bf0839d1530fd16206d71,417workfiles/183fullindexrows. This is bookkeeping, NOT theofficialZIP or anyGTpayload, nativeproducer/test execution or a resourcecredit. Compared against the actual13:57:01.9042424 current422workfiles/188index snapshot: changedoldworkingpaths are ONLY .gitattributes, original3, and alreadyreviewed C03mounthelperC/H; addedpaths ONLY C03PEharness, H4source+harness, H5source+harness; no deletions. Index differences are ONLY original3/.gitattributes, alreadyrecorded C02ownedobservation2, C03mountC/H+harness and H4source+harness. All unrelatedmode/blob/stage/path rows including original11 remain exact. OldC02/C03/H4 workingpins matchtheir reviewedactualtuples; no duplicate review is performed. No claim is made that vanishedoldvolatile420rawstore was recovered.
+
+Root14:01:08 verified original3 byteprefixes at the previously checked07:54 lengths: spec767071/SHA8b27f4cc99afce404d13cf7c9e36c47fc7874124628b0d24afb234dc83eb04bd; plan882769/6afdbac664088f33840e22df4f0e66cb22054fd6a907657349c03c3c5713ff64; review1165574/6df8bcbe51c4d84baaa538defd0cbd3531328e4b3884d1de5029963f8161b3d9. All match; canonicalv216305/3645c107 and historicalfirstFINAL6368/f053cd97 matchall3; actualH5consumptionblocks0. Subsequentnewappends are retained as append-only facts, originalapplicationcard/prompt staysunchanged. Actualremote feature68f3169958e1a19ed500a8f79f3e76480acf4bd1/main dd05aa128f8d62a85c20a83f8af72fe13fcfa27b remainverified.
+
+Sameauthor actualrepairFIRST13:59:49UTC, hardSOURCEcutoff14:14:49UTC (900s). Oldsource/reviewwindows remainclosed. Only2H5PS1writes, no actualpackage/helper/harness/native/WSL/science/GT work. Policyv2unchanged; allnew/historical/source/service/physical/tailfees UNKNOWN_NOT_ZERO. H5unapprovedunstarted/0attempts and allfulladmissionblocks remain.
+
+
+<a id="h5-repaired-source-final-launcher-20261016"></a>
+### Repaired H5 SOURCE tuple and replacement FINAL launcher — still UNAPPROVED
+
+Sameauthor repairFIRST13:59:49UTC STOP14:08:33UTC (524s before14:14:49cutoff). Root14:09:21.6366983 independently verified production91433ASCII/LF bytes/1097LF SHA256a9fa64705f603717c40bb572dcc275ad37df8a30bee7f94a2d9faebd362e69a7; harness27359/192LF SHA256c45508d8ed37219a1dd877204db877d61a5b470dd72a5f41be7e011d3d0e20b0; both0CR/noBOM/finalLF/staticParseFile0errors.32actualpurehelpers whitelisted/staticcustomdependencyclosure0missing is authorSOURCEinspection, not executingassertions. AllfixturesUNRUN. Host-awareDOS0/Unix3/NTFS10/unknown-refusal, exactnestedOPCUnicodealiases without rawrewrite and splitfielddiagnostics for finiteSPECscope are implemented; newintegrationfixtures check count/total/method/version/size/zero/ratio branches and truepre/postreadledger distinctions. No package/helper/harness/native/science/GT work or Git mutation occurred.
+
+Canonicalpolicyv2/id002 remainsEXACT16305ASCII SHA2563645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754. NewFINAL6368UTF8bytes INCLUDING leading/trailingLF SHA2561fb7d88acb5d848c59455d468313f1613775deeb4b48e5b2fef0bb2b02e2ee93, rootParseInput0errors. It differs from firstunapprovedFINAL6368/f053cd97 ONLY in sourcehash assignment, oldb9624... replacedwitha9fa647...; allothercharacters/ownerplaceholders/guards/epoch/receipt/one-shot contract unchanged. This replacement supersedes the firstFINAL candidate for ANYfutureH5issue; oldcandidate and failedSPEC remainhistorical, neverapproved/executed. .gitattributes591/1a9dba1b and old466prefix17a9fc6d unchanged; frozenH3/H4/C02/C03 sources inherited unchanged.
+
+Next targetedSPEC has a NEWexplicit600s SOURCE-only window fromactualFIRST for changed3P2functions/calls/fixtures/newtuple; it doesnot extend08:23:09oldcutoff or anynativebudget. After no scopedP1/P2, DIFFERENTfreshQUALITY reviews wholefinalnewtuple within1200s SOURCEwindow. No sameclosedoriginalscopeaudit. H5 remainsUNAPPROVED_UNSTARTED/0attempts/noPID/nonce/rawexecutionepoch/consumption; H1unstarted/H3H4consumedfailedpartial/Stage0/allfeesUNKNOWN_NOT_ZERO.
+
+FINAL H5 replacement same-parent launcher (the operative candidate only after later scopedreview AND actualspecificownergrant):
+```powershell
+# SOURCE TEMPLATE ONLY: do not execute before the actual owner approves
+# final source SHA + policy SHA + the nine named H5 exceptions.
+# Operator replaces ONLY the actual owner text and its local reference.
+# Trusted host issues this WHOLE launcher through fixed System32 PowerShell5.1
+# with explicit -NoProfile -NonInteractive -EncodedCommand (UTF16LE), login:false.
+# Pre-entry creator/tool-host/waiter costs remain UNKNOWN_NOT_ZERO exceptions.
+# No second root, process or clock may replace this parent AFTER its epoch.
+$h5Epoch = [Diagnostics.Stopwatch]::GetTimestamp()
+$h5Frequency = [Diagnostics.Stopwatch]::Frequency
+$ProgressPreference = 'SilentlyContinue'
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$h5Root = 'E:\bme_compitition\.worktrees\high-f1-event-stack-execution\bme_compitition_next'
+$h5SourceSha = 'a9fa64705f603717c40bb572dcc275ad37df8a30bee7f94a2d9faebd362e69a7'
+$h5ContractSha = '3645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754'
+$h5OwnerText = '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__'
+$h5OwnerRef = '__ACTUAL_OPERATOR_LOCAL_REFERENCE__'
+$h5Script = [IO.Path]::Combine($h5Root, 'scripts\route2_official_package_inspection_v2.ps1')
+$h5Docs = @(
+    'docs\superpowers\specs\2026-09-27-route2-candidate-interval-validation-design.md',
+    'docs\superpowers\plans\2026-09-28-route2-wsl-controller-execution.md',
+    'docs\decisions\2026-09-27-route2-design-review.md'
+)
+$h5ExceptionIds = 'ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H5_MONITORED64_NOT_FORMAL4|H5_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H5_SHARED_RUNTIME_SERVICE_TAIL_UNJOINED|H5_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H5_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H5_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H5_ADDITIONAL_ONE180_NOT_H1_H3_H4'
+$h5Utf8 = [Text.UTF8Encoding]::new($false, $true)
+function H5-Hash([byte[]] $Bytes) {
+    $h5Hash = [Security.Cryptography.SHA256]::Create()
+    try { ([BitConverter]::ToString($h5Hash.ComputeHash($Bytes))).Replace('-', '').ToLowerInvariant() }
+    finally { $h5Hash.Dispose() }
+}
+function H5-ReadBounded([string] $Path, [int] $Limit) {
+    $h5Stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        if ($h5Stream.Length -gt $Limit) { throw 'H5_SOURCE_OR_DOCUMENT_TOO_LARGE' }
+        $h5Bytes = New-Object byte[] ([int]$h5Stream.Length)
+        $h5Read = 0
+        while ($h5Read -lt $h5Bytes.Length) {
+            $h5Count = $h5Stream.Read($h5Bytes, $h5Read, $h5Bytes.Length - $h5Read)
+            if ($h5Count -eq 0) { throw 'H5_SHORT_READ' }
+            $h5Read += $h5Count
+        }
+        if ($h5Stream.ReadByte() -ne -1) { throw 'H5_FILE_GREW' }
+        return ,$h5Bytes
+    } finally { $h5Stream.Dispose() }
+}
+if ($h5OwnerText -eq '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__' -or $h5OwnerText.Length -eq 0 -or $h5OwnerText.Length -gt 8192 -or $h5OwnerRef -notmatch '^[A-Za-z0-9:/._-]{1,200}$' -or $h5OwnerRef -eq '__ACTUAL_OPERATOR_LOCAL_REFERENCE__') { throw 'H5_ACTUAL_OWNER_MESSAGE_REQUIRED' }
+if ((H5-Hash (H5-ReadBounded $h5Script 262144)) -cne $h5SourceSha) { throw 'H5_SOURCE_HASH_CHANGED_NO_RETRY' }
+$h5ActiveDecimal = [decimal]$h5Epoch + [decimal]$h5Frequency * 120
+$h5CleanupDecimal = [decimal]$h5Epoch + [decimal]$h5Frequency * 180
+if ($h5Frequency -le 0 -or $h5ActiveDecimal -gt [long]::MaxValue -or $h5CleanupDecimal -gt [long]::MaxValue) { throw 'H5_QPC_RANGE_NO_RETRY' }
+$h5Receipt = [ordered]@{
+    schema='route2_h5_official_nongt_inspection_activation_v1'
+    policy_id='route2-h5-official-nongt-inspection-2026-10-16-002'
+    source_sha256=$h5SourceSha
+    contract_sha256=$h5ContractSha
+    owner_message_sha256=(H5-Hash ($h5Utf8.GetBytes($h5OwnerText)))
+    owner_approval_reference=$h5OwnerRef
+    invocation_nonce=([Guid]::NewGuid().ToString('N'))
+    one_shot_state='CONSUMED_FOR_THIS_INVOCATION'
+    parent_pid=$PID
+    qpc_epoch=$h5Epoch
+    qpc_frequency=$h5Frequency
+    active_stop_qpc=[long]$h5ActiveDecimal
+    cleanup_stop_qpc=[long]$h5CleanupDecimal
+    active_seconds=120
+    cleanup_seconds=60
+    total_seconds=180
+    max_attempts=1
+    exception_ids=$h5ExceptionIds
+}
+$h5Json = $h5Receipt | ConvertTo-Json -Depth 4 -Compress
+if ($h5Json -cmatch '[^\x20-\x7e]') { throw 'H5_NON_ASCII_CANONICAL_JSON_NO_RETRY' }
+$h5ActivationSha = H5-Hash ([Text.Encoding]::ASCII.GetBytes($h5Json))
+$h5MarkerStem = 'ROUTE2_H5_OFFICIAL_NONGT_INSPECTION_ACTIVATION_V1'
+$h5Begin = '<!-- ' + $h5MarkerStem + '_BEGIN -->'
+$h5End = '<!-- ' + $h5MarkerStem + '_END -->'
+# Precheck ALL documents before any append. A failed/interrupted launch still
+# consumes the trusted host's sole attempt; absent/partial receipts permit NO retry.
+foreach ($h5Relative in $h5Docs) {
+    $h5Text = $h5Utf8.GetString((H5-ReadBounded ([IO.Path]::Combine($h5Root, $h5Relative)) 4194304))
+    if ($h5Text.Contains($h5Begin) -or $h5Text.Contains($h5End)) { throw 'H5_ALREADY_CONSUMED_OR_PARTIAL_RECEIPT_NO_RETRY' }
+}
+$h5OwnerBase64 = [Convert]::ToBase64String($h5Utf8.GetBytes($h5OwnerText))
+$h5Append = [string]::Join([char]10, @(
+    '', '',
+    'H5 actual owner decision and sole official-package inspection consumption:',
+    ('Actual-owner-message UTF8 base64: ' + $h5OwnerBase64),
+    ('Operator-local reference (not a platform-issued message ID): ' + $h5OwnerRef),
+    'Trusted root verified the actual owner grant outside this script. CONSUMED before invocation; interruption, refusal or failed persistence grants no retry.',
+    $h5Begin, $h5Json, $h5End, ''
+))
+$h5AppendBytes = $h5Utf8.GetBytes($h5Append)
+foreach ($h5Relative in $h5Docs) {
+    if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h5ActiveDecimal) { throw 'H5_ACTIVE_STOP_DURING_RECEIPT_NO_RETRY' }
+    $h5AppendStream = [IO.File]::Open([IO.Path]::Combine($h5Root, $h5Relative), [IO.FileMode]::Append, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+    try {
+        $h5AppendStream.Write($h5AppendBytes, 0, $h5AppendBytes.Length)
+        $h5AppendStream.Flush($true)
+    } finally { $h5AppendStream.Dispose() }
+}
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h5ActiveDecimal) { throw 'H5_ACTIVE_STOP_BEFORE_INVOCATION_NO_RETRY' }
+& $h5Script -ActivationSha256 $h5ActivationSha
+$h5ExitCode = $LASTEXITCODE
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h5CleanupDecimal) { exit 1 }
+exit $h5ExitCode
+```
+
+
+<a id="h5-targeted-spec-closure-20261016"></a>
+### Independent targeted SPEC closure before different fresh QUALITY
+
+SameindependentSPEC reviewer actualNEWFIRST2026-10-16 14:10:07UTC STOP14:12:42UTC (155s, before14:20:07cutoff) closedall3priorP2 on repairedtuple production91433/a9fa64705f603717c40bb572dcc275ad37df8a30bee7f94a2d9faebd362e69a7, harness27359/c45508d8ed37219a1dd877204db877d61a5b470dd72a5f41be7e011d3d0e20b0, unchangedv2policy16305/3645c107, replacementFINAL6368/1fb7d88acb5d848c59455d468313f1613775deeb4b48e5b2fef0bb2b02e2ee93, unchangedattributes591/1a9dba1b andold466prefix17a9fc6d. It independentlymatchedall3 repairedappend bytes8704; onlyFINALsourcehashliteral changedfromoldcandidate. StaticParser0errors,32uniquewhitelistedhelpers/0missingcustomdependencies/noCollector dynamiccommanddependency verified. Host/attribute refusal and inventoryretention, OPCequalUnicodepositive/invalidnegative and splitfinitefielddiagnosticbranches/callers/fixtures all traced. ResidualscopedP1/P2=0/0, no separateP3. No assertions oractualZIP/runtime were executed. Original08:03-08:12 firstSPECNOT_COMPLIANT/3P2 remainshistory; targetreviewdidnot extenditsoldcutoff.
+
+DifferentfreshQUALITY may now review ENTIREfinalnewH5tuple in a1200sSOURCEwindow fromitsactualFIRST. No unchangedH3/H4/C02/C03audit. This is not fullformalStage review, runtimePASS, actualH5grant or consumption. H5UNAPPROVED_UNSTARTED/0attempts/H1unstarted/H3H4consumedfailedpartial/allfeesUNKNOWN_NOT_ZERO/C00andfullStageblocksunchanged.
+
+
+<a id="h5-full-quality-failure-and-circuit-reassessment-20261016"></a>
+### Full fresh QUALITY result, source root-cause reassessment and next bounded repair
+
+DifferentfreshQUALITY /root/h5_official_inspection_v2_quality FIRST2026-10-16 14:14:35UTC STOP14:23:46UTC (551s before14:34:35cutoff) reviewedENTIRE91433/a9fa64705f603717c40bb572dcc275ad37df8a30bee7f94a2d9faebd362e69a7 production,27359/c45508d8ed37219a1dd877204db877d61a5b470dd72a5f41be7e011d3d0e20b0 harness, policyv216305/3645c107, FINAL6368/1fb7d88a and591/1a9dbaattributes/466prefix17a9fc6d. Independentlyall3fences matched; staticParser0;32helperwhitelist/noCollect/dynamiccmd/missingdependency confirmed. Actualsuccessfulparse/read/transport/retainedProcesscleanup SOURCE paths were found, notonlyrefusalstubs. ResultNOT_READY, remainingP1=1/P2=2, P3=1. Allcases are STATIC deductions, not executedassertions or actualofficialZIP contents. No writes/Git/ZIP/runtime/GT/science work.
+
+P1 Q1 (production436-447, eventualpayload738): bit11-clear rawnamewithnonASCIIbyte dropsraw$base fromaliases; raw data/<0x80>.txt or ../<0x80>.txt plusCRC-valid7075README.txt can loseoriginalASCII data/traversal beforepositive selection. CRCrefers tobytes, notsemanticcorrespondence. Need invariant rawseparator/component/unsafeASCII/knownASCIIdeny validation BEFOREUnicodeauthority; structural/ASCIIcomponentconflicts or ambiguity refuse withcompleteinventory/0payload. Preserve legitimateunambiguouslegacyUnicodecapability. Adddata/GT/traversal/backslash/colon/control/structure-conflictnegativefixtures plus safemappingpositive. [Info-ZIPUnicodepath](https://libzip.org/specifications/extrafld.txt).
+
+P2 Q2 (650/660/664): nestedw:t overwrites/resets singletextDepth, so <w:t>A<w:t>B</w:t>C</w:t> mayomitC yetunsupportedcounts0/unresolvedfalse. Rejectelementchildren/nestedtext withspecificdiagnostic, or explicitlyunsupportedwithoutloss; nofullschemaSDK. Bothnamespaces needfixtures retainingrawXML andactualouter+innerpostreadledgers.
+
+P2 Q3 (641-657/674): visiblew:noBreakHyphen/w:sym omittedbyfrozenformatter andnotcounted, givingAB/unresolvedfalse. Keepdocx-fixed-body-v1 unchanged; counthandled/unsupported same-namespace contenthonestly andsetunresolvedforomission, including unknowncontent whereappropriate. FixturesverifyrawXML/unsupportedcounts/bodyonly/full_document_rendered=false. [MicrosoftNoBreakHyphen](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing.nobreakhyphen?view=openxml-3.0.1), [SymbolChar](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing.symbolchar?view=openxml-3.0.1). Rootreadactualaffectedfunctions and independentlyacceptedall3 findings.
+
+P3 Q4 retained/deferred: selectednestedXML685-690 lacks outerneeded<=20guard. Canonicalv2 freezesno numericversionceiling; actualZIP32/flags/extras/ranges/methodsgateunsupportedfeatures, so declaringneeded45 alone isnot P2 or proofZIP64. Outerstrictness andinnerdeclaredversiondifference stayexplicit; noautomaticnewsemanticcapability/actualarchiveclaim. No opportunisticbehaviorchange or repeatoldscopeaudit isrequired for thisP3.
+
+Adaptive soft-governor checkpoint BEFOREanotherrepair: currentgoal=lawfulpracticalH5SOURCEobjecttowardnewofficialcontract, notStage; evidence=verifiedfrozenbytes andthreeconcretecallchaincases above. classification=IMPLEMENTATION. failedhypotheses=allrawpathinvariantswerecoveredbyUnicodealiaslist; scalartextDepthsufficedforacceptedXML; explicitfeaturelistcoveredvisibleunsupportedWML. distinguishingchanges=rawbyteinvariants/aliasagreement, narrowtextstructureguard, unsupportedcontentaccounting. Experiments=0runtime/0major; allfixturesUNRUN. Priorhost/OPC/diagnostic3P2 wereclosedbytargetedSPEC andnotreopenedwithoutaffectedcode. ruledoutcauses=actualpackagecontent/APIinstallation/OSresourcefailurearenot establishedbytheseSOURCEcases; noGTscientificfailure. remaininguncertainty=actualinput/readability/runtime/BCL/wholebilling/physical/service/firstload/exitandC00. limitingfactor=SOURCEsafety/evidencehonesty, thenfutureconcreteH5exceptiongrant. limitedarchitecturestillviable=YESwithfiniteformat/parserfixes/publicspecs; fulloriginalStagearchitecturefeasibilitystillUNPROVEN. limitedrequirementfeasible=SOURCE-supported, actualnewpackagecompatibilityunknown. Exactlynextaction=continue_debugging SOURCEONLY.
+
+Trackedcostcounters:4directH5agents(design,soleauthor,SPEC,distinctfreshQUALITY)+1designformatresearchchild; SOURCEreviewstagecalls3(firstSPEC,targetedSPEC,fullQUALITY),2failedfeedbackgates; currentfailurefamiliesnew/causallydistinct, notrenamedretries; runtimeexperiments0/nativeattempts0. This is an explicit reassessment atsoftthreshold, notassertionofahardresourcehook. Nextboundedbudget900s forSAMEauthorONLY2H5files fromactualFIRST, hardSTOP/pins; independenttargetedSPEC600s then initiallyfreshdistinctQUALITYrechecksONLYnew/affectedscope600s andwholefinaltuple bridge. No newagentrequired, noblindfullclosedscopereview. Ifcutoff/contractcontradiction occursSTOP/reportpartial; no silentextension, requirementwaiver or runtimecredit. Manualoriginal3telemetrycontinues; localruntime recordernotinvokedunderSOURCEboundary/missingtelemetryalreadyrecordedonce.
+
+H5UNAPPROVED_UNSTARTED/0attempts/noactualPIDnonceepochconsumption; H1APPROVED_UNSTARTED; H3H4CONSUMED_FAILED_PARTIAL/NORETRY. Allsource/historical/interval/service/physical/tails UNKNOWN_NOT_ZERO. C00allthree/wholeC01-C03incomplete/C04-C12STOP/full14unmet/FROZEN_ADMISSION=None/fullFAILhistory/Stage0/F1open/Route3unchanged. Noownerquestionbeforecompleteconcretereviewableobject.
+
+
+<a id="h5-quality-repaired-source-final-launcher-20261016"></a>
+### Q1–Q3 repaired SOURCE and final replacement launcher, no runtime grant
+
+Sameauthor actualFIRST14:27:49UTC STOP14:35:04UTC (435s, before14:42:49cutoff). Root14:35:39.1666137 independentlyverified production96412ASCII/LF bytes/1152LF SHA2561174da8e53c16776f850ab1b037141cdd683bd8498d28a974c1196d0518af2d9; harness33961/228LF SHA2563c0a9b00dd128f69c24667b528b7d9d1e0ea28899c96c68b91870842f99dac3f; bothnoBOM/0CR/finalLF/staticParseFile0errors.33actualpurehelpers/0missingcustomdependencies isstaticsourceinspection, allassertionsUNRUN. NoZIPquery/helper/harness/native/science/GT execution orGitmutation. H4originalsunchanged.
+
+Q1rawbyte ASCIIpathsyntax/denytokens checkedBEFOREUnicodeauthority. Privatesentinelshapes are SAFETY_ONLY, neverdecodedpathauthority. Componentcount/directoryshape/fullyASCIIcomponents/mixedASCII-skeletonagreement required; opaqueruns maybindnonASCIIUnicoderuns, ambiguousencodingsrefusedconservatively withrawinventoryretained. Q2rejectsanyelementchildinsideactivew:t BEFOREtextDepthchange; bothnamespacesfixtures retainrawXML/actualouter+innerpostreadcharges. Q3counts unsupported same-namespaceelements, visible noBreakHyphen/sym, unsupportedformat/propertyconstructs and omittednonblanktext; formatterdocx-fixed-body-v1 staysunchanged/bodyonly/full_document_rendered=falsealways. Unknown/unrenderedcontent remainsexplicitlyunresolved. TheseareSOURCEcapabilities, not actualpackageformat/contentfacts. Q4P3nesteddeclaredversionbehaviorunchanged/deferred asrecorded.
+
+Canonicalpolicyv2/id002 remainsEXACT16305ASCII SHA2563645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754. OperativeFINALbelow6368UTF8bytes INCLUDING first/lastLF SHA25637b1dc3e7132a70a9c7b7dfd73a4656bee117669ab809762548984fef1e3b9b8, rootParseInput0errors. Itdiffersfromprior1fb7d88a ONLY bysourceSHAassignment a9fa647... ->1174da8...; allothercharacters unchanged. Prior1fb7/a9fa and firstf053/b962 candidates are SUPERSEDED_UNAPPROVED/0attempts, failedreviewsretained, NEVERexecuteoldfence. .gitattributes591/1a9dba1b and466prefix17a9fc6d unchanged; no payloadclass/resource/approvalcontract change.
+
+Following the recordedsoftgovernorreassessment, newtargetedindependentSPEC600s fromactualFIRST coversQ1rawaliases/invariants plusaffectedOPC/UTF8callers andQ2/Q3XML/fixtures/newtuple. Onlyafterclosed, the initiallyfreshDIFFERENTQUALITY reviewer rechecksnew/affectedscope andbridgesitspriorfullreview tothiswholefinaltuple undernew600sSOURCEwindow. Oldreview/sourcecutoffs remainclosed; no blindrepeatedunchangedC00/H3/H4/C02/C03audit. H5UNAPPROVED_UNSTARTED/0attempts/noactualPIDnonceepochconsumption; H1unstarted/H3H4consumedfailedpartial/NORETRY/allfeesUNKNOWN_NOT_ZERO/fullStageblocksunchanged.
+
+FINAL H5 operative same-parent launcher (SOURCE ONLY pending finalreview AND later actualspecificownergrant):
+```powershell
+# SOURCE TEMPLATE ONLY: do not execute before the actual owner approves
+# final source SHA + policy SHA + the nine named H5 exceptions.
+# Operator replaces ONLY the actual owner text and its local reference.
+# Trusted host issues this WHOLE launcher through fixed System32 PowerShell5.1
+# with explicit -NoProfile -NonInteractive -EncodedCommand (UTF16LE), login:false.
+# Pre-entry creator/tool-host/waiter costs remain UNKNOWN_NOT_ZERO exceptions.
+# No second root, process or clock may replace this parent AFTER its epoch.
+$h5Epoch = [Diagnostics.Stopwatch]::GetTimestamp()
+$h5Frequency = [Diagnostics.Stopwatch]::Frequency
+$ProgressPreference = 'SilentlyContinue'
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$h5Root = 'E:\bme_compitition\.worktrees\high-f1-event-stack-execution\bme_compitition_next'
+$h5SourceSha = '1174da8e53c16776f850ab1b037141cdd683bd8498d28a974c1196d0518af2d9'
+$h5ContractSha = '3645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754'
+$h5OwnerText = '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__'
+$h5OwnerRef = '__ACTUAL_OPERATOR_LOCAL_REFERENCE__'
+$h5Script = [IO.Path]::Combine($h5Root, 'scripts\route2_official_package_inspection_v2.ps1')
+$h5Docs = @(
+    'docs\superpowers\specs\2026-09-27-route2-candidate-interval-validation-design.md',
+    'docs\superpowers\plans\2026-09-28-route2-wsl-controller-execution.md',
+    'docs\decisions\2026-09-27-route2-design-review.md'
+)
+$h5ExceptionIds = 'ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H5_MONITORED64_NOT_FORMAL4|H5_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H5_SHARED_RUNTIME_SERVICE_TAIL_UNJOINED|H5_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H5_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H5_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H5_ADDITIONAL_ONE180_NOT_H1_H3_H4'
+$h5Utf8 = [Text.UTF8Encoding]::new($false, $true)
+function H5-Hash([byte[]] $Bytes) {
+    $h5Hash = [Security.Cryptography.SHA256]::Create()
+    try { ([BitConverter]::ToString($h5Hash.ComputeHash($Bytes))).Replace('-', '').ToLowerInvariant() }
+    finally { $h5Hash.Dispose() }
+}
+function H5-ReadBounded([string] $Path, [int] $Limit) {
+    $h5Stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        if ($h5Stream.Length -gt $Limit) { throw 'H5_SOURCE_OR_DOCUMENT_TOO_LARGE' }
+        $h5Bytes = New-Object byte[] ([int]$h5Stream.Length)
+        $h5Read = 0
+        while ($h5Read -lt $h5Bytes.Length) {
+            $h5Count = $h5Stream.Read($h5Bytes, $h5Read, $h5Bytes.Length - $h5Read)
+            if ($h5Count -eq 0) { throw 'H5_SHORT_READ' }
+            $h5Read += $h5Count
+        }
+        if ($h5Stream.ReadByte() -ne -1) { throw 'H5_FILE_GREW' }
+        return ,$h5Bytes
+    } finally { $h5Stream.Dispose() }
+}
+if ($h5OwnerText -eq '__ACTUAL_OWNER_APPROVAL_TEXT_LITERAL__' -or $h5OwnerText.Length -eq 0 -or $h5OwnerText.Length -gt 8192 -or $h5OwnerRef -notmatch '^[A-Za-z0-9:/._-]{1,200}$' -or $h5OwnerRef -eq '__ACTUAL_OPERATOR_LOCAL_REFERENCE__') { throw 'H5_ACTUAL_OWNER_MESSAGE_REQUIRED' }
+if ((H5-Hash (H5-ReadBounded $h5Script 262144)) -cne $h5SourceSha) { throw 'H5_SOURCE_HASH_CHANGED_NO_RETRY' }
+$h5ActiveDecimal = [decimal]$h5Epoch + [decimal]$h5Frequency * 120
+$h5CleanupDecimal = [decimal]$h5Epoch + [decimal]$h5Frequency * 180
+if ($h5Frequency -le 0 -or $h5ActiveDecimal -gt [long]::MaxValue -or $h5CleanupDecimal -gt [long]::MaxValue) { throw 'H5_QPC_RANGE_NO_RETRY' }
+$h5Receipt = [ordered]@{
+    schema='route2_h5_official_nongt_inspection_activation_v1'
+    policy_id='route2-h5-official-nongt-inspection-2026-10-16-002'
+    source_sha256=$h5SourceSha
+    contract_sha256=$h5ContractSha
+    owner_message_sha256=(H5-Hash ($h5Utf8.GetBytes($h5OwnerText)))
+    owner_approval_reference=$h5OwnerRef
+    invocation_nonce=([Guid]::NewGuid().ToString('N'))
+    one_shot_state='CONSUMED_FOR_THIS_INVOCATION'
+    parent_pid=$PID
+    qpc_epoch=$h5Epoch
+    qpc_frequency=$h5Frequency
+    active_stop_qpc=[long]$h5ActiveDecimal
+    cleanup_stop_qpc=[long]$h5CleanupDecimal
+    active_seconds=120
+    cleanup_seconds=60
+    total_seconds=180
+    max_attempts=1
+    exception_ids=$h5ExceptionIds
+}
+$h5Json = $h5Receipt | ConvertTo-Json -Depth 4 -Compress
+if ($h5Json -cmatch '[^\x20-\x7e]') { throw 'H5_NON_ASCII_CANONICAL_JSON_NO_RETRY' }
+$h5ActivationSha = H5-Hash ([Text.Encoding]::ASCII.GetBytes($h5Json))
+$h5MarkerStem = 'ROUTE2_H5_OFFICIAL_NONGT_INSPECTION_ACTIVATION_V1'
+$h5Begin = '<!-- ' + $h5MarkerStem + '_BEGIN -->'
+$h5End = '<!-- ' + $h5MarkerStem + '_END -->'
+# Precheck ALL documents before any append. A failed/interrupted launch still
+# consumes the trusted host's sole attempt; absent/partial receipts permit NO retry.
+foreach ($h5Relative in $h5Docs) {
+    $h5Text = $h5Utf8.GetString((H5-ReadBounded ([IO.Path]::Combine($h5Root, $h5Relative)) 4194304))
+    if ($h5Text.Contains($h5Begin) -or $h5Text.Contains($h5End)) { throw 'H5_ALREADY_CONSUMED_OR_PARTIAL_RECEIPT_NO_RETRY' }
+}
+$h5OwnerBase64 = [Convert]::ToBase64String($h5Utf8.GetBytes($h5OwnerText))
+$h5Append = [string]::Join([char]10, @(
+    '', '',
+    'H5 actual owner decision and sole official-package inspection consumption:',
+    ('Actual-owner-message UTF8 base64: ' + $h5OwnerBase64),
+    ('Operator-local reference (not a platform-issued message ID): ' + $h5OwnerRef),
+    'Trusted root verified the actual owner grant outside this script. CONSUMED before invocation; interruption, refusal or failed persistence grants no retry.',
+    $h5Begin, $h5Json, $h5End, ''
+))
+$h5AppendBytes = $h5Utf8.GetBytes($h5Append)
+foreach ($h5Relative in $h5Docs) {
+    if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h5ActiveDecimal) { throw 'H5_ACTIVE_STOP_DURING_RECEIPT_NO_RETRY' }
+    $h5AppendStream = [IO.File]::Open([IO.Path]::Combine($h5Root, $h5Relative), [IO.FileMode]::Append, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+    try {
+        $h5AppendStream.Write($h5AppendBytes, 0, $h5AppendBytes.Length)
+        $h5AppendStream.Flush($true)
+    } finally { $h5AppendStream.Dispose() }
+}
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h5ActiveDecimal) { throw 'H5_ACTIVE_STOP_BEFORE_INVOCATION_NO_RETRY' }
+& $h5Script -ActivationSha256 $h5ActivationSha
+$h5ExitCode = $LASTEXITCODE
+if ([Diagnostics.Stopwatch]::GetTimestamp() -ge [long]$h5CleanupDecimal) { exit 1 }
+exit $h5ExitCode
+```
+
+
+<a id="h5-review-quota-interruption-and-resume-20261017"></a>
+### Platform-limited pending SPEC review and bounded review-only resumption
+
+The Oct16 post-Q1-Q3repair SPEC dispatch returned a platform USAGE_LIMIT error instead of a review: no verifiednewFIRST/STOP/readinterval or verdict for96412/1174da8e53c16776f850ab1b037141cdd683bd8498d28a974c1196d0518af2d9 production and33961/3c0a9b00dd128f69c24667b528b7d9d1e0ea28899c96c68b91870842f99dac3f harness. Do NOT inherit old14:12:42SPECclosure or14:23:46QUALITYfailure asapprovalofnewbytes; latestQ1-P1/Q2-Q3P2 are IMPLEMENTED_PENDING_INDEPENDENT_RECHECK. No actualassertion/runtimePASS, source-reviewIDclosure, H5ownergrant orconsumption was produced. Failedreview'sunobservedcosts/interval remainUNKNOWN_NOT_ZERO, notzeroornewruntimecredit.
+
+Laterowner继续工作 steerscontinuedauthorizedSOURCEwork, notspecificH5grant. Actualroot2026-10-17 05:05:07UTC verifiedlocalHEAD68f3169958e1a19ed500a8f79f3e76480acf4bd1/branch, exactcurrent2PS1pins andattributes591/1a9dba1b,188indexrows; remote feature68f3169/main dd05aa128f8d62a85c20a83f8af72fe13fcfa27b matchedagain. Oldsource/reviewwindowsclosed, no overnightclockextension; interveningmachine/service/physical/sourcefeesUNKNOWN_NOT_ZERO. Volatilestoresdidnotpersist, durableoriginal3/sourceidentityrecordsareauthority; no fakeoldrawsnapshotclaim.
+
+Adaptiveexecutionreassessment: workflow_path=STANDARD; execution_mode=SUBAGENT/REVIEW_ONLY; actualbackend=collaboration.followup_task whenissued; failureclassification=ENVIRONMENT(platformquota), notnewscientificorparserfailure. Currentlimitingfactor=missingindependentnewbytesSPECthenQUALITY, implementationremainsfrozen. Newexternal-evidencejudgment=actualdate/timeadvancedmanyhoursandownerresumed; backendavailabilityUNPROVENuntilactualreviewturnworks. Exactlynextaction=oneboundedindependentSPECresumption600sfromactualFIRST onQ1-Q3/newtuple/affectedcallers. Fallbackifsamequota=oneavailabilitycheckofnextmostcapableavailableindependentreviewbackend withfreshscope/budget, NEVERcallself-reviewindependent; ifunavailablepreservependingstateandactualblock. No blindsamebackendloop/relabelledpass. OnceSPECcloses, DIFFERENTindependentinitiallyfreshQUALITYrecheck600s/newwholepinbridge follows; no unchangedclosedH3/H4/C02/C03review. P3Q4stillretained, source/policy/FINALunchanged.
+
+H5UNAPPROVED_UNSTARTED/0attempt/noactualPIDnonceepochconsumption; H1APPROVED_UNSTARTED; H3H4CONSUMED_FAILED_PARTIAL/NORETRY; fullC00/14/Stageblocks/FROZEN_ADMISSION=None unchanged. No ZIP/native/WSL/Python/compiler/harness/GT/science work isauthorizedbythisreviewresumption. Source/runtime/historical/alltailsUNKNOWN_NOT_ZERO.
+
+
+<a id="h5-final-spec-closure-after-quota-20261017"></a>
+### Resumed independent SPEC closure on final Q1-Q3 repair
+
+ActualSPEC FIRST2026-10-17 05:06:34UTC STOP05:09:00UTC (146s before05:16:34cutoff), actualbackend collaboration.followup_task toindependent /root/h5_official_inspection_v2_spec, succeeded afterpriorquotaenvironmentblock. This is realnewreview, notoldverdictreuse oroldwindowextension. Q1P1/Q2Q3P2 closed; remaining scopedP1/P2=0/0, Q4previouslyretainedP3/no newP3.
+
+Verifiedfinalproduction96412ASCII/LF1152LF SHA2561174da8e53c16776f850ab1b037141cdd683bd8498d28a974c1196d0518af2d9; harness33961/228LF SHA2563c0a9b00dd128f69c24667b528b7d9d1e0ea28899c96c68b91870842f99dac3f; canonicalv2/id00216305ASCII SHA2563645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754; operativeFINAL6368UTF8inclfirstlastLF SHA25637b1dc3e7132a70a9c7b7dfd73a4656bee117669ab809762548984fef1e3b9b8. All3policy/launcherbytesmatch; lastrepairedsection9277B SHAd335e1824fa363140c1f62f0e87d60c01b392b2b8339559b6cf425b2deb5eec4matchesall3. Attributes591/1a9dba1b +old466prefix17a9fc6d unchanged. PS1noBOM/0CR/finalLF; staticParser0fornew2andlauncher;33uniqueactualpurehelpers/0missingcustomdependencies/noCollect/dynamiccommand verified.
+
+Q1production434-492/rawASCII/syntax/components/skeletonagreement tracedBEFOREUnicodeauthority andglobalmetadatagateBEFOREwrapper/payload; fixtures103-128retainrawinventory/0payloadandlegitopaqueUnicodepositives. Q2line683 rejectsactivetextchild BEFOREstatechange; rawXMLline750alreadyretained andfinallykeepsouter+innerreadledger, fixtures146-152bothnamespaces. Q3lines669-729 omittedvisible/unsupportedWord/property/nonblankcontentcounts setunresolved withoutformatterchange; fixtures153-154bothnamespaces. ActualtestassertionsALLUNRUN; no actualZIP/native/helper/harness/WSL/Python/compiler/GT/science. This is SOURCEONLY, notbudget/compatibility/fullformalreview/StagePASS.
+
+Root05:07:03 freshfull422workfile/188indexcheckagainst recovered417/183durablebaseline foundONLYrecordedauthorized6changedoldpaths and5expectedadditions, nodeletions/unrelatedworkorindexchanges; currentindexsameas05:05/original11preserved. HistoricalC02/C03/H4reviewedpinsmatch, norepeatreview. Next differentinitiallyfreshQUALITY /root/h5_official_inspection_v2_quality getsNEW600sSOURCE-onlywindow fromactualFIRST toverifyQ1-Q3/affectedcalls/fixtures andbridgeitspriorfullreviewtofinalwholepin; old14:23:46STOPremainsclosed.
+
+H5UNAPPROVED_UNSTARTED/0attempt/noactualPIDnonceepochconsumption; H1unstarted/H3H4consumedNORETRY; allsource/historical/interval/kernel/service/physical/tailfees UNKNOWN_NOT_ZERO; fullC00/14/Stageblocks/FROZEN_ADMISSION=None unchanged. Noownerquestionuntilconcretereviewableobjectcomplete.
+
+
+<a id="h5-final-dual-source-review-20261017"></a>
+### Final H5 independent SOURCE review receipt — no runtime or Stage PASS
+
+Review ID route2-h5-official-package-inspection-v2-source-review-2026-10-17-001. Final production96412ASCII/LF1152LF SHA2561174da8e53c16776f850ab1b037141cdd683bd8498d28a974c1196d0518af2d9; harness33961/228LF SHA2563c0a9b00dd128f69c24667b528b7d9d1e0ea28899c96c68b91870842f99dac3f; canonicalpolicyv2/id00216305ASCII SHA2563645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754; operativeFINAL6368UTF8INCLUDINGfirstlastLF SHA25637b1dc3e7132a70a9c7b7dfd73a4656bee117669ab809762548984fef1e3b9b8; .gitattributes591B SHA2561a9dba1b606add2723cddb45412be1203dc4ecd577517fe20599ced583c5a289/exact466prefix17a9fc6df3f2151c67534d14304ee1d84c7e7ea5f06277211a69fe2c372d2d95. Scope=entirenewH5productioncopy/harness/policy/launcher andONLY2newattribute-textpathrules. No changedclosedH3/H4/C02/C03scope, no fullformalABreview.
+
+IndependentSPEC actualFIRST2026-10-17 05:06:34 STOP05:09:00 (146s/600window) closedQ1P1,Q2Q3P2. DIFFERENTinitiallyfreshQUALITY /root/h5_official_inspection_v2_quality actualNEWFIRST05:10:50 STOP05:13:35 (165s before05:20:50cutoff) independentlyclosedsamechangesandbridgedpriorENTIREnewcomponentreviewthroughmetadata/activation/fixedinput/payloadledgers/originalProcesscleanup tofinalwholepin. Bothremaining scopedP1/P2=0/0. Actualplatformquotaerror is retainedasnovidenticalverdict; oldfirstSPEC3P2 andoldfullQUALITY1P1/2P2FAILhistoriesnotdeleted. Authoroldwindows/oldreviewSTOPsremainclosed.
+
+Bothreviewersindependentlyverifiednew2ASCII/noBOM/CR0/finalLF/staticParser0,33uniqueactualhelperwhitelist/0missingcustomdependencies/nodynamiccmd/noCollect; all3policy/FINALfences and9277B repairedsectionSHAd335e1824fa363140c1f62f0e87d60c01b392b2b8339559b6cf425b2deb5eec4match. FINALdiffersfromprior1fb7onlyinsourcehashliteral; alloldcandidatesareSUPERSEDED_UNAPPROVED/neverexecuted. Q1rawASCII/GT/syntax/componentagreement isbeforeUnicodeauthorityandglobalmetadatagatebeforewrapper/payload. Q2rejectselementchildinsideactivetextbeforestatechange; rawXMLprecedesparse andouter/innerpostreadchargesremain. Q3visiblehyphen/symbol/unknownWord/property/nonblankomissioncountershonestlysetunresolved whilefixedformatter/bodyonly/full_document_rendered=false stayunchanged. RegressionsverifytheintendedcontractasSOURCE; ALLassertionsUNRUN.
+
+RetainedP3Q4: outerselectedmembersuseimplementationneeded<=20, innerselectedXMLhasnoequivalentnumericguard; canonicalv2 freezesno suchinnerceiling. ActualZIP32/flags/extras/ranges/methodcontrolsindependentlygatefeatures. Declaredneeded45alone doesnotproveZIP64ornewcapability; thisnonblockingdifferenceisexplicitlyDEFERRED, nothidden/fixed/reclassifiedPASS. No installedAPI/ABI/preload/fullcausalresource/physical/service/hardstopproofcomesfromstaticreview.
+
+Rootsourcepreservation05:07:03checked422workfiles/188indexagainst417/183durablebaseline: onlyrecordedold6paths/new5files/indexchanges, nounrelateddrift/nodeletions/original11loss. Gitadministrativepreflight05:11:12verifiedfixedoriginURL,filters/encodingunspecified, new2PS1textunset,original3textunset, default hookspathonlysamples/noactiveconfiguredhooks. TheseareSOURCE/Gitfacts, notnativebudgetPASS. Exact6pathcommit/nonforcepush/finalworking/index/remoteHEAD/mainchecksfolow; nonepreclaimedhere.
+
+workflow_path=STANDARD; actualexecution_backend=collaboration author+independentSPEC+differentQUALITY, withmanualoriginal3telemetryanddocumentedsoftgovernorreassessment. Evidencelevel=SOURCE_ONLY; runtimeexperiments/actualH5attempts=0, scientificStage=0. LocaltelemetryrecordernotrununderSOURCEboundary/missinglocaltelemetryrecordedonce. limitedH5implementationisSOURCE_REVIEWED/PENDING_OWNER_EXCEPTION_DECISION; wholeRoute2PREPARED_UNREVIEWED/APPLICATION_BLOCKED/NOT_APPROVAL_READY/FROZEN_ADMISSION=None/fullFAILhistoryremain. No actualZIPaccessduringH5development orreview; H4actualpartialfactsremainsolepackagefacts. Allfees/historical/source/creator/loader/kernel/provider/service/physical/cleanup/tails UNKNOWN_NOT_ZERO.
+
+<a id="complete-fourteen-gate-post-h5-source-review-20261017"></a>
+### Complete original fourteen-item A+B card: practical H5 SOURCE phase closeout
+
+This append updates all fourteen original rows together, in original order. It is not a new authorization card/prompt, not a new freeze and not a declaration of full implementation. H1=APPROVED_UNSTARTED; H3=CONSUMED_FAILED_PARTIAL/NO_RETRY; H4=CONSUMED_FAILED_PARTIAL/NO_RETRY after the actual approved sole invocation recorded above; H5=UNAPPROVED_UNSTARTED/0attempts. H5 exactfinalnewtuple has route2-h5-official-package-inspection-v2-source-review-2026-10-17-001 SOURCE_ONLY: independentSPEC05:06:34-05:09:00UTC then DIFFERENTQUALITY05:10:50-05:13:35UTC, remaining scopedP1/P2=0/0, retainednonblockingP3Q4, not runtimevalidation. No newinspection attempt is granted. C00=AUDITED_UNPROVEN, wholeC01/C02/C03 incomplete, dependentC04-C12 SOURCE STOP under plan2238-2248. PREPARED_UNREVIEWED / APPLICATION_BLOCKED / NOT_APPROVAL_READY / FROZEN_ADMISSION=None; historical route2-ab-full-implementation-review-2026-09-29-FAIL-001 remains FAIL. All actual new/old costs and residual tails remain UNKNOWN_NOT_ZERO.
+
+| Original gate | Actual inherited/new evidence | Exact remaining admission dependency |
+|---:|---|---|
+|1|Owner already conditionally authorizes legal Stage A/B after complete criteria, full actual implementation/install/noGT validation, independent formal review and concrete full freeze. C02 rawobservations and C03 PEparser add reviewed production SOURCE bodies; H5 adds a practical fixed-package inspection implementation, not a Stageproducer.|Same complete installed, nonbypassable, fail-closed runner/owners and consumable complete FrozenAdmission; no source tuple or approval text supplies those facts. Do not ask generic final scientific permission again.|
+|2|Original saved scores/models/26D/HGB, thresholds .10/.25/.50, decoder600s/min180s, strictIoU>.25, only strict overlap next.start<end versus historical<=end+300000 are inherited. New official ZIP readonly-open length42549/EOCDdeclared10/centraldigest was observed, but structuralscanfailed before any selecteddocument payload; actualrules remain unverified. H5 practicalSOURCEimplementation and a complete newinspection object are prepared, with no new packageevidence.|Obtain lawful actual new-official rules and compare task/metrics/event matching/schema/splits+identities/time+sampling/inputs/evaluator/submission/dependencies; append only evidence-specific amendments. Never transfer old freeze/results to new package. Then legal105 reference ALL before105 treatment with exact discrete and symmetric atol1e-12/rtol1e-10.|
+|3|Existing bank/current-generation/sameFD/history/handoff SOURCE decisions unchanged. No GT/sample/archive memberpayload read during thisH5SOURCEphase.|Actual immutable bank creator, role input creator/publisher/history and sameFD consumer, no writable aliases, complete nested adapters with full input identities and installed ownership.|
+|4|25 fitattempts/25predict/65decode/20GT-backed+GT-free21st pooled reduction/pooledGTreads0 and2to4GiB design retained. No scientific invocation.|One actual enforcing ledger; legal Stage A N/M/S/B/R and Stage B projection/physical expansion. D_A strict2GiB capacityV2 is not a measured peak. All lifecycle/capacity charges need real producers.|
+|5|Original matched-GT gain/loss and finalize double-exception fixes, directory-v2/O_PATH110 registration/revocation remain pinned and unchanged; no repeat review.|Actual canonical legal A2-004 matched-origin/five-field projection/GT commitment/phase release+revoke and final matched-GT report. Candidate coverage remains a separate quantity.|
+|6|C01 interface/rejection declarations and existing Linux/GT lifecycle SOURCE retained; original roleSHA paths,4096history/256scan/nlink1 unchanged.|Actual SID/GUID/UID/namespace/IPC/FD/mount/cgroup/thread/readonly input and full scratch/history identities. At most one undeleted generation; exact .role-input/<generation>/data.img/tree.img and /run/route2-builder/role ownership.|
+|7|H3 returned two disk records only; partition query failed FACT_FIELD_SHAPE, so no E/volume/partition binding or task-specific target permission was proved.|Actual dedicated finite physical volume/extent across all writers, import/register/identity/cap/header/FS/allocation/baseline/headroom/history and same-invocation dual8GiB free floors. E30GiB=carrier24 inclguest20+external6; guestbaseline<=8GiB retained. No destructive disk command is approved; prepare exact actual identity/commands/impact before any necessary request.|
+|8|C02 actual Job-class8 sixIO/basicCPU and class9 commitpeaks plus creator/child memory/QPC sample bodies are SOURCE-reviewed, uncompiled/unrun. H3/H4 application samples are exact-exception observations only.|Native prebirth owner and actual applied WSL8GB/2CPU/guiOff plus effective C=min(4GiB,floor(3*M0/5)),AS=floor(C/2),swap0,CPU200%,Tasks2; StageA1200/study3600/fit900 with cleanup60 INSIDE. Complete peaks, hard enforcement and charges are not established by raw fields.|
+|9|H1 historical-gap approval is inherited without resetting1800/6000. H3 used its one extra180 attempt and failed partially. C02 I/O/memory observations do not account for complete VM/services.|Full wholeRAM16GiB/VRAM8GiB infrastructure/kernel/services, guestcontrol64MiB/hostcontrol16MiB inclusion; prep4GiB/200%/MONITORED4/1800 and external512MiB/100%/MONITORED4/6000 plus all tails. VM_SERVICE_SCOPE remains UNPROVEN; no invented zero/remaining balance. H5sourcewindows are not nativeallowance; source/historical/interval/tailfees remainUNKNOWN_NOT_ZERO. H4 actually consumed its one additional180s exception and observed48threads/240754688B combined sampledpeak; this is not formal4/wholebilling PASS and supplies no retry/remainder credit.|
+|10|Original nonE512MiB MONITORED,384MiB STOP_NEW,128MiB nominalcleanup with accepted overshoot UNKNOWN retained. H3 established no whole-writer AllocationSize/history.|Actual original native all-task writer/allocation/history observer, containment and charged scope/stop evidence. Current or deleted-file observations do not reset historical cost or prove finite physical scope.|
+|11|Unchanged compile-free gate/storage/deadline SOURCE components inherited. New bounded AMD64PE32+ header/import/delay/TLS rawparser SOURCE dualreview complete; existing raw original-identity capture retained.|Actual BEFORE first-load immutable PE/ELF/interpreter/stdlib/project/native/transitive/provider closure, exportforwarders/APIset/SxS/search resolution and continuous original host kill/startup producer. Empty TLS and rawPE parse never prove closure; no binary was built/loaded or ABI-validated. H5XmlReader/Deflate/GZip SOURCE use doesnot prove installedBCL/firstloadclosure.|
+|12|H3 and H4 original children were actually joined; capturedstreamsEOF/no outstanding tasks/no observedcleanupfaults. Complete creator/provider/runtime/service/physical tails remain UNKNOWN_NOT_ZERO. C02 deadline-residual samples conservatively stay unknown.|Actual bounded-stop/join/residual owners, crash/OOM/quarantine/remove/delete/cgroup/service/VM/observer cleanup, last-owner kernel witness and trustworthy surviving external final coordinator. Preserve q_exit_durable beforeflush and live q_accept_live afterflush; no stored postflush assertion, no fresh60s tail or accounting cutoff at FAIL. OWNER_EXIT_JOIN remains UNPROVEN.|
+|13|C02 ownedIO-memory and C03 PErawparser each have actual independent SPEC then differentfreshQUALITY with no remaining scopedP1/P2. H4 separate source/policy/launcher scoped review was followed by one actually approved failed-partial inspection. H5 wholefinalnewtuple has route2-h5-official-package-inspection-v2-source-review-2026-10-17-001 SOURCE_ONLY: independentSPEC05:06:34-05:09:00UTC then DIFFERENTQUALITY05:10:50-05:13:35UTC, remaining scopedP1/P2=0/0, retainednonblockingP3Q4; firstSPEC3P2 and fullQUALITY1P1/2P2 histories remain; scopedrepairs are separatelyverified. Platformquota interruption suppliesnoverdict. Source/harnessNEVERrun; thisdoesnotclosefulladmission. Original closed scopes inherited.|Complete installable formal review and actual noGT failure/cleanup validation, then whole source/runtime/input/pathmap/protocol/budget freeze and real FROZEN_ADMISSION. SOURCE hashes/AST/harness assertions or a state edit never replace full admission. Same-invocation facts may be produced only by the already reviewed nonbypassable path under legal authorization.|
+|14|Route2 legal Stage A/B runs/results=0. Route3 v1-003 remains legitimate COMPLETE with four quality-gate FAIL, no rerun. F1>=0.66 target OPEN.|After all BEFORE gates and new-official contract comparison, execute already conditionally authorized legal A/B directly. Report predeclared earlySTOP or complete5foldStageB separately from all four quality gates and real final matched-GT result. No model/science conclusion from engineering UNKNOWN.|
+
+H4's approved sole attempt remains consumed; H5 is a NEW UNAPPROVED_UNSTARTED concreteone180s inspectionproposal, not H4retry/remaindercredit. H1 BEFORErequirements remainunmet, H3/H4cannotberetried, and ordinaryinspectionintent doesnot waive those requirements. Only afterspecificactualH5grant may its exactonce-only120active+60cleanup pathrun; allfullStagecriteria remain. No newpackage rules/differences/compatibility conclusion has beenobtained. No genericH1/H3/H4renewal/continuation/finalscienceapproval isrequested.
+
+
+<a id="h5-concrete-pending-owner-decision-20261017"></a>
+### Concrete pending owner decision: ONE new H5 inspection opportunity
+
+This appendsaspecificboundedexceptionproposal, NOT replacement oftheoriginalA+Bcard/prompt, notnewhandoffpackage, notgenericcontinuation/finalscienceapproval. H5=UNAPPROVED_UNSTARTED/max_attempts1/UNUSED; noactualapprovaltext/localapprovalreference/PID/nonce/rawexecutionQPC/consumption. Priorowner继续工作isSOURCEsteeringonly. H1APPROVED_UNSTARTED withBEFOREunmet; H3/H4CONSUMED_FAILED_PARTIAL/NORETRY; no allowance isrenewed.
+
+Reviewableobject=route2-h5-official-package-inspection-v2-source-review-2026-10-17-001 andtheEXACTfivepinsinfinaldualSOURCEreceiptabove: scripts/route2_official_package_inspection_v2.ps1 96412/1174da8e53c16776f850ab1b037141cdd683bd8498d28a974c1196d0518af2d9; tests/native/route2_official_package_inspection_v2_harness.ps1 33961/3c0a9b00dd128f69c24667b528b7d9d1e0ea28899c96c68b91870842f99dac3f(SOURCEONLY,NEVERrunbyH5); canonicalpolicyv2/id00216305/3645c1073f4153dd72f0c26b4f8cc6efd164b71117ec7e6c108e5b5a8d044754 at h5-final-policy-v2-opc-metadata-20261016; operativeFINAL6368/37b1dc3e7132a70a9c7b7dfd73a4656bee117669ab809762548984fef1e3b9b8 at h5-quality-repaired-source-final-launcher-20261016; attributes591/1a9dba1b withold466prefix17a9fc6d. P1/P2closed; retainedP3Q4andbodyonly/unsupportedcontentlimitationsremainvisible. Gitcommit/remoteidentitywillberecordedafteractualcommit/push; sourcehash/policy/FINALremainauthoritative, no selfembeddedcommithash.
+
+Proposedactualaction=ONE ADDITIONAL180seconds:120active+60cleanup, max_attempts1, originalsameparentabsoluteQPC stopsfromFIRSTactualrawQPC BEFOREbinding/receipt. Trustedrootmanuallyverifieslateractualownergrantandexacttuple/noattempt; replacesONLY2ownerassignmentliteralsinoperativeFINAL (correctsinglequoteescaping,guardliteralsunchanged), issuesWHOLErootUTF16LEEncodedCommandviafixedSystem32WindowsPowerShell5.1 -NoProfile -NonInteractive login:false. SAMErootbindsactualPID/nonce/ownerhash/reference/original120/180, durablywritesconsumptionall3Flush(true), thenSAMEprocessinvokesfixedscript. No separateearlyconsumption/newparent/newclock. Failure/interruption/refusal/partialpersistence consumesonechance; noautotry/unusedsecondscredit. Actualrawpartialstdout/stderr/exitstatus/killjoin/drain/unknownfeesmustberetained. CallerparamsareNOTapprovalissuers; manualtrustedhostone-shot isexplicitlimit.
+
+Inputfixedreadonly E:/e091f6df5b8f4fd1a62a5e43dda404b1_赛题2.zip, bindlength42549/EOCDdeclared10/centralSHA0b72b03ee9129dfaf4ba175f6bc838c09ca360c9fe11ba425df7cf6a2093370a/maxcentral1422beforeselectedpayload. DirectoryfirstthenfixedpositiveEnglish/ChinesenonGTtext/evaluator/schemaandatmost2DOCX; onlyfixedword/document.xml openedinside. Noarchivewholehash/extraction/temp/outputfiles/oldinputoverwrite/packageexecution/import/GTor datamemberpayload/Python/compiler/nativehelper/WSL/harness/projecttest/scientificevaluation/Stage. WholeDOCXcontainerencodedbytesnecessarilycontactotherparts'encodedbytes; thosepartsarenotopened/decompressed. Untrustedstructuraloffsetscanmislabelrawcandidates(max131072), filenamesmaybemislabelled; doNOTclaimsemanticnonGT/physicalnocontactproofbeforeboundreads. Ownerdecisionmustacceptthisexactstructuralcandidate/semanticmislabeling/DOCXcontainercontactrisk; noautomaticnewallowlist/format/budgetexpansion.
+
+ProposedH5applicationresources=sameonecoreafterappliedreadback,parent/childRSS<=512MiBeach/1GiBcombined sampled,applicationMONITORED64/<=100mssampling only; originalformalMONITORED4/whole16GiB/VRAM8GiB/E30GiB/nonE512MiB384STOP128nominalcleanup caps/historyremain. Fullcausal/physical/hardcaps/firstload/servicefinaltailsarenotprovedbyH5. EXACTnineexceptionsinunchangedcanonicalpolicy:
+ADOPT_TOOL_STARTED_POWERSHELL_ROOT_PRELOAD_CREATOR|DOTNET_ORIGINAL_PROCESS_NOT_NATIVE_PI_THREAD_JOIN|H5_MONITORED64_NOT_FORMAL4|H5_SAMPLED_RESOURCES_NOT_COMPLETE_CAUSAL_CAPS|H5_SHARED_RUNTIME_SERVICE_TAIL_UNJOINED|H5_E_NON_E_PHYSICAL_ACCOUNTING_UNPROVEN|H5_HARD_DEADLINE_SYNC_STALL_UNPROVEN|H5_TRUSTED_HOST_ONE_SHOT_NOT_SCRIPT_ANTIREPLAY|H5_ADDITIONAL_ONE180_NOT_H1_H3_H4
+All missingfacts/fees remainUNPROVEN/UNKNOWN_NOT_ZERO. This grants noH1reset/originalbudgetPASS/physicaldiskmutation/fullStageadmission, evenifH5succeeds. Completeofficialtask/metrics/matching/schema/splits/time/inputs/evaluator/submission/dependenciescomparisonstillrequiresactualevidence; nooldfreeze/resultsapplynewZIP.
+
+Pendingdecision wording: Approve thisexactSOURCE-reviewed H5object foroneadditional180s(120+60) fixedofficialnonGTinspection, acceptingtheninenamedexceptionsandrawstructural/semanticmislabeling/DOCXencodedcontainercontactlimits? This is the ONLY newexecutiondecision currentlyneededforobtainingnewofficialtext. It is notaskeduntiltheconcreteobjectiscomplete; noactualgrantispresumedfromwritingthisparagraph.
