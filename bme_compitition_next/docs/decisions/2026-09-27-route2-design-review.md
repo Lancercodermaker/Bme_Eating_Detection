@@ -5724,3 +5724,29 @@ C00=AUDITED_UNPROVEN/allthreeUNPROVEN; wholeC01/C02/C03 incomplete; dependentC04
 |14|Route2 legal StageA/B/results0. Route3v1-003 valid COMPLETE/fourqualityFAIL preserved/no rerun. F1>=0.66 OPEN.|After all BEFORE gates and new-official comparison, execute already conditionally authorized legal A/B directly. Report predeclared earlySTOP or full5foldStageB separately from four quality gates and real final matched-GT/F1. Engineering UNKNOWN is no model conclusion.|
 
 V0-V7 validation order at route2-nogt-validation-admission-order-post-h5-20261017 remains authoritative and prepared, not executed. Actual trusted first-load/whole causal VM-service accounting/finite physical all-writer scope/bounded external final-coordinator producers and actual new official text are unresolved dependencies. Public format/API capability, current read-only file facts, installed build/load/ABI and SAME-invocation receipts remain separate evidence. UNKNOWN is not local impossibility. No generic H1/H3/H5 renewal or automatic new inspection is proposed; no Stage is used to manufacture admission.
+
+<a id="pe-elf-actual-git-preservation-and-admission-dependencies-20261017"></a>
+
+### 2026-10-17 PE/ELF SOURCE 实际 Git、保留性核验与剩余准入依赖
+
+本追加承接 `c03-elf-raw-final-source-review-receipt-20261017` 和 `complete-fourteen-gate-pe-elf-source-closeout-20261017`，只记录已经发生的提交/核验与尚缺事实；不改原申请卡、提示、审批、预算或科学合同。
+
+1. 已完成实际生产源码：PE 导出解析和有限目录内逐导入符号/转发链绑定提交 `0fc4af60dba7389186745b26b4bc522c942681ea`；Linux ELF64 原始字节解析提交 `0c4e42dd904c98771a58798fe1c823024ff55a25`，其 parent 为前述 PE 提交。ELF 提交发生于 2026-10-17T23:37:26.1404091Z，exact 7 paths、1457 insertions：仅 .gitattributes、原 native C/H、ELF harness 和原三份文档。旧原生正文前缀、既有接口/导出及无关源码按已记录 pin 继承。
+
+2. ELF 提交前实际 scoped staged whitespace check exit 0；七项 staged blob 与各工作文件 raw bytes 的 `git hash-object --no-filters` 一致；七项以外完整 mode/blob/stage/path index 身份不变。完整 index 为 194 行，原 11 项完整暂存身份保留，提交后仍仅这原 11 项 staged。本追加不把 whitespace/hash/index 核验称为编译、测试、安装或运行准入。
+
+3. 对指定 feature 分支的实际 non-force push 已成功，tool chunk `c89ddc`、exit 0、wall 4.3445562 秒。2026-10-17T23:37:41.2184394Z 实际远程核对：`refs/heads/codex/high-f1-event-stack-execution = 0c4e42dd904c98771a58798fe1c823024ff55a25`；`refs/heads/main = dd05aa128f8d62a85c20a83f8af72fe13fcfa27b`。没有 reset/stash/force/add-A、覆盖无关内容或合并 main。
+
+4. 2026-10-17T23:38:24.4674209Z 实际提交后核验：426 项工作文件 path/bytes/SHA256 全部与提交前一致，完整 index 194 行与提交结果一致，task 7 paths clean，原 11 项完整暂存身份一致。最近追加的完整 14 项表实际行序逐一为 1–14，没有 ELF 状态占位符。2026-10-17T23:41:05.3039400Z 再次核验上述 426 项完整工作文件身份及 194 行完整 index 均一致，HEAD 仍为 `0c4e42dd904c98771a58798fe1c823024ff55a25`；本记录随后只追加原三份文档。
+
+5. 两个新组件的 SOURCE review IDs 分别为 `route2-c03-pe-catalog-source-review-2026-10-17-001`、`route2-c03-elf-raw-source-review-2026-10-17-001`，各自独立 SPEC、不同 fresh QUALITY 已完成，剩余范围 P1/P2=0；具体实际 FIRST/STOP、模型可用性回退、修复和字节 pin 均在前述追加。没有重复复审未变化的旧范围。两组件及其 fixtures 仍 UNCOMPILED/UNRUN；这两项 SOURCE 结论不是完整 runner formal review，不覆盖首次加载、实际 ABI/依赖闭包、资源归因、物理卷、全部 writer 或服务退出事实。
+
+#### 实际验证的外部依赖与最小缺失对象
+
+- V1 仍缺：加载前已存在并能存活到原停止/清场/费用尾部的可信 owner；完整 VM/宿主/内核/相关服务的因果计费与采样归因；任务专用、有限且涵盖全部 writer 的实际物理卷/extent 身份及边界；原服务全部退出与可信外部最终协调者的可计费生命周期。公共 API 可用性、源码候选、本机实际安装和同 invocation 事实仍分别记录。H3 未取得 E 的完整绑定，现无足够实际身份支持一个可审阅的分区/格式化/缩卷/既存对象变更命令方案。本追加不将 UNKNOWN 写成本机不可能，也不把目录、固定 VHD 或局部 Job 观察写成原机制 PASS。
+- V6 仍缺：新版官方包中明确非 GT 的规则/说明/评价脚本正文及其合法读取边界。历史 H4 的 ZIP 长度/EOCD 声明和 central digest 不等于当前完整文件身份、目录核验或规则正文；H5 无 child collection record，其 ZIP 访问/解析进度 UNKNOWN。任务指标、事件/匹配、标注/schema、划分/身份、时间/采样率、允许输入、评价脚本、提交格式、依赖这九项仍 UNVERIFIED，不能声称兼容或转用旧输入 pin/冻结/结果。此前请求正文后只收到继续工作的 steering，未收到新规则事实。
+- 所需最小外部对象是上述可核验的加载前 owner/资源/物理/退出机制及新版明确非 GT 正文；不是泛泛“是否继续”、重复 H1/H3 批准或最终科学批准。新的边界若确需实体磁盘变更，仍须先形成实际身份、精确命令、范围及影响后再集中请求原合同所需的批准。现有证据不授权自动新建 H6、改变 100ms 条件或重试已消耗检查。
+
+H1 仍 APPROVED_UNSTARTED，唯一 1800/6000 秒前瞻尝试没有启动，文档时间和本轮 SOURCE 工程不冒充其 t0。H3/H4/H5 均维持实际 CONSUMED_FAILED_PARTIAL_NO_RETRY；H5 的原始输出、故障、原 child 已终止/joined 与未知尾费保留于原追加。本轮未启动 WSL、Python、项目 compiler/native helper、项目测试、GT 或 Stage，没有读取新版 ZIP payload。
+
+仍执行已追加 V0→V7 的真实无 GT 验证/安装/审查顺序及原计划 2238–2248 的继续条件；C00=AUDITED_UNPROVEN，完整 C01/C02/C03 未闭合，受依赖 C04–C12 继续 STOP。PREPARED_UNREVIEWED / APPLICATION_BLOCKED / NOT_APPROVAL_READY；FROZEN_ADMISSION=None；历史完整实现 review FAIL 保留。完整实际准入满足后，已获授权直接执行合法 Stage A/B，不再泛泛请求最终科学批准。当前合法 Route2 Stage A/B 及结果仍为零，F1≥0.66 目标开放；Route3 v1-003 COMPLETE、四门 FAIL 保留，不重跑。所有缺失事实及未能闭合的本轮/历史/服务/加载/退出尾部费用继续 UNKNOWN_NOT_ZERO，未宣称预算 PASS、零费用或退款。
