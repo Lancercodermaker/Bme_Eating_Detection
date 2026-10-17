@@ -11,3 +11,6 @@ scripts/route2_official_package_inspection.ps1 -text
 tests/native/route2_official_package_inspection_harness.ps1 -text
 scripts/route2_official_package_inspection_v2.ps1 -text
 tests/native/route2_official_package_inspection_v2_harness.ps1 -text
+src/eating_event/route2_candidate_overlap/native/route2_windows_preload_catalog.h -text
+src/eating_event/route2_candidate_overlap/native/route2_windows_preload_catalog.c -text
+tests/native/route2_pe_preload_catalog_harness.c -text
