@@ -2918,3 +2918,587 @@ uint32_t route2_pe_preload_parse_raw_v1(
 }
 #endif
 #endif
+
+/* C03 original-FILE ELF64 raw profile. SOURCE ONLY, UNCOMPILED / UNRUN.
+ * No path lookup, allocation, OS call, constructor, resolver or authority.
+ * Every helper in this independent suffix is Linux-start only.
+ * GNU numeric format tags additionally cross-checked against public glibc
+ * https://raw.githubusercontent.com/bminor/glibc/glibc-2.35/elf/elf.h
+ * This does not establish installed headers or loader behavior.
+ */
+#if defined(R2_TARGET_LINUX_START)
+#ifndef R2_ELF_PRELOAD_RAW_V1_DEFINED
+#define R2_ELF_PRELOAD_RAW_V1_DEFINED
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
+#error "The bounded ELF raw parser requires C11"
+#endif
+_Static_assert(sizeof(struct r2_elf_raw_program_v1) == 64, "ELF program record ABI");
+_Static_assert(sizeof(struct r2_elf_raw_dynamic_v1) == 32, "ELF dynamic record ABI");
+_Static_assert(sizeof(struct r2_elf_raw_string_v1) == 32, "ELF string record ABI");
+_Static_assert(offsetof(struct r2_elf_raw_report_v1, programs) == 256, "ELF report prefix ABI");
+_Static_assert(sizeof(struct r2_elf_raw_report_v1) == R2_ELF_RAW_REPORT_BYTES, "ELF report ABI");
+_Static_assert(R2_ELF_RAW_REPORT_BYTES < R2_ELF_RAW_WORK_LIMIT, "ELF initialization reservation");
+struct r2_elf_context_v1 {
+    const unsigned char *file;
+    size_t length;
+    struct r2_elf_raw_report_v1 *r;
+};
+static int r2_elf_fail_v1(struct r2_elf_context_v1 *c, uint32_t status,
+    uint32_t reason, uint64_t field, uint64_t value, uint32_t kind, uint32_t subject)
+{
+    if (!c->r->reason) {
+        c->r->reason = reason; c->r->failure_offset = field;
+        c->r->failure_value = value; c->r->failure_value_kind = kind;
+        c->r->failure_subject_type = subject;
+    }
+    c->r->raw_status = status;
+    return 0;
+}
+static int r2_elf_charge_v1(struct r2_elf_context_v1 *c, uint64_t units, uint64_t off)
+{
+    if (units > R2_ELF_RAW_WORK_LIMIT ||
+        c->r->work_units > R2_ELF_RAW_WORK_LIMIT - units)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_INCOMPLETE, R2_ELF_REASON_WORK_LIMIT,
+                            off, units, R2_ELF_VALUE_SCALAR, 0);
+    c->r->work_units += units;
+    return 1;
+}
+static int r2_elf_range_v1(struct r2_elf_context_v1 *c, uint64_t off,
+                         uint64_t n, uint64_t field)
+{
+    if (!r2_elf_charge_v1(c, 16, field)) return 0;
+    if (off > c->length || n > (uint64_t)c->length - off)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_TRUNCATED,
+                            field, off, R2_ELF_VALUE_FILE_OFFSET, 0);
+    return 1;
+}
+/* Reads reserve loop, shifts and byte inspections before the first access.
+ * No host-endian/unaligned casts and no access to a virtual zero-fill byte.
+ */
+static int r2_elf_read_v1(struct r2_elf_context_v1 *c, uint64_t off,
+                        uint32_t n, uint64_t *value)
+{
+    uint32_t i;
+    uint64_t v = 0;
+    if (!r2_elf_charge_v1(c, 16u + (uint64_t)n * 4u, off) ||
+        !r2_elf_range_v1(c, off, n, off)) return 0;
+    for (i = 0; i < n; ++i) v |= (uint64_t)c->file[(size_t)off + i] << (8u * i);
+    *value = v;
+    return 1;
+}
+static int r2_elf_map_v1(struct r2_elf_context_v1 *c, uint64_t va,
+    uint64_t n, uint64_t field, uint32_t subject, uint64_t *file_off)
+{
+    uint32_t i, hits = 0;
+    const struct r2_elf_raw_program_v1 *found = NULL;
+    uint64_t end, delta;
+    if (!r2_elf_charge_v1(c, 32, field)) return 0;
+    if (!n || n > UINT64_MAX - va)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_VIRTUAL_OVERFLOW,
+                            field, va, R2_ELF_VALUE_VIRTUAL_ADDRESS, subject);
+    end = va + n;
+    for (i = 0; i < c->r->program_count; ++i) {
+        const struct r2_elf_raw_program_v1 *p;
+        if (!r2_elf_charge_v1(c, 64, field)) return 0;
+        p = &c->r->programs[i];
+        if (p->type != 1 || !p->memory_size) continue;
+        /* LOAD virtual ends were already checked. Count ANY intersection,
+         * not merely fully containing candidates, to reject ambiguity.
+         */
+        if (va < p->virtual_address + p->memory_size && p->virtual_address < end) {
+            ++hits; found = p;
+        }
+    }
+    if (hits > 1)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_AMBIGUOUS_MAPPING,
+                            field, va, R2_ELF_VALUE_VIRTUAL_ADDRESS, subject);
+    if (!found)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_UNMAPPED,
+                            field, va, R2_ELF_VALUE_VIRTUAL_ADDRESS, subject);
+    if (va < found->virtual_address || end > found->virtual_address + found->memory_size)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_SPAN_CROSSING,
+                            field, va, R2_ELF_VALUE_VIRTUAL_ADDRESS, subject);
+    delta = va - found->virtual_address;
+    if (delta >= found->file_size || n > found->file_size - delta)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_ZERO_FILL,
+                            field, va, R2_ELF_VALUE_VIRTUAL_ADDRESS, subject);
+    /* file_offset+file_size was checked against the bounded FILE. */
+    *file_off = found->file_offset + delta;
+    return r2_elf_range_v1(c, *file_off, n, field);
+}
+static int r2_elf_header_v1(struct r2_elf_context_v1 *c)
+{
+    uint64_t v, cls, enc, version, osabi, abiver, machine, kind, ehsize, phsize;
+    if (!r2_elf_range_v1(c, 0, 64, 0) ||
+        !r2_elf_read_v1(c, 0, 4, &v)) return 0;
+    if (v != UINT64_C(0x464c457f))
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_MAGIC,
+                            0, v, R2_ELF_VALUE_SCALAR, 0);
+    if (!r2_elf_read_v1(c, 4, 1, &cls) || !r2_elf_read_v1(c, 5, 1, &enc) ||
+        !r2_elf_read_v1(c, 6, 1, &version) || !r2_elf_read_v1(c, 7, 1, &osabi) ||
+        !r2_elf_read_v1(c, 8, 1, &abiver)) return 0;
+    if (cls != 2)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_CLASS,
+                            4, cls, R2_ELF_VALUE_SCALAR, 0);
+    if (enc != 1)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_ENCODING,
+                            5, enc, R2_ELF_VALUE_SCALAR, 0);
+    if (version != 1)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_VERSION,
+                            6, version, R2_ELF_VALUE_SCALAR, 0);
+    if ((osabi != 0 && osabi != 3) || abiver != 0)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_OSABI,
+                            abiver ? 8 : 7, abiver ? abiver : osabi, R2_ELF_VALUE_SCALAR, 0);
+    if (!r2_elf_read_v1(c, 16, 2, &kind) || !r2_elf_read_v1(c, 18, 2, &machine) ||
+        !r2_elf_read_v1(c, 20, 4, &version)) return 0;
+    c->r->elf_type = (uint32_t)kind;
+    if ((kind != 2 && kind != 3) || machine != 62)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_TARGET,
+                            machine != 62 ? 18 : 16, machine != 62 ? machine : kind,
+                            R2_ELF_VALUE_SCALAR, 0);
+    if (version != 1)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_VERSION,
+                            20, version, R2_ELF_VALUE_SCALAR, 0);
+    if (!r2_elf_read_v1(c, 24, 8, &c->r->entry) ||
+        !r2_elf_read_v1(c, 32, 8, &c->r->program_table_offset) ||
+        !r2_elf_read_v1(c, 48, 4, &v)) return 0;
+    c->r->elf_flags = (uint32_t)v;
+    if (!r2_elf_read_v1(c, 52, 2, &ehsize) || !r2_elf_read_v1(c, 54, 2, &phsize) ||
+        !r2_elf_read_v1(c, 56, 2, &v)) return 0;
+    c->r->declared_phnum = (uint32_t)v;
+    if (ehsize != 64)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_HEADER_SIZE,
+                            52, ehsize, R2_ELF_VALUE_SCALAR, 0);
+    if (phsize != 56)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_PROGRAM_ENTRY_SIZE,
+                            54, phsize, R2_ELF_VALUE_SCALAR, 0);
+    if (v == 65535)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_EXTENDED_COUNT,
+                            56, v, R2_ELF_VALUE_SCALAR, 0);
+    if (v > R2_ELF_RAW_PROGRAM_LIMIT)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_INCOMPLETE, R2_ELF_REASON_PROGRAM_LIMIT,
+                            56, v, R2_ELF_VALUE_SCALAR, 0);
+    if (c->r->program_table_offset < 64 ||
+        !r2_elf_range_v1(c, c->r->program_table_offset, v * 56u, 32)) {
+        if (!c->r->reason) r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED,
+            R2_ELF_REASON_PROGRAM_RANGE, 32, c->r->program_table_offset,
+            R2_ELF_VALUE_FILE_OFFSET, 0);
+        return 0;
+    }
+    c->r->header_valid = 1;
+    return 1;
+}
+static int r2_elf_program_extent_v1(struct r2_elf_context_v1 *c,
+                                  const struct r2_elf_raw_program_v1 *p)
+{
+    if (!r2_elf_range_v1(c, p->file_offset, p->file_size, p->header_offset + 8)) return 0;
+    if (p->memory_size > UINT64_MAX - p->virtual_address)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_VIRTUAL_OVERFLOW,
+            p->header_offset + 16, p->virtual_address, R2_ELF_VALUE_VIRTUAL_ADDRESS, p->type);
+    return 1;
+}
+static int r2_elf_programs_v1(struct r2_elf_context_v1 *c)
+{
+    uint32_t i, j;
+    uint64_t last_load = 0;
+    for (i = 0; i < c->r->declared_phnum; ++i) {
+        struct r2_elf_raw_program_v1 *p;
+        uint64_t off = c->r->program_table_offset + (uint64_t)i * 56u, v;
+        if (!r2_elf_charge_v1(c, 256, off)) return 0;
+        p = &c->r->programs[c->r->program_count++]; p->header_offset = off;
+        if (!r2_elf_read_v1(c, off, 4, &v)) return 0;
+        p->type = (uint32_t)v;
+        if (!r2_elf_read_v1(c, off + 4, 4, &v)) return 0;
+        p->flags = (uint32_t)v;
+        if (!r2_elf_read_v1(c, off + 8, 8, &p->file_offset) ||
+            !r2_elf_read_v1(c, off + 16, 8, &p->virtual_address) ||
+            !r2_elf_read_v1(c, off + 24, 8, &p->physical_address) ||
+            !r2_elf_read_v1(c, off + 32, 8, &p->file_size) ||
+            !r2_elf_read_v1(c, off + 40, 8, &p->memory_size) ||
+            !r2_elf_read_v1(c, off + 48, 8, &p->alignment)) return 0;
+        if (!p->type) continue; /* PT_NULL undefined fields are only raw facts. */
+        if (!(p->type == 1 || p->type == 2 || p->type == 3 || p->type == 4 ||
+              p->type == 6 || p->type == 7 ||
+              p->type == UINT32_C(0x6474e550) || p->type == UINT32_C(0x6474e551) ||
+              p->type == UINT32_C(0x6474e552) || p->type == UINT32_C(0x6474e553))) {
+            /* Unknown semantics: retain exact fields without inventing ranges
+             * or treating the entry as an ignorable/safe directory.
+             */
+            ++c->r->unknown_program_count;
+            r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_UNKNOWN_PROGRAM,
+                          off, p->type, R2_ELF_VALUE_SCALAR, p->type);
+            continue;
+        }
+        if (p->type == 1) { /* PT_LOAD */
+            if (!r2_elf_program_extent_v1(c, p)) return 0;
+            if (p->file_size > p->memory_size)
+                return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_LOAD_SIZE,
+                    off + 32, p->file_size, R2_ELF_VALUE_SCALAR, p->type);
+            if (p->alignment > 1 &&
+                ((p->alignment & (p->alignment - 1)) ||
+                 (p->virtual_address % p->alignment != p->file_offset % p->alignment)))
+                return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_LOAD_ALIGNMENT,
+                    off + 48, p->alignment, R2_ELF_VALUE_SCALAR, p->type);
+            if (c->r->load_count && p->virtual_address < last_load)
+                return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_LOAD_ORDER,
+                    off + 16, p->virtual_address, R2_ELF_VALUE_VIRTUAL_ADDRESS, p->type);
+            for (j = 0; j < i; ++j) {
+                const struct r2_elf_raw_program_v1 *q;
+                if (!r2_elf_charge_v1(c, 64, off)) return 0;
+                q = &c->r->programs[j];
+                if (q->type == 1 && p->memory_size && q->memory_size &&
+                    p->virtual_address < q->virtual_address + q->memory_size &&
+                    q->virtual_address < p->virtual_address + p->memory_size)
+                    return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_LOAD_OVERLAP,
+                        off + 16, p->virtual_address, R2_ELF_VALUE_VIRTUAL_ADDRESS, p->type);
+            }
+            last_load = p->virtual_address; ++c->r->load_count;
+        } else if (p->type == 2) { /* PT_DYNAMIC */
+            if (c->r->dynamic_present)
+                return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_DUPLICATE_PROGRAM,
+                    off, p->type, R2_ELF_VALUE_SCALAR, p->type);
+            c->r->dynamic_present = 1; c->r->dynamic_offset = p->file_offset;
+            c->r->dynamic_size = p->file_size;
+        } else if (p->type == 3) { /* PT_INTERP */
+            if (c->r->interpreter_present)
+                return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_DUPLICATE_PROGRAM,
+                    off, p->type, R2_ELF_VALUE_SCALAR, p->type);
+            c->r->interpreter_present = 1; c->r->interpreter_offset = p->file_offset;
+            c->r->interpreter_size = p->file_size;
+            c->r->application_conditions |= R2_ELF_CONDITION_INTERPRETER;
+            if (c->r->load_count)
+                return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_INTERPRETER_ORDER,
+                    off, p->type, R2_ELF_VALUE_SCALAR, p->type);
+        } else if (p->type == 7) { /* PT_TLS presence, even empty. */
+            if (c->r->tls_present)
+                return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_DUPLICATE_PROGRAM,
+                    off, p->type, R2_ELF_VALUE_SCALAR, p->type);
+            c->r->tls_present = 1; c->r->tls_offset = p->file_offset;
+            c->r->tls_filesz = p->file_size; c->r->tls_memsz = p->memory_size;
+            c->r->application_conditions |= R2_ELF_CONDITION_TLS;
+            if (p->file_size > p->memory_size)
+                return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_LOAD_SIZE,
+                    off + 32, p->file_size, R2_ELF_VALUE_SCALAR, p->type);
+        } else if (p->type == 4 || p->type == 6 ||
+                   p->type == UINT32_C(0x6474e550) || p->type == UINT32_C(0x6474e551) ||
+                   p->type == UINT32_C(0x6474e552) || p->type == UINT32_C(0x6474e553)) {
+            /* NOTE, PHDR, GNU EH_FRAME/STACK/RELRO/PROPERTY: raw only.
+             * No content/permission/relocation/property semantics validated.
+             */
+        }
+        /* Presence and declared ranges above survive a malformed extent.
+         * LOADs are checked earlier, before any virtual overlap arithmetic.
+         */
+        if (p->type != 1 && !r2_elf_program_extent_v1(c, p)) return 0;
+    }
+    if (!c->r->load_count)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_NO_LOAD,
+                            56, 0, R2_ELF_VALUE_SCALAR, 1);
+    return 1;
+}
+/* Keys 1..43 fit one local singleton bitset; NEEDED is explicitly repeatable.
+ * Recognized raw-only tags are NOT symbol/relocation/version validation.
+ * Unlisted extensions (including FILTER/AUXILIARY/AUDIT/DEPAUDIT) are UNKNOWN,
+ * retained in order and prevent structural_complete. No dependency is omitted
+ * under a claim of complete dependency closure.
+ */
+static uint32_t r2_elf_tag_v1(uint64_t tag, uint32_t *meaning)
+{
+    *meaning = R2_ELF_DYNAMIC_RAW_ONLY;
+    switch (tag) {
+    case 0: *meaning = R2_ELF_DYNAMIC_TERMINATOR; return 0;
+    case 1: *meaning = R2_ELF_DYNAMIC_STRING; return 0;
+    case 5: case 10: *meaning = R2_ELF_DYNAMIC_TABLE; return (uint32_t)tag;
+    case 14: case 15: case 29:
+        *meaning = R2_ELF_DYNAMIC_STRING; return (uint32_t)tag;
+    case 12: case 13: case 25: case 26: case 27: case 28: case 32: case 33:
+        *meaning = R2_ELF_DYNAMIC_APPLICATION; return (uint32_t)tag;
+    case 2: case 3: case 4: case 6: case 7: case 8: case 9: case 11:
+    case 16: case 17: case 18: case 19: case 20: case 21: case 22: case 23:
+    case 24: case 30: case 34:
+        return (uint32_t)tag;
+    case UINT64_C(0x6ffffef5): return 35; /* GNU_HASH */
+    case UINT64_C(0x6ffffff0): return 36; /* VERSYM */
+    case UINT64_C(0x6ffffff9): return 37; /* RELACOUNT */
+    case UINT64_C(0x6ffffffa): return 38; /* RELCOUNT */
+    case UINT64_C(0x6ffffffb): return 39; /* FLAGS_1 */
+    case UINT64_C(0x6ffffffc): return 40; /* VERDEF */
+    case UINT64_C(0x6ffffffd): return 41; /* VERDEFNUM */
+    case UINT64_C(0x6ffffffe): return 42; /* VERNEED */
+    case UINT64_C(0x6fffffff): return 43; /* VERNEEDNUM */
+    default: *meaning = R2_ELF_DYNAMIC_UNKNOWN; return 0;
+    }
+}
+static int r2_elf_dynamics_v1(struct r2_elf_context_v1 *c)
+{
+    uint32_t i, n, needed_seen = 0;
+    uint64_t seen = 0, mapped;
+    const struct r2_elf_raw_program_v1 *p = NULL;
+    if (!c->r->dynamic_present) {
+        c->r->dynamic_remainder_unknown = 0;
+        return 1;
+    }
+    for (i = 0; i < c->r->program_count; ++i) {
+        if (!r2_elf_charge_v1(c, 32, c->r->dynamic_offset)) return 0;
+        if (c->r->programs[i].type == 2) p = &c->r->programs[i];
+    }
+    if (!p) return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED,
+        R2_ELF_REASON_DYNAMIC_SIZE, 0, 0, R2_ELF_VALUE_SCALAR, 2);
+    if (!p->file_size || p->file_size % 16 || p->file_size > p->memory_size)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_DYNAMIC_SIZE,
+                            p->header_offset + 32, p->file_size, R2_ELF_VALUE_SCALAR, 2);
+    c->r->dynamic_declared_entries = (uint32_t)(p->file_size / 16);
+    if (c->r->dynamic_declared_entries > R2_ELF_RAW_DYNAMIC_LIMIT)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_INCOMPLETE, R2_ELF_REASON_DYNAMIC_LIMIT,
+                            p->header_offset + 32, p->file_size / 16, R2_ELF_VALUE_SCALAR, 2);
+    if (!r2_elf_map_v1(c, p->virtual_address, p->file_size, p->header_offset + 16, 2, &mapped)) return 0;
+    if (mapped != p->file_offset)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_MAPPING_MISMATCH,
+                            p->header_offset + 8, p->file_offset, R2_ELF_VALUE_FILE_OFFSET, 2);
+    for (n = 0; n < c->r->dynamic_declared_entries; ++n) {
+        struct r2_elf_raw_dynamic_v1 *d;
+        uint32_t key;
+        uint64_t off = p->file_offset + (uint64_t)n * 16u;
+        if (!r2_elf_charge_v1(c, 128, off)) return 0;
+        d = &c->r->dynamics[c->r->dynamic_count++]; d->file_offset = off;
+        if (!r2_elf_read_v1(c, off, 8, &d->raw_tag) ||
+            !r2_elf_read_v1(c, off + 8, 8, &d->raw_value)) return 0;
+        key = r2_elf_tag_v1(d->raw_tag, &d->interpretation);
+        if (!d->raw_tag) {
+            c->r->dynamic_terminated = 1; c->r->dynamic_remainder_unknown = 0;
+            return 1; /* Trailing declared bytes are padding, not decoded tags. */
+        }
+        if (key) {
+            uint64_t bit = UINT64_C(1) << key;
+            if (seen & bit)
+                return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_DUPLICATE_TAG,
+                                    off, d->raw_tag, R2_ELF_VALUE_SCALAR, (uint32_t)d->raw_tag);
+            seen |= bit;
+        }
+        if (d->raw_tag == 1 && ++needed_seen > R2_ELF_RAW_NEEDED_LIMIT)
+            return r2_elf_fail_v1(c, R2_ELF_RAW_INCOMPLETE, R2_ELF_REASON_NEEDED_LIMIT,
+                                off, needed_seen, R2_ELF_VALUE_SCALAR, 1);
+        if (d->raw_tag == 5) {
+            c->r->string_table_present = 1; c->r->string_table_address = d->raw_value;
+        } else if (d->raw_tag == 10) {
+            c->r->string_size_present = 1; c->r->string_table_size = d->raw_value;
+        } else if (d->raw_tag == 12) {
+            c->r->application_conditions |= R2_ELF_CONDITION_INIT;
+        } else if (d->raw_tag == 13) {
+            c->r->application_conditions |= R2_ELF_CONDITION_FINI;
+        } else if (d->raw_tag == 25 || d->raw_tag == 27) {
+            c->r->application_conditions |= R2_ELF_CONDITION_INIT_ARRAY;
+        } else if (d->raw_tag == 26 || d->raw_tag == 28) {
+            c->r->application_conditions |= R2_ELF_CONDITION_FINI_ARRAY;
+        } else if (d->raw_tag == 32 || d->raw_tag == 33) {
+            c->r->application_conditions |= R2_ELF_CONDITION_PREINIT_ARRAY;
+        } else if (d->raw_tag == 15 || d->raw_tag == 29) {
+            /* Presence is independent of whether the spelling is empty. */
+            c->r->application_conditions |= R2_ELF_CONDITION_SEARCH_PATH;
+        } else if (d->interpretation == R2_ELF_DYNAMIC_UNKNOWN) {
+            ++c->r->unknown_dynamic_count;
+            r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_UNKNOWN_DYNAMIC,
+                          off, d->raw_tag, R2_ELF_VALUE_SCALAR, (uint32_t)d->raw_tag);
+        }
+    }
+    return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_DYNAMIC_TERMINATOR,
+                        p->file_offset + p->file_size, 0, R2_ELF_VALUE_FILE_OFFSET, 2);
+}
+/* All calls to this helper inspect original FILE string bytes, including
+ * interpreter bytes and repeated references. Reserve BOTH counters BEFORE
+ * reading, and never rescan a spelling after validating it.
+ */
+static int r2_elf_string_byte_v1(struct r2_elf_context_v1 *c, uint64_t off,
+                              uint32_t subject, unsigned char *v)
+{
+    if (!r2_elf_charge_v1(c, 48, off)) return 0;
+    if (c->r->string_bytes_inspected == R2_ELF_RAW_STRING_BYTES_LIMIT)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_INCOMPLETE, R2_ELF_REASON_STRING_BYTES_LIMIT,
+                            off, c->r->string_bytes_inspected, R2_ELF_VALUE_SCALAR, subject);
+    if (!r2_elf_range_v1(c, off, 1, off)) return 0;
+    ++c->r->string_bytes_inspected;
+    *v = c->file[(size_t)off];
+    return 1;
+}
+static int r2_elf_interpreter_tls_v1(struct r2_elf_context_v1 *c)
+{
+    uint32_t i;
+    if (c->r->interpreter_present) {
+        uint64_t n = c->r->interpreter_size;
+        if (n < 2)
+            return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_INTERPRETER,
+                c->r->interpreter_offset, n, R2_ELF_VALUE_SCALAR, 3);
+        if (n > R2_ELF_RAW_STRING_LIMIT)
+            return r2_elf_fail_v1(c, R2_ELF_RAW_INCOMPLETE, R2_ELF_REASON_STRING_LIMIT,
+                c->r->interpreter_offset, n, R2_ELF_VALUE_SCALAR, 3);
+        for (i = 0; i < (uint32_t)n; ++i) {
+            unsigned char ch;
+            if (!r2_elf_string_byte_v1(c, c->r->interpreter_offset + i, 3, &ch)) return 0;
+            if (ch > 127)
+                return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_STRING_ASCII,
+                    c->r->interpreter_offset + i, ch, R2_ELF_VALUE_SCALAR, 3);
+            if ((!i && ch != '/') || (i + 1 < n && !ch) || (i + 1 == n && ch))
+                return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_INTERPRETER,
+                    c->r->interpreter_offset + i, ch, R2_ELF_VALUE_SCALAR, 3);
+            if (ch) ++c->r->interpreter_length;
+        }
+    }
+    for (i = 0; i < c->r->program_count; ++i) {
+        const struct r2_elf_raw_program_v1 *p;
+        uint64_t off;
+        if (!r2_elf_charge_v1(c, 32, 0)) return 0;
+        p = &c->r->programs[i];
+        if (p->type != 7 || !p->file_size) continue;
+        if (!r2_elf_map_v1(c, p->virtual_address, p->file_size, p->header_offset + 16, 7, &off)) return 0;
+        if (off != p->file_offset)
+            return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_MAPPING_MISMATCH,
+                                p->header_offset + 8, p->file_offset, R2_ELF_VALUE_FILE_OFFSET, 7);
+    }
+    return 1;
+}
+static int r2_elf_strings_v1(struct r2_elf_context_v1 *c)
+{
+    uint32_t i;
+    if (c->r->string_table_present != c->r->string_size_present)
+        return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_STRING_TABLE_PAIR,
+                            c->r->dynamic_offset, 0, R2_ELF_VALUE_SCALAR, 5);
+    if (c->r->string_table_present) {
+        if (!c->r->string_table_size)
+            return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_STRING_TABLE,
+                                c->r->dynamic_offset, 0, R2_ELF_VALUE_SCALAR, 10);
+        if (!r2_elf_map_v1(c, c->r->string_table_address, c->r->string_table_size,
+                         c->r->dynamic_offset, 5, &c->r->string_table_offset)) return 0;
+    }
+    for (i = 0; i < c->r->dynamic_count; ++i) {
+        const struct r2_elf_raw_dynamic_v1 *d;
+        struct r2_elf_raw_string_v1 *s;
+        uint32_t j, kind;
+        uint64_t remaining;
+        if (!r2_elf_charge_v1(c, 64, c->r->dynamic_offset)) return 0;
+        d = &c->r->dynamics[i];
+        if (d->raw_tag == 1) kind = R2_ELF_STRING_NEEDED;
+        else if (d->raw_tag == 14) kind = R2_ELF_STRING_SONAME;
+        else if (d->raw_tag == 15) kind = R2_ELF_STRING_RPATH;
+        else if (d->raw_tag == 29) kind = R2_ELF_STRING_RUNPATH;
+        else continue;
+        /* Capacity is independent of interpreter storage: 256+1+1+1. */
+        if (c->r->strings_count == R2_ELF_RAW_STRING_RECORD_LIMIT)
+            return r2_elf_fail_v1(c, R2_ELF_RAW_INCOMPLETE, R2_ELF_REASON_NEEDED_LIMIT,
+                                d->file_offset, c->r->strings_count, R2_ELF_VALUE_SCALAR, 1);
+        s = &c->r->strings[c->r->strings_count++];
+        s->kind = kind; s->dynamic_index = i; s->string_index = d->raw_value;
+        if (kind == R2_ELF_STRING_NEEDED) ++c->r->needed_count;
+        if (!c->r->string_table_present)
+            return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_STRING_TABLE_PAIR,
+                                d->file_offset, d->raw_value, R2_ELF_VALUE_SCALAR, (uint32_t)d->raw_tag);
+        if (d->raw_value >= c->r->string_table_size)
+            return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_STRING_INDEX,
+                                d->file_offset + 8, d->raw_value, R2_ELF_VALUE_SCALAR, (uint32_t)d->raw_tag);
+        remaining = c->r->string_table_size - d->raw_value;
+        s->file_offset = (uint32_t)(c->r->string_table_offset + d->raw_value);
+        for (j = 0; j < R2_ELF_RAW_STRING_LIMIT && j < remaining; ++j) {
+            unsigned char ch;
+            if (!r2_elf_string_byte_v1(c, (uint64_t)s->file_offset + j, (uint32_t)d->raw_tag, &ch)) return 0;
+            if (ch > 127)
+                return r2_elf_fail_v1(c, R2_ELF_RAW_UNSUPPORTED, R2_ELF_REASON_STRING_ASCII,
+                    (uint64_t)s->file_offset + j, ch, R2_ELF_VALUE_SCALAR, (uint32_t)d->raw_tag);
+            if (!ch) {
+                if (!j && (kind == R2_ELF_STRING_NEEDED || kind == R2_ELF_STRING_SONAME))
+                    return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_EMPTY_NAME,
+                        s->file_offset, 0, R2_ELF_VALUE_SCALAR, (uint32_t)d->raw_tag);
+                s->complete = 1;
+                break;
+            }
+            ++s->length;
+        }
+        if (!s->complete)
+            return r2_elf_fail_v1(c, j == R2_ELF_RAW_STRING_LIMIT ? R2_ELF_RAW_INCOMPLETE : R2_ELF_RAW_REJECTED,
+                j == R2_ELF_RAW_STRING_LIMIT ? R2_ELF_REASON_STRING_LIMIT : R2_ELF_REASON_STRING_TERMINATOR,
+                (uint64_t)s->file_offset + j, j, R2_ELF_VALUE_SCALAR, (uint32_t)d->raw_tag);
+    }
+    return 1;
+}
+static int r2_elf_arrays_v1(struct r2_elf_context_v1 *c)
+{
+    uint32_t pair, i;
+    for (pair = 0; pair < 3; ++pair) {
+        const struct r2_elf_raw_dynamic_v1 *address = NULL, *size = NULL;
+        uint64_t atag = pair == 0 ? 25u : pair == 1 ? 26u : 32u;
+        uint64_t stag = pair == 0 ? 27u : pair == 1 ? 28u : 33u, off;
+        for (i = 0; i < c->r->dynamic_count; ++i) {
+            const struct r2_elf_raw_dynamic_v1 *d;
+            if (!r2_elf_charge_v1(c, 32, c->r->dynamic_offset)) return 0;
+            d = &c->r->dynamics[i];
+            if (d->raw_tag == atag) address = d;
+            if (d->raw_tag == stag) size = d;
+        }
+        if (!!address != !!size)
+            return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_ARRAY_PAIR,
+                address ? address->file_offset : size->file_offset, atag, R2_ELF_VALUE_SCALAR, (uint32_t)atag);
+        if (!address) continue;
+        if (address->raw_value % 8u || size->raw_value % 8u)
+            return r2_elf_fail_v1(c, R2_ELF_RAW_REJECTED, R2_ELF_REASON_ARRAY_ALIGNMENT,
+                address->raw_value % 8u ? address->file_offset + 8 : size->file_offset + 8,
+                address->raw_value % 8u ? address->raw_value : size->raw_value,
+                R2_ELF_VALUE_SCALAR, (uint32_t)atag);
+        if (!address->raw_value && !size->raw_value) continue;
+        /* Even an empty nonzero address must anchor inside backed bytes. */
+        if (!r2_elf_map_v1(c, address->raw_value, size->raw_value ? size->raw_value : 1u,
+                         address->file_offset + 8, (uint32_t)atag, &off)) return 0;
+    }
+    return 1;
+}
+uint32_t route2_elf_preload_parse_raw_v1(
+    const unsigned char *file, size_t file_size, uint32_t report_abi,
+    struct r2_elf_raw_report_v1 *out, size_t out_size)
+{
+    uintptr_t ib = (uintptr_t)file, ob = (uintptr_t)out, ie, oe;
+    uint64_t initialization_work;
+    size_t i;
+    unsigned char *clear;
+    struct r2_elf_context_v1 c;
+    /* Exact independent ABI/size/alignment/ranges/disjointness before writing
+     * any report byte. Accessible/stable/exclusive memory remains caller duty.
+     */
+    if (!file || !out || report_abi != R2_ELF_RAW_ABI ||
+        out_size != R2_ELF_RAW_REPORT_BYTES ||
+        ob % _Alignof(struct r2_elf_raw_report_v1) ||
+        file_size > UINTPTR_MAX - ib || out_size > UINTPTR_MAX - ob)
+        return R2_ELF_RAW_BAD_ARGUMENT;
+    ie = ib + file_size; oe = ob + out_size;
+    if (file_size && ib < oe && ob < ie) return R2_ELF_RAW_BAD_ARGUMENT;
+    /* Local reservation is completed BEFORE clearing. No report copy or
+     * large automatic array; the caller owns the fixed output storage.
+     */
+    initialization_work = (uint64_t)out_size + 1024u;
+    if (initialization_work > R2_ELF_RAW_WORK_LIMIT) return R2_ELF_RAW_BAD_ARGUMENT;
+    clear = (unsigned char *)out;
+    for (i = 0; i < out_size; ++i) clear[i] = 0;
+    out->abi = R2_ELF_RAW_ABI; out->size = R2_ELF_RAW_REPORT_BYTES;
+    out->raw_status = R2_ELF_RAW_REJECTED;
+    out->preload_scope = R2_ELF_PRELOAD_CLOSURE_UNPROVEN;
+    out->remaining_unproven = R2_ELF_UNPROVEN_ALL;
+    out->file_bytes = file_size; out->work_units = initialization_work;
+    out->dynamic_remainder_unknown = 1; out->needed_remainder_unknown = 1;
+    c.file = file; c.length = file_size; c.r = out;
+    if (file_size > R2_ELF_RAW_FILE_LIMIT) {
+        r2_elf_fail_v1(&c, R2_ELF_RAW_INCOMPLETE, R2_ELF_REASON_FILE_LIMIT,
+                      0, file_size, R2_ELF_VALUE_SCALAR, 0);
+        return out->raw_status;
+    }
+    if (!r2_elf_header_v1(&c) || !r2_elf_programs_v1(&c) ||
+        !r2_elf_interpreter_tls_v1(&c) || !r2_elf_dynamics_v1(&c) ||
+        !r2_elf_strings_v1(&c) || !r2_elf_arrays_v1(&c)) return out->raw_status;
+    out->needed_remainder_unknown =
+        (out->unknown_program_count || out->unknown_dynamic_count) ? 1u : 0u;
+    if (out->unknown_program_count || out->unknown_dynamic_count) {
+        out->raw_status = R2_ELF_RAW_UNSUPPORTED;
+        return out->raw_status;
+    }
+    out->structural_complete = 1;
+    out->raw_status = out->application_conditions ?
+        R2_ELF_RAW_APPLICATION_CONDITIONS : R2_ELF_RAW_COMPLETE;
+    return out->raw_status;
+}
+#endif
+#endif

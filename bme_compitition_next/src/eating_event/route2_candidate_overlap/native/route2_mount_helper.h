@@ -804,3 +804,169 @@ uint32_t route2_pe_preload_parse_raw_v1(
     struct r2_pe_raw_report_v1 *out, size_t out_size);
 #endif
 #endif
+
+/* C03 bounded original-FILE ELF facts, SOURCE ONLY; independent Linux-start ABI.
+ * Format references: gabi.xinuos.com/v42/elf/{02-eheader,07-pheader,08-dynamic}.html
+ * and a-emachine.html. These are format facts, not installed loader support.
+ */
+#if defined(R2_TARGET_LINUX_START)
+#ifndef R2_ELF_PRELOAD_RAW_V1_DECLARED
+#define R2_ELF_PRELOAD_RAW_V1_DECLARED
+#define R2_ELF_RAW_ABI 1u
+#define R2_ELF_RAW_REPORT_BYTES 147808u
+#define R2_ELF_RAW_FILE_LIMIT 67108864u
+#define R2_ELF_RAW_PROGRAM_LIMIT 128u
+#define R2_ELF_RAW_DYNAMIC_LIMIT 4096u
+#define R2_ELF_RAW_NEEDED_LIMIT 256u
+#define R2_ELF_RAW_STRING_RECORD_LIMIT 259u
+#define R2_ELF_RAW_STRING_LIMIT 512u
+#define R2_ELF_RAW_STRING_BYTES_LIMIT 1048576u
+#define R2_ELF_RAW_WORK_LIMIT 8388608u
+#define R2_ELF_PRELOAD_CLOSURE_UNPROVEN 0xC3EFu
+
+enum r2_elf_raw_status_v1 {
+    R2_ELF_RAW_COMPLETE = 0xC311u,
+    R2_ELF_RAW_INCOMPLETE = 0xC312u,
+    R2_ELF_RAW_REJECTED = 0xC313u,
+    R2_ELF_RAW_BAD_ARGUMENT = 0xC314u,
+    R2_ELF_RAW_UNSUPPORTED = 0xC315u,
+    R2_ELF_RAW_APPLICATION_CONDITIONS = 0xC316u
+};
+enum r2_elf_raw_reason_v1 {
+    R2_ELF_REASON_NONE = 0,
+    R2_ELF_REASON_FILE_LIMIT, R2_ELF_REASON_TRUNCATED,
+    R2_ELF_REASON_MAGIC, R2_ELF_REASON_CLASS, R2_ELF_REASON_ENCODING,
+    R2_ELF_REASON_TARGET, R2_ELF_REASON_VERSION, R2_ELF_REASON_OSABI,
+    R2_ELF_REASON_HEADER_SIZE, R2_ELF_REASON_PROGRAM_ENTRY_SIZE,
+    R2_ELF_REASON_EXTENDED_COUNT, R2_ELF_REASON_PROGRAM_LIMIT,
+    R2_ELF_REASON_PROGRAM_RANGE, R2_ELF_REASON_NO_LOAD,
+    R2_ELF_REASON_LOAD_SIZE, R2_ELF_REASON_VIRTUAL_OVERFLOW,
+    R2_ELF_REASON_LOAD_ALIGNMENT, R2_ELF_REASON_LOAD_ORDER,
+    R2_ELF_REASON_LOAD_OVERLAP, R2_ELF_REASON_UNMAPPED,
+    R2_ELF_REASON_AMBIGUOUS_MAPPING, R2_ELF_REASON_ZERO_FILL,
+    R2_ELF_REASON_SPAN_CROSSING, R2_ELF_REASON_MAPPING_MISMATCH,
+    R2_ELF_REASON_INTERPRETER, R2_ELF_REASON_INTERPRETER_ORDER,
+    R2_ELF_REASON_DUPLICATE_PROGRAM, R2_ELF_REASON_UNKNOWN_PROGRAM,
+    R2_ELF_REASON_DYNAMIC_SIZE, R2_ELF_REASON_DYNAMIC_LIMIT,
+    R2_ELF_REASON_DYNAMIC_TERMINATOR, R2_ELF_REASON_DUPLICATE_TAG,
+    R2_ELF_REASON_UNKNOWN_DYNAMIC, R2_ELF_REASON_NEEDED_LIMIT,
+    R2_ELF_REASON_STRING_TABLE_PAIR, R2_ELF_REASON_STRING_TABLE,
+    R2_ELF_REASON_STRING_INDEX, R2_ELF_REASON_STRING_TERMINATOR,
+    R2_ELF_REASON_STRING_LIMIT, R2_ELF_REASON_STRING_BYTES_LIMIT,
+    R2_ELF_REASON_STRING_ASCII, R2_ELF_REASON_EMPTY_NAME,
+    R2_ELF_REASON_ARRAY_PAIR, R2_ELF_REASON_ARRAY_ALIGNMENT,
+    R2_ELF_REASON_WORK_LIMIT
+};
+#define R2_ELF_VALUE_FILE_OFFSET 1u
+#define R2_ELF_VALUE_VIRTUAL_ADDRESS 2u
+#define R2_ELF_VALUE_SCALAR 3u
+#define R2_ELF_STRING_NEEDED 1u
+#define R2_ELF_STRING_SONAME 2u
+#define R2_ELF_STRING_RPATH 3u
+#define R2_ELF_STRING_RUNPATH 4u
+#define R2_ELF_DYNAMIC_STRING 1u
+#define R2_ELF_DYNAMIC_TABLE 2u
+#define R2_ELF_DYNAMIC_APPLICATION 3u
+#define R2_ELF_DYNAMIC_RAW_ONLY 4u
+#define R2_ELF_DYNAMIC_UNKNOWN 5u
+#define R2_ELF_DYNAMIC_TERMINATOR 6u
+#define R2_ELF_CONDITION_INTERPRETER 1u
+#define R2_ELF_CONDITION_TLS 2u
+#define R2_ELF_CONDITION_INIT 4u
+#define R2_ELF_CONDITION_FINI 8u
+#define R2_ELF_CONDITION_INIT_FINI 12u /* composite convenience mask */
+#define R2_ELF_CONDITION_INIT_ARRAY 16u
+#define R2_ELF_CONDITION_FINI_ARRAY 32u
+#define R2_ELF_CONDITION_PREINIT_ARRAY 64u
+#define R2_ELF_CONDITION_SEARCH_PATH 128u
+/* Unconditional even for structurally complete static files. */
+#define R2_ELF_UNPROVEN_SECTIONS_SYMBOLS 1u
+#define R2_ELF_UNPROVEN_RELOCATION_VERSION_IFUNC 2u
+#define R2_ELF_UNPROVEN_DYNAMIC_RAW_SEMANTICS 4u
+#define R2_ELF_UNPROVEN_AMBIENT_TRANSITIVE_PROVIDER 8u
+#define R2_ELF_UNPROVEN_ORIGINAL_IDENTITY 16u
+#define R2_ELF_UNPROVEN_PRELOAD_AUTHORITY 32u
+#define R2_ELF_UNPROVEN_ALL 63u
+
+struct r2_elf_raw_program_v1 {
+    uint32_t type, flags;
+    uint64_t file_offset, virtual_address, physical_address;
+    uint64_t file_size, memory_size, alignment, header_offset;
+};
+struct r2_elf_raw_dynamic_v1 {
+    uint64_t raw_tag, raw_value, file_offset;
+    uint32_t interpretation, reserved;
+};
+struct r2_elf_raw_string_v1 {
+    uint32_t kind, dynamic_index, file_offset, length;
+    uint64_t string_index;
+    uint32_t complete, reserved;
+};
+struct r2_elf_raw_report_v1 {
+    uint32_t abi, size, raw_status, reason;
+    uint32_t preload_scope, structural_complete, program_count, load_count;
+    uint32_t dynamic_count, strings_count, needed_count, dynamic_terminated;
+    uint32_t unknown_program_count, unknown_dynamic_count;
+    uint32_t application_conditions, remaining_unproven;
+    uint32_t string_bytes_inspected, header_valid, declared_phnum, dynamic_present;
+    uint32_t interpreter_present, tls_present, string_table_present, string_size_present;
+    uint64_t file_bytes, work_units, failure_offset, failure_value;
+    uint64_t entry, program_table_offset, dynamic_offset, dynamic_size;
+    uint64_t string_table_address, string_table_size, string_table_offset;
+    uint64_t interpreter_offset, interpreter_size, tls_offset, tls_filesz, tls_memsz;
+    uint32_t failure_value_kind, failure_subject_type, dynamic_declared_entries;
+    uint32_t dynamic_remainder_unknown, needed_remainder_unknown, interpreter_length;
+    uint32_t elf_type, elf_flags;
+    struct r2_elf_raw_program_v1 programs[R2_ELF_RAW_PROGRAM_LIMIT];
+    struct r2_elf_raw_dynamic_v1 dynamics[R2_ELF_RAW_DYNAMIC_LIMIT];
+    struct r2_elf_raw_string_v1 strings[R2_ELF_RAW_STRING_RECORD_LIMIT];
+};
+/* Caller supplies stable, readable original FILE bytes, never a mapped image,
+ * and distinct aligned accessible exclusive output memory for the whole call.
+ * const/range checks cannot establish those preconditions or immutable file
+ * identity. Invalid ABI/exact size/alignment/integer ranges/overlap returns
+ * BAD_ARGUMENT with ALL previous output bytes untouched. Check the return;
+ * caller-provided parse/status fields are never accepted as evidence.
+ * Other returns initialize output, retain partial raw records, and leave
+ * structural_complete zero on truncation, limits or unsupported semantics.
+ * Program records include every inspected entry, including PT_NULL whose
+ * undefined fields are retained and ignored. Counts include partial strings.
+ * The 1MiB string-byte ceiling is also enforced; under these entry/name caps
+ * it is conservatively redundant (all references plus interpreter <1MiB).
+ * Dynamic records stop at first DT_NULL; declared extent and unknown remainder
+ * are distinct. needed_remainder_unknown stays set until all selected raw
+ * checks finish and remains set for unknown program/dynamic semantics.
+ * String lengths exclude NUL; all original-FILE string reads,
+ * including interpreter and repeat references, charge the inclusive-NUL cap.
+ * failure_offset is the field/entry FILE offset when available; failure_value
+ * and its kind retain the failing scalar/address separately. First reason is
+ * preserved even if a later structural error is also encountered.
+ * Selected profile: ELF64 LE x86-64, EXEC/DYN, current versions, OSABI System V
+ * or Linux with ABI version zero, 64/56-byte headers, program table after the
+ * 64-byte ELF header, ordinary program count,
+ * at least one ordered nonoverlapping LOAD. No section-count fallback.
+ * Each consumed virtual-pointer metadata span maps uniquely inside ONE LOAD's
+ * original raw bytes. INTERP uses its explicit FILE offset, not a VA;
+ * virtual zero fill is never read as FILE bytes. Unknown program/dynamic
+ * semantics remain explicitly UNSUPPORTED; GNU EH_FRAME/STACK/RELRO/PROPERTY,
+ * NOTE, PHDR and familiar hash/symbol/relocation/version/flags dynamic
+ * tags are named/raw-only facts, not semantic validation or loader support.
+ * Reserved PT_SHLIB is retained as unsupported, with other unknown programs.
+ * Strings are a bounded ASCII subset; NEEDED/SONAME must be nonempty. Even an
+ * empty RPATH/RUNPATH is PRESENT. TLS (including empty), interpreter, INIT,
+ * FINI and all three initializer arrays are separate application conditions.
+ * Array pairs/alignment/raw extent are checked; entries are not executed or
+ * interpreted. Sections/symbols/relocations/version/IFUNC remain unvalidated.
+ * Work units conservatively reserve initialization, reads, entries, scans and
+ * comparisons BEFORE work. There are no refunds. Algorithmic limits establish
+ * neither causal billing nor a runtime deadline, RAM grant or OS enforcement.
+ * COMPLETE covers only this selected raw structural profile. Every report
+ * unconditionally retains PRELOAD_CLOSURE_UNPROVEN. No ambient resolution,
+ * provider/transitive closure, immutable manifest, birth/transport, C00, Stage,
+ * v2 success path, loader or authority is established or invoked.
+ */
+uint32_t route2_elf_preload_parse_raw_v1(
+    const unsigned char *file, size_t file_size, uint32_t report_abi,
+    struct r2_elf_raw_report_v1 *out, size_t out_size);
+#endif
+#endif
