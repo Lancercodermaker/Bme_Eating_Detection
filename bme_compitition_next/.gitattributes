@@ -15,3 +15,9 @@ src/eating_event/route2_candidate_overlap/native/route2_windows_preload_catalog.
 src/eating_event/route2_candidate_overlap/native/route2_windows_preload_catalog.c -text
 tests/native/route2_pe_preload_catalog_harness.c -text
 tests/native/route2_elf_preload_parser_harness.c -text
+src/eating_event/route2_candidate_overlap/native/route2_elf_link_metadata.c -text
+src/eating_event/route2_candidate_overlap/native/route2_elf_link_metadata.h -text
+tests/native/route2_elf_link_metadata_harness.c -text
+src/eating_event/route2_candidate_overlap/native/route2_pe_base_relocations.c -text
+src/eating_event/route2_candidate_overlap/native/route2_pe_base_relocations.h -text
+tests/native/route2_pe_base_relocations_harness.c -text
