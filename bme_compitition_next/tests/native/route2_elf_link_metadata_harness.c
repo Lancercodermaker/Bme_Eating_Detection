@@ -156,9 +156,15 @@ static void fixtures_limits_and_arguments(void) {
     expect(route2_elf_link_metadata_parse_v1(fx,FX_BYTES,1,&report,sizeof report-1,&workspace,sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
     expect(route2_elf_link_metadata_parse_v1(fx,FX_BYTES,1,&report,sizeof report,NULL,sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
     expect(route2_elf_link_metadata_parse_v1(fx,FX_BYTES,1,NULL,sizeof report,&workspace,sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
-    expect(route2_elf_link_metadata_parse_v1(fx,FX_BYTES,1,(struct r2_elf_link_report_v1 *)(p+1),sizeof report,&workspace,sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
+    /* Misalignment fixtures assume native Linux x86-64 integer/address mapping.
+     * Integer-to-object-pointer conversion is implementation-defined (C11
+     * 6.3.2.3p5); this proves no portable or installed ABI. Under that assumption,
+     * these static objects' aligned addresses admit integer +1 without wrap.
+     * Invalid pointers are never dereferenced; the parser must reject them.
+     */
+    expect(route2_elf_link_metadata_parse_v1(fx,FX_BYTES,1,(struct r2_elf_link_report_v1 *)((uintptr_t)&report+1u),sizeof report,&workspace,sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
     expect(route2_elf_link_metadata_parse_v1(fx,FX_BYTES,1,&report,sizeof report,(struct r2_elf_link_workspace_v1 *)&report,sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
-    expect(route2_elf_link_metadata_parse_v1(fx,FX_BYTES,1,&report,sizeof report,(struct r2_elf_link_workspace_v1 *)(w+1),sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
+    expect(route2_elf_link_metadata_parse_v1(fx,FX_BYTES,1,&report,sizeof report,(struct r2_elf_link_workspace_v1 *)((uintptr_t)&workspace+1u),sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
     expect(route2_elf_link_metadata_parse_v1((const unsigned char *)&workspace,16,1,&report,sizeof report,&workspace,sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
     expect(route2_elf_link_metadata_parse_v1(fx,FX_BYTES,1,(struct r2_elf_link_report_v1 *)(uintptr_t)(UINTPTR_MAX-7u),sizeof report,&workspace,sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
     expect(route2_elf_link_metadata_parse_v1(fx,FX_BYTES,1,&report,sizeof report,(struct r2_elf_link_workspace_v1 *)(uintptr_t)(UINTPTR_MAX-7u),sizeof workspace,R2_ELF_LINK_WORK_LIMIT)==R2_ELF_LINK_BAD_ARGUMENT);
