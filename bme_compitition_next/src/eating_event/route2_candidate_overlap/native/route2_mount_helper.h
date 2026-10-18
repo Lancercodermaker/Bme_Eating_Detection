@@ -1094,3 +1094,159 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_machine_memory_copy_report
     struct r2_win_machine_memory_report_v1 *out, size_t out_size);
 #endif
 #endif
+
+/* C00 GPU original-adapter limb: SOURCE ONLY / UNCOMPILED. Explicit opt-in.
+ * Build this existing Windows-seed C11 translation unit with Windows extensions,
+ * R2_ENABLE_WIN_GPU_RAW_V1, Windows SDK 10.0.26100 or newer, _WIN32_WINNT targeting
+ * Windows 10+, NTDDI_VERSION >= NTDDI_WIN11_GE and the actual SDK's WDDM 3.2+
+ * interface. Windows.h precedes d3dkmthk.h. Link onecoreuap.lib (EnumAdapters3)
+ * and Gdi32.lib (QueryAdapterInfo/CloseAdapter); documented DLL: Gdi32.dll.
+ * Compile guards establish declaration availability only. Installed SDK, OS,
+ * runtime support, driver behavior and dependency closure are NOT certified.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_GPU_RAW_V1)
+#ifndef R2_WIN_GPU_RAW_V1_DECLARED
+#define R2_WIN_GPU_RAW_V1_DECLARED
+#define R2_WIN_GPU_RAW_ABI 1u
+#define R2_WIN_GPU_REPORT_BYTES 31536u
+#define R2_WIN_GPU_ADAPTER_CAP 16u
+#define R2_WIN_GPU_MEMBER_CAP 8u
+#define R2_WIN_GPU_FAULT_CAP 8u
+#define R2_WIN_GPU_NATIVE_WORK_CAP 194u
+#define R2_WIN_GPU_UNPROVEN_ALL 255u
+
+enum r2_win_gpu_status_v1 {
+    R2_GPU_UNUSED = 0, R2_GPU_PENDING = 0xC101u,
+    R2_GPU_RAW_COMPLETE = 0xC102u, R2_GPU_RAW_PARTIAL = 0xC103u,
+    R2_GPU_RETAINED = 0xC104u, R2_GPU_BAD_ARGUMENT = 0xC105u,
+    R2_GPU_BUSY = 0xC106u, R2_GPU_COPY_OK = 0xC107u
+};
+enum r2_win_gpu_ownership_v1 {
+    R2_GPU_OWN_NONE = 0, R2_GPU_OWN_KNOWN = 1,
+    R2_GPU_ENUM_FAILED_OWNERSHIP_UNKNOWN = 2,
+    R2_GPU_ENUM_INVALID_OWNERSHIP_UNKNOWN = 3
+};
+enum r2_win_gpu_operation_v1 {
+    R2_GPU_OP_STATE = 1, R2_GPU_OP_ENUM_SIZE, R2_GPU_OP_ENUM_POPULATE,
+    R2_GPU_OP_ADAPTER_TYPE, R2_GPU_OP_SEGMENTS, R2_GPU_OP_MEMBER_COUNT,
+    R2_GPU_OP_MEMBER_SEGMENTS, R2_GPU_OP_CLOSE, R2_GPU_OP_FINISH
+};
+enum r2_win_gpu_fault_kind_v1 {
+    R2_GPU_FAULT_NTSTATUS = 1, R2_GPU_FAULT_WIN32 = 2,
+    R2_GPU_FAULT_INVARIANT = 3, R2_GPU_FAULT_OWNER = 4
+};
+enum r2_win_gpu_reason_v1 {
+    R2_GPU_REASON_STATE = 1, R2_GPU_REASON_IDENTITY, R2_GPU_REASON_CLOCK,
+    R2_GPU_REASON_DEADLINE, R2_GPU_REASON_BOUND, R2_GPU_REASON_HANDLE,
+    R2_GPU_REASON_DUPLICATE, R2_GPU_REASON_INDEX, R2_GPU_REASON_RACE,
+    R2_GPU_REASON_COUNTER, R2_GPU_REASON_CONTEXT_CHANGED
+};
+struct r2_win_gpu_clock_v1 {
+    int64_t raw_qpc;
+    uint32_t attempted, raw_result, win32_error, win32_error_valid;
+};
+struct r2_win_gpu_call_v1 {
+    uint32_t attempted, ntstatus_bits, ntstatus_valid, data_valid;
+    struct r2_win_gpu_clock_v1 clocks[4];
+};
+struct r2_win_gpu_fault_v1 {
+    uint32_t operation, kind, reason, raw_code;
+    uint32_t adapter_index, member_index, reserved[2];
+};
+struct r2_win_gpu_member_v1 {
+    uint32_t input_index, returned_index, reserved[2];
+    uint64_t legacy_dedicated_video, legacy_dedicated_system, legacy_shared_system;
+    uint64_t local_bytes, nonlocal_bytes, nonbudget_bytes;
+    struct r2_win_gpu_call_v1 segments;
+};
+struct r2_win_gpu_adapter_v1 {
+    uint32_t luid_low; int32_t luid_high;
+    uint32_t sources, precise_present_regions_bits;
+    uint32_t adopted, close_consumed, close_succeeded, member_count;
+    uint32_t adapter_type_bits, reserved[3];
+    uint64_t dedicated_video, dedicated_system, shared_system;
+    struct r2_win_gpu_call_v1 type, segments, count, close;
+    struct r2_win_gpu_member_v1 members[R2_WIN_GPU_MEMBER_CAP];
+};
+struct r2_win_gpu_report_v1 {
+    uint32_t abi, size, status, stop_new;
+    uint32_t acquisition_consumed, acquisition_complete, finish_consumed, ownership;
+    uint32_t sizing_count_bits, sizing_count_valid, populated_count_bits, populated_count_valid;
+    uint32_t adopted_count, close_consumed_count, close_succeeded_count, all_known_once_closed;
+    uint32_t pending_liability, native_work_count, fault_count, omitted_fault_count;
+    uint32_t creator_pid, creator_tid, remaining_unproven, owner_lifecycle;
+    uint64_t intent_serial, creator_creation_100ns;
+    int64_t lease_epoch_qpc, qpc_frequency, stop_deadline_qpc, cleanup_deadline_qpc;
+    struct r2_win_gpu_fault_v1 primary, secondary;
+    struct r2_win_gpu_fault_v1 faults[R2_WIN_GPU_FAULT_CAP];
+    struct r2_win_gpu_call_v1 sizing, populate;
+    struct r2_win_gpu_adapter_v1 adapters[R2_WIN_GPU_ADAPTER_CAP];
+};
+/* No caller handles/PIDs/samples/permission flags/callbacks/allocations. This
+ * sole acquisition chance is consumed even on failure. It requires ORIGINAL
+ * C02 INTENT_HELD, before child birth reservation and STOP_NEW; every native
+ * boundary rechecks the same creator handle/PID/TID/creation/intent/lease and
+ * ORIGINAL absolute stop/cleanup clocks. No original history or clock resets.
+ * One sizing query and at most one populated EnumAdapters3 use all three
+ * inclusion flags with reserved zero. Caps 16/8 and <=194 lifetime D3DKMT calls
+ * are implementation policies, NOT SDK/hardware maxima or time/RAM grants.
+ * Win64 report is 31,536 bytes; native private buffers plus report are statically
+ * constrained below 65,536 bytes. Stack locals and identity/QPC work are bounded
+ * per call; synchronous wall time and external driver allocations are unproven.
+ * All successful, bounded, nonzero, distinct original typed KMT handles are
+ * adopted before QueryAdapterInfo. Handles stay private: no PID/LUID reopen.
+ * Per adapter: separate ADAPTERTYPE, GETSEGMENTSIZE, PHYSICALADAPTERCOUNT, then
+ * bounded GETSEGMENTGROUPSIZE per member. Zeroed SDK buffers, raw NTSTATUS bits,
+ * validity, failed partial scalar values and four QPC endpoints are retained.
+ * Clocks bracket pre-identity, native entry/return and post-identity; identity
+ * query faults also remain in the unchanged C02 report. No GetLastError is
+ * substituted for NTSTATUS. Successful raw zero memory is not missing data.
+ *
+ * A failed populated enumeration has UNDEFINED NumAdapters: the entire native
+ * array remains OPAQUE/private, is never iterated and is never speculatively
+ * closed. Impossible successful counts, zero/duplicate handles likewise retain
+ * ambiguous ownership. STOP_NEW and pending original-process liability remain.
+ * There is no fallback/re-enumeration, speculative CloseHandle, retry or reopen.
+ * finish_once consumes each known original handle before its sole documented
+ * D3DKMTCloseAdapter attempt. Independent remaining closes can proceed after a
+ * failed close while original identity/time remain. Failed/ambiguous attempts
+ * retain raw outcomes and liability; consumed never means released.
+ *
+ * finish_once closes ONLY GPU handles. It does not invoke or wire C02 cleanup.
+ * A future consumer MUST call it before existing C02 finish can close creator;
+ * calling C02 finish first is misuse and this limb rejects the lost identity,
+ * retains liability and cannot claim cleanup. Unresolved contexts, native
+ * buffers and library MUST remain strongly retained until known completion or
+ * an explicit unresolved original-owner handoff (not implemented here).
+ * RAW_COMPLETE requires complete raw acquisition, all known handles once
+ * successfully closed, and no component fault/pending liability. It proves
+ * neither original child exit nor C02 DONE. COPY_OK only means copied bytes.
+ * Synchronous stalls are not cancelled/bounded by checks; no pending result
+ * accepts capacity. Fault primary/secondary are immutable; first eight faults
+ * and saturating omitted counts are a bounded partial history, not a ledger.
+ * BUSY acquisition/finish atomically latch a race and the original STOP_NEW;
+ * the next guarded operation/copy retains that fault. Copy may materialize
+ * that already-latched race but performs no native sampling or attempt reset.
+ *
+ * Legacy/local/nonlocal/shared/dedicated-system/nonbudget fields are separate
+ * observations, never summed into VRAM or assumed disjoint physical capacity.
+ * LUID/member indexes are raw mappings only. GPU-PV count 1 can differ from
+ * host topology. remaining_unproven always includes hidden/physical topology,
+ * immutable capacity, whole RAM/VRAM, full-phase CPU, phase/causal fees, provider
+ * closure, pre-load/first-entry provenance and owner exit. All phase fees remain
+ * UNKNOWN_NOT_ZERO; no zero-initialized raw field bills. No 16GiB/8GiB PASS,
+ * VM_SERVICE_SCOPE, E_PHYSICAL_CAP, OWNER_EXIT or generic authority is emitted.
+ * No C04-C12 source/consumer assembly, export-map/mount ABI or loader wiring.
+ *
+ * copy requires exact sizeof(report), natural alignment, nonwrapping range,
+ * disjointness from ALL new private and original owner/RAM/report/guard/stop
+ * objects, and caller-provided accessible stable exclusive writable storage.
+ * Checks do not establish accessibility/exclusivity. BAD_ARGUMENT/BUSY do not
+ * write output. No automatic native call, birth, thread or driver action.
+ */
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_gpu_acquire_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_gpu_finish_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_gpu_copy_report_v1(
+    struct r2_win_gpu_report_v1 *out, size_t out_size);
+#endif
+#endif

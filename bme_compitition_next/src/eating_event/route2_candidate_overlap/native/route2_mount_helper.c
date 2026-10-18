@@ -3753,3 +3753,449 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_machine_memory_copy_report
 }
 #endif
 #endif
+
+/* C00 selected original-adapter GPU source limb; no consumer assembly. */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_GPU_RAW_V1)
+#ifndef R2_WIN_GPU_RAW_V1_BODY
+#define R2_WIN_GPU_RAW_V1_BODY
+#include <Windows.h>
+#include <d3dkmthk.h>
+#if !defined(NTDDI_WIN11_GE) || !defined(WDK_NTDDI_VERSION) || \
+    !defined(NTDDI_VERSION) || !defined(_WIN32_WINNT_WIN10) || \
+    !defined(_WIN32_WINNT) || !defined(DXGKDDI_INTERFACE_VERSION_WDDM3_2) || \
+    !defined(DXGKDDI_INTERFACE_VERSION)
+#error "GPU opt-in requires actual Windows 11 24H2 / SDK 10.0.26100+ declarations"
+#endif
+#if NTDDI_VERSION < NTDDI_WIN11_GE || WDK_NTDDI_VERSION < NTDDI_WIN11_GE || \
+    _WIN32_WINNT < _WIN32_WINNT_WIN10 || \
+    DXGKDDI_INTERFACE_VERSION < DXGKDDI_INTERFACE_VERSION_WDDM3_2
+#error "GPU opt-in requires Windows 11 24H2 target and WDDM 3.2+ interface"
+#endif
+/* No SDK constants, function declarations, COM vtables or imports are emulated.
+ * The existing top Windows PE TU remains the sole core inclusion site.
+ * Microsoft primary declaration evidence (Context7 resolved first):
+ * win32metadata/.../shared/{sdkddkver.h,d3dukmdt.h,d3dkmthk.h}; Learn DDI pages
+ * nf-d3dkmthk-{d3dkmtenumadapters3,d3dkmtqueryadapterinfo,d3dkmtcloseadapter},
+ * ns-d3dkmthk-{_d3dkmt_enumadapters3,_d3dkmt_segmentgroupsizeinfo}.
+ */
+_Static_assert(sizeof(NTSTATUS) == 4 && sizeof(D3DKMT_HANDLE) == 4 &&
+    sizeof(UINT) == 4 && sizeof(ULONG) == 4, "GPU SDK scalar ABI");
+_Static_assert(sizeof(struct r2_win_gpu_clock_v1) == 24 &&
+    sizeof(struct r2_win_gpu_call_v1) == 112 &&
+    sizeof(struct r2_win_gpu_fault_v1) == 32 &&
+    sizeof(struct r2_win_gpu_member_v1) == 176 &&
+    sizeof(struct r2_win_gpu_adapter_v1) == 1928 &&
+    sizeof(struct r2_win_gpu_report_v1) == R2_WIN_GPU_REPORT_BYTES, "GPU raw Win64 report ABI");
+_Static_assert(sizeof(D3DKMT_ADAPTERTYPE) <= UINT_MAX &&
+    sizeof(D3DKMT_SEGMENTSIZEINFO) <= UINT_MAX &&
+    sizeof(D3DKMT_PHYSICAL_ADAPTER_COUNT) <= UINT_MAX &&
+    sizeof(D3DKMT_SEGMENTGROUPSIZEINFO) <= UINT_MAX,
+    "GPU exact SDK query payload sizes must fit UINT");
+_Static_assert(R2_WIN_GPU_NATIVE_WORK_CAP ==
+    2u + R2_WIN_GPU_ADAPTER_CAP * (4u + R2_WIN_GPU_MEMBER_CAP),
+    "GPU lifetime native work policy");
+struct r2_gpu_private_v1 {
+    HANDLE original_creator;
+    volatile LONG race;
+    uint32_t race_recorded;
+    D3DKMT_ENUMADAPTERS3 sizing, populate;
+    D3DKMT_ADAPTERINFO opaque_adapters[R2_WIN_GPU_ADAPTER_CAP];
+    D3DKMT_HANDLE original[R2_WIN_GPU_ADAPTER_CAP];
+    D3DKMT_ADAPTERTYPE types[R2_WIN_GPU_ADAPTER_CAP];
+    D3DKMT_SEGMENTSIZEINFO segments[R2_WIN_GPU_ADAPTER_CAP];
+    D3DKMT_PHYSICAL_ADAPTER_COUNT counts[R2_WIN_GPU_ADAPTER_CAP];
+    D3DKMT_SEGMENTGROUPSIZEINFO members[R2_WIN_GPU_ADAPTER_CAP][R2_WIN_GPU_MEMBER_CAP];
+};
+static struct r2_gpu_private_v1 r2_gpu_v1;
+static struct r2_win_gpu_report_v1 r2_gpu_report_v1 = {
+    .abi = R2_WIN_GPU_RAW_ABI, .size = sizeof(struct r2_win_gpu_report_v1),
+    .remaining_unproven = R2_WIN_GPU_UNPROVEN_ALL
+};
+_Static_assert(sizeof(struct r2_gpu_private_v1) +
+    sizeof(struct r2_win_gpu_report_v1) < 65536u,
+    "GPU fixed control storage policy, not a whole-memory grant");
+static void r2_gpu_stop_v1(uint32_t residual)
+{
+    InterlockedExchange(&r2_own_stop_v1, 1);
+    r2_own_report_v1.stop_new = 1;
+    r2_own_report_v1.residual_bits |= residual;
+    if ((r2_own_v1.process && !r2_own_report_v1.process_signaled) ||
+        (r2_own_v1.thread && !r2_own_report_v1.thread_signaled) ||
+        (r2_own_v1.job && !r2_own_report_v1.job_empty))
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_JOIN;
+    r2_gpu_report_v1.stop_new = 1;
+}
+static void r2_gpu_fault_v1(uint32_t op, uint32_t kind, uint32_t reason,
+    uint32_t raw, uint32_t adapter, uint32_t member)
+{
+    struct r2_win_gpu_report_v1 *r = &r2_gpu_report_v1;
+    struct r2_win_gpu_fault_v1 f = {op, kind, reason, raw, adapter, member, {0, 0}};
+    r2_gpu_stop_v1(R2_OWN_RESIDUAL_SAMPLE);
+    if (r->fault_count < R2_WIN_GPU_FAULT_CAP) r->faults[r->fault_count] = f;
+    else if (r->omitted_fault_count != UINT32_MAX) ++r->omitted_fault_count;
+    if (!r->fault_count) r->primary = f;
+    else if (r->fault_count == 1) r->secondary = f;
+    if (r->fault_count != UINT32_MAX) ++r->fault_count;
+}
+static int r2_gpu_context_v1(uint32_t op, uint32_t adapter, uint32_t member)
+{
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    const struct r2_win_gpu_report_v1 *r = &r2_gpu_report_v1;
+    if (!r2_own_v1.creator || r2_own_v1.creator != r2_gpu_v1.original_creator ||
+        !r2_own_v1.deadline_bound ||
+        !o->attempt_consumed || o->creator_creation_100ns.state != R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle < R2_OWN_INTENT_HELD || o->lifecycle == R2_OWN_CLOSING ||
+        o->lifecycle == R2_OWN_DONE || o->lifecycle > R2_OWN_RETAINED ||
+        o->creator_pid != r->creator_pid || o->creator_tid != r->creator_tid ||
+        o->creator_creation_100ns.value != r->creator_creation_100ns ||
+        o->intent_serial != r->intent_serial || o->lease_epoch_qpc != r->lease_epoch_qpc ||
+        o->qpc_frequency != r->qpc_frequency ||
+        o->stop_deadline_qpc != r->stop_deadline_qpc ||
+        o->cleanup_deadline_qpc != r->cleanup_deadline_qpc) {
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_OWNER, R2_GPU_REASON_CONTEXT_CHANGED, 0, adapter, member);
+        return 0;
+    }
+    if (GetCurrentProcessId() != r->creator_pid || GetCurrentThreadId() != r->creator_tid ||
+        !r2_own_creator_identity_v1()) {
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_OWNER, R2_GPU_REASON_IDENTITY, 0, adapter, member);
+        return 0;
+    }
+    return 1;
+}
+static int r2_gpu_clock_v1(struct r2_win_gpu_call_v1 *call, uint32_t endpoint,
+    uint32_t op, uint32_t adapter, uint32_t member, int cleanup)
+{
+    struct r2_win_gpu_clock_v1 *c = &call->clocks[endpoint];
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    LARGE_INTEGER now = {0};
+    int64_t deadline = cleanup ? r2_gpu_report_v1.cleanup_deadline_qpc :
+        r2_gpu_report_v1.stop_deadline_qpc;
+    BOOL result;
+    c->attempted = 1;
+    result = QueryPerformanceCounter(&now);
+    c->raw_result = (uint32_t)result;
+    if (!result) {
+        DWORD error = GetLastError();
+        c->win32_error = error; c->win32_error_valid = 1;
+        o->clock_valid = 0; o->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_WIN32, R2_GPU_REASON_CLOCK, error, adapter, member);
+        return 0;
+    }
+    c->raw_qpc = now.QuadPart;
+    if (now.QuadPart <= 0 || now.QuadPart < o->last_qpc || !o->clock_valid ||
+        (o->residual_bits & R2_OWN_RESIDUAL_CLOCK)) {
+        o->clock_valid = 0; o->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_CLOCK, 0, adapter, member);
+        return 0;
+    }
+    o->last_qpc = now.QuadPart;
+    if (deadline <= 0 || now.QuadPart >= deadline) {
+        o->residual_bits |= R2_OWN_RESIDUAL_DEADLINE;
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_DEADLINE, 0, adapter, member);
+        return 0;
+    }
+    return 1;
+}
+static int r2_gpu_before_v1(struct r2_win_gpu_call_v1 *call, uint32_t op,
+    uint32_t adapter, uint32_t member, int cleanup)
+{
+    if (r2_gpu_report_v1.native_work_count >= R2_WIN_GPU_NATIVE_WORK_CAP) {
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_COUNTER, 0, adapter, member);
+        return 0;
+    }
+    if (!cleanup && (r2_own_stopped_v1() || r2_own_report_v1.birth_attempted ||
+        r2_own_report_v1.lifecycle != R2_OWN_INTENT_HELD)) {
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_RACE, 0, adapter, member);
+        return 0;
+    }
+    if (!r2_gpu_clock_v1(call, 0, op, adapter, member, cleanup)) return 0;
+    if (!r2_gpu_context_v1(op, adapter, member)) return 0;
+    if (!r2_gpu_clock_v1(call, 1, op, adapter, member, cleanup)) return 0;
+    if (!cleanup && r2_own_stopped_v1()) {
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_RACE, 0, adapter, member);
+        return 0;
+    }
+    return 1;
+}
+static int r2_gpu_after_v1(struct r2_win_gpu_call_v1 *call, uint32_t op,
+    uint32_t adapter, uint32_t member, int cleanup)
+{
+    int clock_ok = r2_gpu_clock_v1(call, 2, op, adapter, member, cleanup);
+    if (!clock_ok) return 0;
+    int identity_ok = r2_gpu_context_v1(op, adapter, member);
+    int end_ok = r2_gpu_clock_v1(call, 3, op, adapter, member, cleanup || !clock_ok || !identity_ok);
+    if (!cleanup && r2_own_stopped_v1()) {
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_RACE, 0, adapter, member);
+        return 0;
+    }
+    return clock_ok && identity_ok && end_ok;
+}
+static void r2_gpu_result_v1(struct r2_win_gpu_call_v1 *call, NTSTATUS status,
+    uint32_t op, uint32_t adapter, uint32_t member)
+{
+    call->ntstatus_bits = (uint32_t)status; call->ntstatus_valid = 1;
+    if (status != 0)
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_NTSTATUS, 0, (uint32_t)status, adapter, member);
+}
+static void r2_gpu_refresh_v1(void)
+{
+    struct r2_win_gpu_report_v1 *r = &r2_gpu_report_v1;
+    if (InterlockedCompareExchange(&r2_gpu_v1.race, 0, 0) && !r2_gpu_v1.race_recorded) {
+        r2_gpu_v1.race_recorded = 1;
+        r2_gpu_fault_v1(R2_GPU_OP_STATE, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_RACE, 0, 0, 0);
+    }
+    r->stop_new = (uint32_t)r2_own_stopped_v1();
+    r->owner_lifecycle = r2_own_report_v1.lifecycle;
+    r->all_known_once_closed = r->ownership == R2_GPU_OWN_KNOWN &&
+        r->close_succeeded_count == r->adopted_count &&
+        r->close_consumed_count == r->adopted_count;
+    r->pending_liability = r->fault_count != 0 ||
+        r->ownership == R2_GPU_ENUM_FAILED_OWNERSHIP_UNKNOWN ||
+        r->ownership == R2_GPU_ENUM_INVALID_OWNERSHIP_UNKNOWN ||
+        (r->adopted_count && !r->all_known_once_closed);
+    if (r->fault_count && r->finish_consumed) r->status = R2_GPU_RETAINED;
+    else if (r->acquisition_complete && r->all_known_once_closed && !r->fault_count &&
+        !r->pending_liability) r->status = R2_GPU_RAW_COMPLETE;
+    else if (r->fault_count) r->status = R2_GPU_RAW_PARTIAL;
+    else r->status = r->acquisition_consumed ? R2_GPU_PENDING : R2_GPU_UNUSED;
+}
+static uint32_t r2_gpu_leave_v1(void)
+{
+    r2_gpu_refresh_v1();
+    struct r2_win_gpu_report_v1 *r = &r2_gpu_report_v1;
+    uint32_t status = r->status;
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return status;
+}
+static int r2_gpu_query_v1(uint32_t adapter, uint32_t member,
+    KMTQUERYADAPTERINFOTYPE type, void *native, size_t native_size,
+    struct r2_win_gpu_call_v1 *call, uint32_t op)
+{
+    D3DKMT_QUERYADAPTERINFO query = {0};
+    NTSTATUS status;
+    if (adapter >= R2_WIN_GPU_ADAPTER_CAP || member >= R2_WIN_GPU_MEMBER_CAP ||
+        !native_size || native_size > UINT_MAX || !r2_gpu_v1.original[adapter]) {
+        r2_gpu_fault_v1(op, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_BOUND, 0, adapter, member);
+        return 0;
+    }
+    if (!r2_gpu_before_v1(call, op, adapter, member, 0)) return 0;
+    query.hAdapter = r2_gpu_v1.original[adapter]; query.Type = type;
+    query.pPrivateDriverData = native; query.PrivateDriverDataSize = (UINT)native_size;
+    call->attempted = 1; ++r2_gpu_report_v1.native_work_count;
+    status = D3DKMTQueryAdapterInfo(&query);
+    r2_gpu_result_v1(call, status, op, adapter, member);
+    int endpoint_ok = r2_gpu_after_v1(call, op, adapter, member, status != 0);
+    call->data_valid = status == 0 && endpoint_ok;
+    return call->data_valid != 0;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_gpu_acquire_once_v1(void)
+{
+    struct r2_win_gpu_report_v1 *r = &r2_gpu_report_v1;
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    NTSTATUS status;
+    uint32_t i, j, n;
+    int valid;
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_gpu_v1.race, 1);
+        InterlockedExchange(&r2_own_stop_v1, 1);
+        return R2_GPU_BUSY;
+    }
+    if (r->acquisition_consumed || r->finish_consumed) {
+        r2_gpu_fault_v1(R2_GPU_OP_STATE, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_STATE, 0, 0, 0);
+        return r2_gpu_leave_v1();
+    }
+    r->acquisition_consumed = 1;
+    r2_gpu_v1.original_creator = r2_own_v1.creator;
+    r->creator_pid = o->creator_pid; r->creator_tid = o->creator_tid;
+    r->creator_creation_100ns = o->creator_creation_100ns.value;
+    r->intent_serial = o->intent_serial; r->lease_epoch_qpc = o->lease_epoch_qpc;
+    r->qpc_frequency = o->qpc_frequency; r->stop_deadline_qpc = o->stop_deadline_qpc;
+    r->cleanup_deadline_qpc = o->cleanup_deadline_qpc;
+    if (!o->attempt_consumed || !r2_own_v1.deadline_bound || !r2_own_v1.creator ||
+        o->creator_creation_100ns.state != R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle != R2_OWN_INTENT_HELD || o->birth_attempted || o->finish_started ||
+        r2_own_stopped_v1() || o->lease_epoch_qpc <= 0 || o->qpc_frequency <= 0 ||
+        o->stop_deadline_qpc <= o->lease_epoch_qpc ||
+        o->cleanup_deadline_qpc <= o->stop_deadline_qpc) {
+        r2_gpu_fault_v1(R2_GPU_OP_STATE, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_STATE, 0, 0, 0);
+        return r2_gpu_leave_v1();
+    }
+    r2_gpu_v1.sizing.Filter.IncludeComputeOnly = 1;
+    r2_gpu_v1.sizing.Filter.IncludeDisplayOnly = 1;
+    r2_gpu_v1.sizing.Filter.IncludeVirtualGpuOnly = 1;
+    if (!r2_gpu_before_v1(&r->sizing, R2_GPU_OP_ENUM_SIZE, 0, 0, 0)) return r2_gpu_leave_v1();
+    r->sizing.attempted = 1; ++r->native_work_count;
+    status = D3DKMTEnumAdapters3(&r2_gpu_v1.sizing);
+    r2_gpu_result_v1(&r->sizing, status, R2_GPU_OP_ENUM_SIZE, 0, 0);
+    r->sizing_count_bits = r2_gpu_v1.sizing.NumAdapters;
+    valid = r2_gpu_after_v1(&r->sizing, R2_GPU_OP_ENUM_SIZE, 0, 0, status != 0);
+    if (status != 0 || !valid) return r2_gpu_leave_v1();
+    r->sizing_count_valid = 1; r->sizing.data_valid = 1;
+    if (!r->sizing_count_bits || r->sizing_count_bits > R2_WIN_GPU_ADAPTER_CAP) {
+        r2_gpu_fault_v1(R2_GPU_OP_ENUM_SIZE, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_BOUND, 0, 0, 0);
+        return r2_gpu_leave_v1();
+    }
+    r2_gpu_v1.populate.Filter.IncludeComputeOnly = 1;
+    r2_gpu_v1.populate.Filter.IncludeDisplayOnly = 1;
+    r2_gpu_v1.populate.Filter.IncludeVirtualGpuOnly = 1;
+    r2_gpu_v1.populate.NumAdapters = r->sizing_count_bits;
+    r2_gpu_v1.populate.pAdapters = r2_gpu_v1.opaque_adapters;
+    if (!r2_gpu_before_v1(&r->populate, R2_GPU_OP_ENUM_POPULATE, 0, 0, 0)) return r2_gpu_leave_v1();
+    r->populate.attempted = 1; ++r->native_work_count;
+    status = D3DKMTEnumAdapters3(&r2_gpu_v1.populate);
+    /* This count is retained as bits ONLY until success and complete validation.
+     * On failure, do not derive any index, handle or cleanup from this count. */
+    r->populated_count_bits = r2_gpu_v1.populate.NumAdapters;
+    r2_gpu_result_v1(&r->populate, status, R2_GPU_OP_ENUM_POPULATE, 0, 0);
+    if (status != 0) {
+        r->ownership = R2_GPU_ENUM_FAILED_OWNERSHIP_UNKNOWN;
+        r2_gpu_stop_v1(R2_OWN_RESIDUAL_SAMPLE | R2_OWN_RESIDUAL_CLOSE);
+        (void)r2_gpu_after_v1(&r->populate, R2_GPU_OP_ENUM_POPULATE, 0, 0, 1);
+        return r2_gpu_leave_v1();
+    }
+    n = r->populated_count_bits;
+    valid = n != 0 && n <= R2_WIN_GPU_ADAPTER_CAP && n <= r->sizing_count_bits;
+    if (valid) {
+        for (i = 0; i < n; ++i) {
+            if (!r2_gpu_v1.opaque_adapters[i].hAdapter) { valid = 0; break; }
+            for (j = 0; j < i; ++j)
+                if (r2_gpu_v1.opaque_adapters[j].hAdapter == r2_gpu_v1.opaque_adapters[i].hAdapter)
+                    { valid = 0; break; }
+            if (!valid) break;
+        }
+    }
+    if (!valid) {
+        r->ownership = R2_GPU_ENUM_INVALID_OWNERSHIP_UNKNOWN;
+        r2_gpu_fault_v1(R2_GPU_OP_ENUM_POPULATE, R2_GPU_FAULT_INVARIANT,
+            n == 0 || n > R2_WIN_GPU_ADAPTER_CAP || n > r->sizing_count_bits ?
+                R2_GPU_REASON_BOUND : R2_GPU_REASON_HANDLE, 0, 0, 0);
+        r2_gpu_stop_v1(R2_OWN_RESIDUAL_CLOSE);
+        (void)r2_gpu_after_v1(&r->populate, R2_GPU_OP_ENUM_POPULATE, 0, 0, 1);
+        return r2_gpu_leave_v1();
+    }
+    /* All original handles are adopted before ANY subsequent native query,
+     * including the post-enumeration creator-identity checks that can fail. */
+    for (i = 0; i < n; ++i) {
+        D3DKMT_ADAPTERINFO *a = &r2_gpu_v1.opaque_adapters[i];
+        r2_gpu_v1.original[i] = a->hAdapter; r->adapters[i].adopted = 1;
+        r->adapters[i].luid_low = a->AdapterLuid.LowPart;
+        r->adapters[i].luid_high = a->AdapterLuid.HighPart;
+        r->adapters[i].sources = a->NumOfSources;
+        r->adapters[i].precise_present_regions_bits = (uint32_t)a->bPrecisePresentRegionsPreferred;
+    }
+    r->adopted_count = n; r->ownership = R2_GPU_OWN_KNOWN;
+    r->populated_count_valid = 1;
+    if (!r2_gpu_after_v1(&r->populate, R2_GPU_OP_ENUM_POPULATE, 0, 0, 0)) return r2_gpu_leave_v1();
+    r->populate.data_valid = 1;
+    for (i = 0; i < n; ++i) {
+        struct r2_win_gpu_adapter_v1 *a = &r->adapters[i];
+        valid = r2_gpu_query_v1(i, 0, KMTQAITYPE_ADAPTERTYPE, &r2_gpu_v1.types[i],
+            sizeof(r2_gpu_v1.types[i]), &a->type, R2_GPU_OP_ADAPTER_TYPE);
+        a->adapter_type_bits = r2_gpu_v1.types[i].Value;
+        if (!valid) return r2_gpu_leave_v1();
+        valid = r2_gpu_query_v1(i, 0, KMTQAITYPE_GETSEGMENTSIZE, &r2_gpu_v1.segments[i],
+            sizeof(r2_gpu_v1.segments[i]), &a->segments, R2_GPU_OP_SEGMENTS);
+        a->dedicated_video = r2_gpu_v1.segments[i].DedicatedVideoMemorySize;
+        a->dedicated_system = r2_gpu_v1.segments[i].DedicatedSystemMemorySize;
+        a->shared_system = r2_gpu_v1.segments[i].SharedSystemMemorySize;
+        if (!valid) return r2_gpu_leave_v1();
+        valid = r2_gpu_query_v1(i, 0, KMTQAITYPE_PHYSICALADAPTERCOUNT, &r2_gpu_v1.counts[i],
+            sizeof(r2_gpu_v1.counts[i]), &a->count, R2_GPU_OP_MEMBER_COUNT);
+        a->member_count = r2_gpu_v1.counts[i].Count;
+        if (!valid) return r2_gpu_leave_v1();
+        if (!a->member_count || a->member_count > R2_WIN_GPU_MEMBER_CAP) {
+            a->count.data_valid = 0;
+            r2_gpu_fault_v1(R2_GPU_OP_MEMBER_COUNT, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_BOUND, 0, i, 0);
+            return r2_gpu_leave_v1();
+        }
+        for (j = 0; j < a->member_count; ++j) {
+            D3DKMT_SEGMENTGROUPSIZEINFO *native = &r2_gpu_v1.members[i][j];
+            struct r2_win_gpu_member_v1 *m = &a->members[j];
+            native->PhysicalAdapterIndex = j; m->input_index = j;
+            valid = r2_gpu_query_v1(i, j, KMTQAITYPE_GETSEGMENTGROUPSIZE, native,
+                sizeof(*native), &m->segments, R2_GPU_OP_MEMBER_SEGMENTS);
+            m->returned_index = native->PhysicalAdapterIndex;
+            m->legacy_dedicated_video = native->LegacyInfo.DedicatedVideoMemorySize;
+            m->legacy_dedicated_system = native->LegacyInfo.DedicatedSystemMemorySize;
+            m->legacy_shared_system = native->LegacyInfo.SharedSystemMemorySize;
+            m->local_bytes = native->LocalMemory; m->nonlocal_bytes = native->NonLocalMemory;
+            m->nonbudget_bytes = native->NonBudgetMemory;
+            if (!valid) return r2_gpu_leave_v1();
+            if (m->returned_index != j) {
+                m->segments.data_valid = 0;
+                r2_gpu_fault_v1(R2_GPU_OP_MEMBER_SEGMENTS, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_INDEX, 0, i, j);
+                return r2_gpu_leave_v1();
+            }
+        }
+    }
+    r->acquisition_complete = 1;
+    return r2_gpu_leave_v1();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_gpu_finish_once_v1(void)
+{
+    struct r2_win_gpu_report_v1 *r = &r2_gpu_report_v1;
+    uint32_t i;
+    InterlockedExchange(&r2_own_stop_v1, 1);
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_gpu_v1.race, 1);
+        return R2_GPU_BUSY;
+    }
+    if (r->finish_consumed) return r2_gpu_leave_v1();
+    r->finish_consumed = 1;
+    if (!r->acquisition_consumed) {
+        r2_gpu_fault_v1(R2_GPU_OP_FINISH, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_STATE, 0, 0, 0);
+        return r2_gpu_leave_v1();
+    }
+    if (r->ownership == R2_GPU_ENUM_FAILED_OWNERSHIP_UNKNOWN ||
+        r->ownership == R2_GPU_ENUM_INVALID_OWNERSHIP_UNKNOWN) {
+        r2_gpu_stop_v1(R2_OWN_RESIDUAL_CLOSE);
+        return r2_gpu_leave_v1();
+    }
+    for (i = 0; i < r->adopted_count; ++i) {
+        struct r2_win_gpu_adapter_v1 *a = &r->adapters[i];
+        D3DKMT_CLOSEADAPTER close = {0};
+        NTSTATUS status;
+        if (a->close_consumed) continue;
+        if (!a->adopted || !r2_gpu_v1.original[i]) {
+            r2_gpu_fault_v1(R2_GPU_OP_CLOSE, R2_GPU_FAULT_INVARIANT, R2_GPU_REASON_HANDLE, 0, i, 0);
+            r2_gpu_stop_v1(R2_OWN_RESIDUAL_CLOSE); continue;
+        }
+        if (!r2_gpu_before_v1(&a->close, R2_GPU_OP_CLOSE, i, 0, 1)) {
+            r2_gpu_stop_v1(R2_OWN_RESIDUAL_CLOSE); break;
+        }
+        close.hAdapter = r2_gpu_v1.original[i];
+        /* Original typed handle retained privately even after consumption.
+         * No later call can use it again; uncertain failure is not a release. */
+        a->close_consumed = 1; ++r->close_consumed_count;
+        a->close.attempted = 1; ++r->native_work_count;
+        status = D3DKMTCloseAdapter(&close);
+        r2_gpu_result_v1(&a->close, status, R2_GPU_OP_CLOSE, i, 0);
+        if (status == 0) { a->close_succeeded = 1; ++r->close_succeeded_count; }
+        else r2_gpu_stop_v1(R2_OWN_RESIDUAL_CLOSE);
+        int endpoint_ok = r2_gpu_after_v1(&a->close, R2_GPU_OP_CLOSE, i, 0, 1);
+        a->close.data_valid = status == 0 && endpoint_ok;
+        if (!endpoint_ok) r2_gpu_stop_v1(R2_OWN_RESIDUAL_CLOSE);
+    }
+    return r2_gpu_leave_v1();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_gpu_copy_report_v1(
+    struct r2_win_gpu_report_v1 *out, size_t out_size)
+{
+    if (out_size != sizeof(*out) ||
+        !r2_own_range_v1(out, out_size, _Alignof(struct r2_win_gpu_report_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, &r2_gpu_v1, sizeof(r2_gpu_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, &r2_gpu_report_v1, sizeof(r2_gpu_report_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, &r2_own_v1, sizeof(r2_own_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, &r2_own_report_v1, sizeof(r2_own_report_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, &r2_mm_report_v1, sizeof(r2_mm_report_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, (const void *)&r2_own_guard_v1, sizeof(r2_own_guard_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, (const void *)&r2_own_stop_v1, sizeof(r2_own_stop_v1)))
+        return R2_GPU_BAD_ARGUMENT;
+    if (!r2_own_enter_v1()) return R2_GPU_BUSY;
+    r2_gpu_refresh_v1();
+    memcpy(out, &r2_gpu_report_v1, sizeof(*out));
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return R2_GPU_COPY_OK;
+}
+#endif
+#endif
