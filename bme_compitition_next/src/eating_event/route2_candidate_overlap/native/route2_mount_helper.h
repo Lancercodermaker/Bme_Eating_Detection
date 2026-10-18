@@ -1250,3 +1250,206 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_gpu_copy_report_v1(
     struct r2_win_gpu_report_v1 *out, size_t out_size);
 #endif
 #endif
+
+/* C00 positive original-volume/disk acquisition. Opt in explicitly with
+ * R2_TARGET_WINDOWS_SEED and R2_ENABLE_WIN_STORAGE_RAW_V1; C11, native Win64,
+ * actual Windows.h + winioctl.h, Kernel32.lib. Existing SDK floor is preserved.
+ * This adds no target manifest, export map, loader or automatic invocation.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_STORAGE_RAW_V1)
+#ifndef R2_WIN_STORAGE_RAW_V1_DECLARED
+#define R2_WIN_STORAGE_RAW_V1_DECLARED
+#define R2_WIN_STORAGE_RAW_ABI 1u
+#define R2_WIN_STORAGE_REPORT_BYTES 60112u
+#define R2_WIN_STORAGE_DISK_CAP 8u
+#define R2_WIN_STORAGE_EXTENT_CAP 8u
+#define R2_WIN_STORAGE_PATH_UNITS 64u
+#define R2_WIN_STORAGE_ID_BYTES 4096u
+#define R2_WIN_STORAGE_IDENTIFIER_CAP 64u
+#define R2_WIN_STORAGE_CALL_CAP 52u
+#define R2_WIN_STORAGE_FAULT_CAP 8u
+#define R2_WIN_STORAGE_UNPROVEN_ALL 1023u
+
+enum r2_win_storage_status_v1 {
+    R2_STORAGE_UNUSED = 0, R2_STORAGE_PENDING = 0xC201u,
+    R2_STORAGE_RAW_COMPLETE = 0xC202u, R2_STORAGE_RAW_PARTIAL = 0xC203u,
+    R2_STORAGE_RETAINED = 0xC204u, R2_STORAGE_BAD_ARGUMENT = 0xC205u,
+    R2_STORAGE_BUSY = 0xC206u, R2_STORAGE_COPY_OK = 0xC207u
+};
+enum r2_win_storage_operation_v1 {
+    R2_STORAGE_OP_STATE = 1, R2_STORAGE_OP_VOLUME_OPEN, R2_STORAGE_OP_EXTENTS,
+    R2_STORAGE_OP_DISK_OPEN, R2_STORAGE_OP_DEVICE_NUMBER, R2_STORAGE_OP_LENGTH,
+    R2_STORAGE_OP_ALIGNMENT, R2_STORAGE_OP_IDS, R2_STORAGE_OP_CLOSE,
+    R2_STORAGE_OP_FINISH, R2_STORAGE_OP_ARGUMENT
+};
+enum r2_win_storage_reason_v1 {
+    R2_STORAGE_REASON_STATE = 1, R2_STORAGE_REASON_CONTEXT,
+    R2_STORAGE_REASON_IDENTITY, R2_STORAGE_REASON_CLOCK,
+    R2_STORAGE_REASON_DEADLINE, R2_STORAGE_REASON_BOUND,
+    R2_STORAGE_REASON_FORMAT, R2_STORAGE_REASON_RANGE,
+    R2_STORAGE_REASON_ASSOCIATION, R2_STORAGE_REASON_RACE,
+    R2_STORAGE_REASON_COUNTER, R2_STORAGE_REASON_HANDLE,
+    R2_STORAGE_REASON_UNSUPPORTED
+};
+enum r2_win_storage_fault_kind_v1 {
+    R2_STORAGE_FAULT_WIN32 = 1, R2_STORAGE_FAULT_INVARIANT = 2,
+    R2_STORAGE_FAULT_OWNER = 3
+};
+enum r2_win_storage_handle_outcome_v1 {
+    R2_STORAGE_HANDLE_UNOBSERVED = 0, R2_STORAGE_HANDLE_VALID = 1,
+    R2_STORAGE_HANDLE_INVALID = 2, R2_STORAGE_HANDLE_NULL_AMBIGUOUS = 3
+};
+enum r2_win_storage_id_state_v1 {
+    R2_STORAGE_IDS_UNOBSERVED = 0, R2_STORAGE_IDS_PARSED = 1,
+    R2_STORAGE_IDS_UNINTERPRETED = 2, R2_STORAGE_IDS_MALFORMED = 3
+};
+struct r2_win_storage_spec_v1 {
+    uint32_t abi, size;
+    const uint16_t *volume_device;
+    uint32_t units, reserved[3];
+};
+struct r2_win_storage_clock_v1 {
+    int64_t raw_qpc;
+    uint32_t attempted, raw_result, win32_error, win32_error_valid;
+};
+struct r2_win_storage_call_v1 {
+    /* disk_index is UINT32_MAX for volume close; other volume operations
+     * identify the volume by operation. No original handle values are public. */
+    uint32_t ordinal, operation, disk_index, attempted;
+    uint32_t raw_bool, bool_observed, handle_outcome, win32_error;
+    uint32_t win32_error_valid, raw_bytes_returned, capacity, opaque_bytes;
+    uint32_t output_valid, documented_partial, boundary_valid, reserved;
+    struct r2_win_storage_clock_v1 clocks[4];
+};
+struct r2_win_storage_fault_v1 {
+    uint32_t operation, kind, reason, call_ordinal;
+    uint32_t disk_index, win32_error, win32_error_valid, reserved;
+};
+struct r2_win_storage_extent_v1 {
+    uint32_t disk_number, disk_index;
+    int64_t starting_offset, extent_length;
+    uint32_t range_valid, sector_mapping_valid;
+};
+struct r2_win_storage_identifier_v1 {
+    uint32_t code_set, type, association, identifier_size;
+    uint32_t next_offset, source_offset, payload_offset, payload_bytes;
+};
+union r2_win_storage_extent_bytes_v1 {
+    uint64_t alignment;
+    unsigned char bytes[200];
+};
+union r2_win_storage_id_bytes_v1 {
+    uint64_t alignment;
+    unsigned char bytes[R2_WIN_STORAGE_ID_BYTES];
+};
+struct r2_win_storage_disk_v1 {
+    uint32_t extent_disk_number, adopted, close_consumed, close_succeeded;
+    uint32_t device_number_valid, length_valid, alignment_valid, id_header_valid;
+    uint32_t device_type, device_number, partition_number, alignment_version;
+    uint32_t alignment_size, bytes_per_cache_line, cache_alignment_offset;
+    uint32_t bytes_per_logical_sector, bytes_per_physical_sector, sector_alignment_offset;
+    int64_t disk_length;
+    uint32_t id_version, id_size, id_reported_count, id_parsed_count;
+    uint32_t id_state, id_tail_offset, id_tail_bytes, reserved;
+    unsigned char device_number_opaque[16];
+    unsigned char length_opaque[8];
+    unsigned char alignment_opaque[32];
+    union r2_win_storage_id_bytes_v1 id_opaque;
+    struct r2_win_storage_identifier_v1 identifiers[R2_WIN_STORAGE_IDENTIFIER_CAP];
+};
+struct r2_win_storage_report_v1 {
+    uint32_t abi, size, status, stop_new;
+    uint32_t acquisition_consumed, acquisition_complete, finish_consumed, intent_valid;
+    uint32_t adopted_count, close_consumed_count, close_succeeded_count, all_known_once_closed;
+    uint32_t pending_liability, ambiguous_ownership, in_flight, in_flight_ordinal;
+    uint32_t native_work_count, call_count, qpc_work_count, identity_check_count;
+    uint32_t fault_count, omitted_fault_count, remaining_unproven, owner_lifecycle;
+    uint32_t creator_pid, creator_tid, volume_adopted, volume_close_consumed;
+    uint32_t volume_close_succeeded, extent_reported_count, extent_count, disk_count;
+    uint32_t extent_count_valid, extent_source_call, path_units, reserved;
+    uint64_t intent_serial, creator_creation_100ns;
+    int64_t lease_epoch_qpc, qpc_frequency, stop_deadline_qpc, cleanup_deadline_qpc;
+    uint16_t volume_device[R2_WIN_STORAGE_PATH_UNITS];
+    struct r2_win_storage_fault_v1 primary, secondary;
+    struct r2_win_storage_fault_v1 faults[R2_WIN_STORAGE_FAULT_CAP];
+    /* Each call's opaque_bytes identifies bounded retained bytes in its
+     * operation's buffer below. Two extent buffers preserve first partial. */
+    union r2_win_storage_extent_bytes_v1 extent_opaque[2];
+    struct r2_win_storage_extent_v1 extents[R2_WIN_STORAGE_EXTENT_CAP];
+    struct r2_win_storage_disk_v1 disks[R2_WIN_STORAGE_DISK_CAP];
+    struct r2_win_storage_call_v1 calls[R2_WIN_STORAGE_CALL_CAP];
+};
+/* Caller memory must be accessible, stable, exclusive and properly aligned;
+ * pointer/range checks cannot establish that precondition. units includes NUL.
+ * Accepts only exact \\.\X: (uppercase DOS volume device) or canonical
+ * \\?\Volume{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx} without trailing slash;
+ * hexadecimal case is accepted. No arbitrary files, defaults, enumeration or
+ * independent disk path. DOS drive aliases are NOT stable identity. Raw intent
+ * is copied privately before opening. Bad arguments consume the sole chance.
+ * No input handles, PID, clock, samples, permission flags or evidence receipts.
+ * Original C02 INTENT_HELD before birth reservation is required. Original
+ * creator HANDLE/PID/TID/creation/intent/lease/deadlines remain pinned and are
+ * checked around every acquisition/close with four QPC endpoints. Identity
+ * helper API errors also remain in the original C02 report. No clock resets.
+ *
+ * CreateFileW uses GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL,
+ * OPEN_EXISTING, 0, NULL. DeviceIoControl is synchronous (NULL OVERLAPPED).
+ * Each valid original returned HANDLE is adopted before any post-call API.
+ * There is one volume open, <=2 extent queries, <=8 derived disk opens and
+ * four IOCTLs per disk; reverse close order adds <=9 calls: <=52 lifetime
+ * storage calls, <=208 QPC calls and <=104 identity-helper invocations.
+ * No heap, threads, callbacks, cancel, reopen, resize or automatic retry.
+ * Win64 report is 60,112 bytes; report plus private state is statically
+ * capped at 73,728 bytes;
+ * per-call stack locals are small SDK scalar structures, never 4 KiB copies.
+ * Policies 8/64/4096 are bounds, not hardware maxima or resource permission.
+ * Synchronous calls may stall: in_flight/pending state is saved BEFORE entry;
+ * it can be copied only when the original guard is legally obtainable. These
+ * checks do not bound driver time or external allocations and do not cancel.
+ *
+ * Only the documented first ERROR_MORE_DATA extent count may continue once
+ * into the fixed eight-entry buffer; it is partial, never a complete array.
+ * Failed outputs otherwise stay opaque with no trusted field validity. Raw
+ * returned counts and parsed counts differ; incomplete extents derive no disks.
+ * Disk numbers/device type/partition numbers are raw associations, never a
+ * persistent medium identity. Positive GET_LENGTH_INFO and checked supported
+ * sector fields qualify only raw per-extent range/sector mapping. No geometry,
+ * layout, formatting, free-space floor, backing resolver or all-writer claim.
+ *
+ * IDs preserve bounded raw bytes, Version/Size/count, source/payload spans,
+ * CodeSet/Type/Association/IdentifierSize/relative NextOffset. All descriptor
+ * spans are validated before publishing parsed entries. Supported SDK version
+ * only; unknown enum values and tail bytes remain raw, never strings or unique
+ * physical medium IDs. Empty IDs remain uninterpreted. Oversized/short/failed
+ * buffers preserve previous valid facts and stop new work. Win32 errors are
+ * sampled immediately ONLY for FALSE/INVALID; success errors are unobserved.
+ *
+ * finish_once closes ONLY this component's owned storage handles, in reverse
+ * acquisition order, consuming usability BEFORE each sole CloseHandle. Failed
+ * closes retain original private values, unusability and pending liability;
+ * no retry. Failure/identity/deadline/ambiguity/counter errors latch original
+ * STOP_NEW and SAMPLE/CLOSE residuals. Fault primary/secondary are immutable;
+ * first eight faults plus saturating omitted counts are only partial history.
+ * Future consumer must finish storage and GPU BEFORE existing C02 finish can
+ * close creator. Lost creator or misordered finish is retained misuse, never
+ * normal completion. No GPU/child cleanup, consumer assembly or C04-C12 work.
+ *
+ * RAW_COMPLETE requires complete bounded raw acquisition, all known handles
+ * once successfully closed, no fault and no pending liability. COPY_OK means
+ * byte copy only. Full backing/OS virtual disks/all alias writers/capacity/free
+ * floors/phase fees/preload provenance/service exit remain unproven; every fee
+ * is UNKNOWN_NOT_ZERO. No actual physical E binding, free 8 GiB, 30 GiB PASS,
+ * all-writer physical PASS, resource admission or hardware certification.
+ * Copy checks exact size, alignment, nonwrapping and disjointness from ALL new
+ * private state and owner/RAM/(conditionally GPU) private reports/guard/stop.
+ * Old copy functions are unchanged; caller exclusivity remains a precondition.
+ * Busy acquire/finish atomically consume that entry chance and latch a race;
+ * the next guarded entry materializes the fault. Copy performs no native work.
+ */
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_acquire_once_v1(
+    const struct r2_win_storage_spec_v1 *raw_spec);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_finish_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_copy_report_v1(
+    struct r2_win_storage_report_v1 *out, size_t out_size);
+#endif
+#endif

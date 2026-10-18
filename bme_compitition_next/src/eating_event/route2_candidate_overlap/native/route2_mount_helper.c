@@ -4199,3 +4199,695 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_gpu_copy_report_v1(
 }
 #endif
 #endif
+
+/* C00 positive original-storage source limb, opt-in only; see public contract.
+ * Primary SDK references: fileapi/CreateFileW; ioapiset/DeviceIoControl;
+ * winioctl/VOLUME_DISK_EXTENTS, STORAGE_DEVICE_ID_DESCRIPTOR,
+ * STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR; ntddstor/STORAGE_IDENTIFIER.
+ * First ERROR_MORE_DATA sizing is documented by VOLUME_DISK_EXTENTS.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_STORAGE_RAW_V1)
+#ifndef R2_WIN_STORAGE_RAW_V1_BODY
+#define R2_WIN_STORAGE_RAW_V1_BODY
+#include <Windows.h>
+#include <winioctl.h>
+
+_Static_assert(sizeof(DISK_EXTENT) == 24 && offsetof(DISK_EXTENT, StartingOffset) == 8 &&
+    offsetof(DISK_EXTENT, ExtentLength) == 16 && offsetof(VOLUME_DISK_EXTENTS, Extents) == 8 &&
+    offsetof(VOLUME_DISK_EXTENTS, Extents) + 8 * sizeof(DISK_EXTENT) == 200 &&
+    sizeof(STORAGE_DEVICE_NUMBER) == 12 && sizeof(GET_LENGTH_INFORMATION) == 8 &&
+    sizeof(STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR) == 28,
+    "storage requires actual naturally aligned Win64 SDK layouts");
+_Static_assert(sizeof(struct r2_win_storage_spec_v1) == 32 &&
+    sizeof(struct r2_win_storage_clock_v1) == 24 &&
+    sizeof(struct r2_win_storage_call_v1) == 160 &&
+    sizeof(struct r2_win_storage_identifier_v1) == 32 &&
+    sizeof(struct r2_win_storage_extent_v1) == 32 &&
+    sizeof(struct r2_win_storage_disk_v1) == 6312 &&
+    sizeof(struct r2_win_storage_report_v1) == R2_WIN_STORAGE_REPORT_BYTES,
+    "storage raw public ABI changed");
+_Static_assert(sizeof(((struct r2_win_storage_disk_v1 *)0)->device_number_opaque) >=
+    sizeof(STORAGE_DEVICE_NUMBER) &&
+    sizeof(((struct r2_win_storage_disk_v1 *)0)->alignment_opaque) >=
+    sizeof(STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR) &&
+    offsetof(STORAGE_IDENTIFIER, Identifier) <= sizeof(STORAGE_IDENTIFIER),
+    "storage SDK spans must fit fixed raw buffers");
+
+struct r2_storage_private_v1 {
+    HANDLE original_creator, originals[1 + R2_WIN_STORAGE_DISK_CAP];
+    uint32_t usable[1 + R2_WIN_STORAGE_DISK_CAP];
+    WCHAR volume[R2_WIN_STORAGE_PATH_UNITS], derived_disk[32];
+    volatile LONG acquire_race, finish_race;
+    uint32_t acquire_race_recorded, finish_race_recorded;
+};
+static struct r2_storage_private_v1 r2_storage_v1;
+static struct r2_win_storage_report_v1 r2_storage_report_v1 = {
+    .abi = R2_WIN_STORAGE_RAW_ABI, .size = sizeof(struct r2_win_storage_report_v1),
+    .remaining_unproven = R2_WIN_STORAGE_UNPROVEN_ALL
+};
+_Static_assert(sizeof(r2_storage_v1) + sizeof(r2_storage_report_v1) <= 73728,
+    "storage fixed private state and report bound");
+_Static_assert(R2_WIN_STORAGE_CALL_CAP == 1 + 2 + 8 * 5 + 9,
+    "storage lifetime API work bound");
+
+static void r2_storage_stop_v1(uint32_t residual)
+{
+    InterlockedExchange(&r2_own_stop_v1, 1);
+    r2_own_report_v1.stop_new = 1;
+    r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_SAMPLE | residual;
+    r2_storage_report_v1.stop_new = 1;
+    if ((r2_own_v1.process && !r2_own_report_v1.process_signaled) ||
+        (r2_own_v1.thread && !r2_own_report_v1.thread_signaled) ||
+        (r2_own_v1.job && !r2_own_report_v1.job_empty))
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_JOIN;
+}
+static void r2_storage_fault_v1(uint32_t op, uint32_t kind, uint32_t reason,
+    DWORD error, uint32_t ordinal, uint32_t disk)
+{
+    struct r2_win_storage_report_v1 *r = &r2_storage_report_v1;
+    struct r2_win_storage_fault_v1 f = {
+        op, kind, reason, ordinal, disk, (uint32_t)error,
+        kind == R2_STORAGE_FAULT_WIN32, 0
+    };
+    r2_storage_stop_v1(op == R2_STORAGE_OP_CLOSE ? R2_OWN_RESIDUAL_CLOSE : 0);
+    if (!r->fault_count) r->primary = f;
+    else if (r->fault_count == 1) r->secondary = f;
+    if (r->fault_count < R2_WIN_STORAGE_FAULT_CAP) r->faults[r->fault_count] = f;
+    else if (r->omitted_fault_count != UINT32_MAX) ++r->omitted_fault_count;
+    if (r->fault_count != UINT32_MAX) ++r->fault_count;
+}
+static int r2_storage_bad_v1(uint32_t op, uint32_t reason,
+    struct r2_win_storage_call_v1 *c, uint32_t disk)
+{
+    r2_storage_fault_v1(op, R2_STORAGE_FAULT_INVARIANT, reason, 0,
+        c ? c->ordinal : 0, disk);
+    return 0;
+}
+static void r2_storage_refresh_v1(void)
+{
+    struct r2_win_storage_report_v1 *r = &r2_storage_report_v1;
+    if (InterlockedCompareExchange(&r2_storage_v1.acquire_race, 0, 0) &&
+        !r2_storage_v1.acquire_race_recorded) {
+        r2_storage_v1.acquire_race_recorded = 1; r->acquisition_consumed = 1;
+        r2_storage_bad_v1(R2_STORAGE_OP_STATE, R2_STORAGE_REASON_RACE, NULL, 0);
+    }
+    if (InterlockedCompareExchange(&r2_storage_v1.finish_race, 0, 0) &&
+        !r2_storage_v1.finish_race_recorded) {
+        r2_storage_v1.finish_race_recorded = 1; r->finish_consumed = 1;
+        r2_storage_bad_v1(R2_STORAGE_OP_FINISH, R2_STORAGE_REASON_RACE, NULL, 0);
+    }
+    r->stop_new = (uint32_t)r2_own_stopped_v1();
+    r->owner_lifecycle = r2_own_report_v1.lifecycle;
+    r->all_known_once_closed = r->acquisition_consumed && !r->ambiguous_ownership &&
+        r->close_consumed_count == r->adopted_count &&
+        r->close_succeeded_count == r->adopted_count;
+    r->pending_liability = r->in_flight || r->ambiguous_ownership || r->fault_count ||
+        (r->adopted_count && !r->all_known_once_closed);
+    if (r->finish_consumed && r->pending_liability) r->status = R2_STORAGE_RETAINED;
+    else if (r->acquisition_complete && r->finish_consumed && r->all_known_once_closed &&
+        !r->fault_count && !r->pending_liability) r->status = R2_STORAGE_RAW_COMPLETE;
+    else if (r->fault_count) r->status = R2_STORAGE_RAW_PARTIAL;
+    else r->status = r->acquisition_consumed ? R2_STORAGE_PENDING : R2_STORAGE_UNUSED;
+}
+static uint32_t r2_storage_leave_v1(void)
+{
+    uint32_t status;
+    r2_storage_refresh_v1(); status = r2_storage_report_v1.status;
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return status;
+}
+/* Each operand is a complete static object; caller range was checked first. */
+static int r2_storage_disjoint_v1(const void *p, size_t size)
+{
+#define R2_STORAGE_DISJOINT(object) \
+    if (!r2_mm_disjoint_v1(p, size, (const void *)&(object), sizeof(object))) return 0
+    R2_STORAGE_DISJOINT(r2_storage_v1);
+    R2_STORAGE_DISJOINT(r2_storage_report_v1);
+    R2_STORAGE_DISJOINT(r2_own_v1);
+    R2_STORAGE_DISJOINT(r2_own_report_v1);
+    R2_STORAGE_DISJOINT(r2_own_guard_v1);
+    R2_STORAGE_DISJOINT(r2_own_stop_v1);
+    R2_STORAGE_DISJOINT(r2_mm_report_v1);
+#if defined(R2_ENABLE_WIN_GPU_RAW_V1)
+    R2_STORAGE_DISJOINT(r2_gpu_v1);
+    R2_STORAGE_DISJOINT(r2_gpu_report_v1);
+#endif
+#undef R2_STORAGE_DISJOINT
+    return 1;
+}
+static int r2_storage_context_v1(struct r2_win_storage_call_v1 *c)
+{
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    struct r2_win_storage_report_v1 *r = &r2_storage_report_v1;
+    if (!r2_own_v1.creator || r2_own_v1.creator != r2_storage_v1.original_creator ||
+        !r2_own_v1.deadline_bound || !o->attempt_consumed || o->finish_started ||
+        o->creator_creation_100ns.state != R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle < R2_OWN_INTENT_HELD || o->lifecycle == R2_OWN_CLOSING ||
+        o->lifecycle == R2_OWN_DONE || o->lifecycle > R2_OWN_RETAINED ||
+        o->creator_pid != r->creator_pid || o->creator_tid != r->creator_tid ||
+        o->creator_creation_100ns.value != r->creator_creation_100ns ||
+        o->intent_serial != r->intent_serial || o->lease_epoch_qpc != r->lease_epoch_qpc ||
+        o->qpc_frequency != r->qpc_frequency ||
+        o->stop_deadline_qpc != r->stop_deadline_qpc ||
+        o->cleanup_deadline_qpc != r->cleanup_deadline_qpc) {
+        r2_storage_fault_v1(c->operation, R2_STORAGE_FAULT_OWNER,
+            R2_STORAGE_REASON_CONTEXT, 0, c->ordinal, c->disk_index);
+        return 0;
+    }
+    if (r->identity_check_count >= 2 * R2_WIN_STORAGE_CALL_CAP)
+        return r2_storage_bad_v1(c->operation, R2_STORAGE_REASON_COUNTER, c, c->disk_index);
+    ++r->identity_check_count;
+    if (GetCurrentProcessId() != r->creator_pid || GetCurrentThreadId() != r->creator_tid ||
+        !r2_own_creator_identity_v1()) {
+        r2_storage_fault_v1(c->operation, R2_STORAGE_FAULT_OWNER,
+            R2_STORAGE_REASON_IDENTITY, 0, c->ordinal, c->disk_index);
+        return 0;
+    }
+    return 1;
+}
+static int r2_storage_clock_v1(struct r2_win_storage_call_v1 *c,
+    uint32_t endpoint, int cleanup)
+{
+    struct r2_win_storage_report_v1 *r = &r2_storage_report_v1;
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    struct r2_win_storage_clock_v1 *clock = &c->clocks[endpoint];
+    LARGE_INTEGER now = {0};
+    BOOL result;
+    DWORD error;
+    int64_t deadline = cleanup ? r->cleanup_deadline_qpc : r->stop_deadline_qpc;
+    if (r->qpc_work_count >= 4 * R2_WIN_STORAGE_CALL_CAP)
+        return r2_storage_bad_v1(c->operation, R2_STORAGE_REASON_COUNTER, c, c->disk_index);
+    ++r->qpc_work_count; clock->attempted = 1;
+    result = QueryPerformanceCounter(&now);
+    if (!result) {
+        error = GetLastError();
+        clock->raw_result = (uint32_t)result;
+        clock->win32_error = error; clock->win32_error_valid = 1;
+        o->clock_valid = 0; o->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        r2_storage_fault_v1(c->operation, R2_STORAGE_FAULT_WIN32,
+            R2_STORAGE_REASON_CLOCK, error, c->ordinal, c->disk_index);
+        return 0;
+    }
+    clock->raw_result = (uint32_t)result; clock->raw_qpc = now.QuadPart;
+    if (now.QuadPart <= 0 || now.QuadPart < o->last_qpc || !o->clock_valid ||
+        (o->residual_bits & R2_OWN_RESIDUAL_CLOCK)) {
+        o->clock_valid = 0; o->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        return r2_storage_bad_v1(c->operation, R2_STORAGE_REASON_CLOCK, c, c->disk_index);
+    }
+    o->last_qpc = now.QuadPart;
+    if (deadline <= 0 || now.QuadPart >= deadline) {
+        o->residual_bits |= R2_OWN_RESIDUAL_DEADLINE;
+        return r2_storage_bad_v1(c->operation, R2_STORAGE_REASON_DEADLINE, c, c->disk_index);
+    }
+    return 1;
+}
+static struct r2_win_storage_call_v1 *r2_storage_call_v1(uint32_t op,
+    uint32_t disk, uint32_t capacity, int cleanup)
+{
+    struct r2_win_storage_report_v1 *r = &r2_storage_report_v1;
+    struct r2_win_storage_call_v1 *c;
+    int identity_ok, clock_ok;
+    if (r->call_count >= R2_WIN_STORAGE_CALL_CAP ||
+        r->native_work_count >= R2_WIN_STORAGE_CALL_CAP) {
+        r2_storage_bad_v1(op, R2_STORAGE_REASON_COUNTER, NULL, disk); return NULL;
+    }
+    c = &r->calls[r->call_count++]; c->ordinal = r->call_count;
+    c->operation = op; c->disk_index = disk; c->capacity = capacity;
+    if (!cleanup && (r2_own_stopped_v1() || r2_own_report_v1.birth_attempted ||
+        r2_own_report_v1.lifecycle != R2_OWN_INTENT_HELD || r->finish_consumed)) {
+        r2_storage_bad_v1(op, R2_STORAGE_REASON_STATE, c, disk); return NULL;
+    }
+    if (!r2_storage_clock_v1(c, 0, cleanup)) return NULL;
+    identity_ok = r2_storage_context_v1(c);
+    clock_ok = r2_storage_clock_v1(c, 1, cleanup);
+    if (!identity_ok || !clock_ok) return NULL;
+    if (!cleanup && r2_own_stopped_v1()) {
+        r2_storage_bad_v1(op, R2_STORAGE_REASON_RACE, c, disk); return NULL;
+    }
+    return c;
+}
+static void r2_storage_enter_native_v1(struct r2_win_storage_call_v1 *c)
+{
+    c->attempted = 1; ++r2_storage_report_v1.native_work_count;
+    r2_storage_report_v1.in_flight_ordinal = c->ordinal;
+    r2_storage_report_v1.in_flight = 1;
+    r2_storage_report_v1.pending_liability = 1;
+}
+static int r2_storage_after_v1(struct r2_win_storage_call_v1 *c, int cleanup)
+{
+    int first_ok, identity_ok, last_ok;
+    r2_storage_report_v1.in_flight = 0;
+    first_ok = r2_storage_clock_v1(c, 2, cleanup);
+    identity_ok = r2_storage_context_v1(c);
+    last_ok = r2_storage_clock_v1(c, 3, cleanup);
+    if (!cleanup && r2_own_stopped_v1()) {
+        /* API failure is already a primary event; an external stop is a race. */
+        if (!r2_storage_report_v1.fault_count)
+            r2_storage_bad_v1(c->operation, R2_STORAGE_REASON_RACE, c, c->disk_index);
+        return 0;
+    }
+    c->boundary_valid = first_ok && identity_ok && last_ok;
+    return c->boundary_valid != 0;
+}
+static int r2_storage_open_v1(const WCHAR *path, uint32_t slot, uint32_t disk)
+{
+    struct r2_win_storage_report_v1 *r = &r2_storage_report_v1;
+    uint32_t op = slot ? R2_STORAGE_OP_DISK_OPEN : R2_STORAGE_OP_VOLUME_OPEN;
+    struct r2_win_storage_call_v1 *c = r2_storage_call_v1(op, disk, 0, 0);
+    HANDLE original;
+    DWORD error;
+    int boundary;
+    if (!c) return 0;
+    r2_storage_enter_native_v1(c);
+    original = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL, OPEN_EXISTING, 0, NULL);
+    if (original == INVALID_HANDLE_VALUE) {
+        error = GetLastError();
+        c->handle_outcome = R2_STORAGE_HANDLE_INVALID;
+        c->win32_error = error; c->win32_error_valid = 1;
+        r2_storage_fault_v1(op, R2_STORAGE_FAULT_WIN32, 0, error, c->ordinal, disk);
+    } else {
+        /* Ownership is recorded BEFORE any clock, identity query or other API. */
+        r2_storage_v1.originals[slot] = original;
+        if (original) {
+            r2_storage_v1.usable[slot] = 1; ++r->adopted_count;
+            if (slot) r->disks[disk].adopted = 1; else r->volume_adopted = 1;
+            c->handle_outcome = R2_STORAGE_HANDLE_VALID;
+        } else {
+            c->handle_outcome = R2_STORAGE_HANDLE_NULL_AMBIGUOUS;
+            r->ambiguous_ownership = 1;
+            r2_storage_bad_v1(op, R2_STORAGE_REASON_HANDLE, c, disk);
+        }
+    }
+    boundary = r2_storage_after_v1(c, 0);
+    return c->handle_outcome == R2_STORAGE_HANDLE_VALID && boundary;
+}
+/* Returned FALSE bytes are always retained as opaque. The sole documented
+ * first-extent partial is interpreted by its caller, never here. */
+static int r2_storage_ioctl_v1(uint32_t slot, uint32_t disk, uint32_t op,
+    DWORD control, void *input, DWORD input_size, void *output, DWORD capacity,
+    int first_extent, struct r2_win_storage_call_v1 **observed)
+{
+    struct r2_win_storage_call_v1 *c = r2_storage_call_v1(op, disk, capacity, 0);
+    DWORD returned = 0, error = 0;
+    BOOL result;
+    int boundary;
+    *observed = c;
+    if (!c) return 0;
+    if (!r2_storage_v1.usable[slot])
+        return r2_storage_bad_v1(op, R2_STORAGE_REASON_HANDLE, c, disk);
+    r2_storage_enter_native_v1(c);
+    result = DeviceIoControl(r2_storage_v1.originals[slot], control, input,
+        input_size, output, capacity, &returned, NULL);
+    if (!result) error = GetLastError();
+    c->raw_bool = (uint32_t)result; c->bool_observed = 1;
+    c->raw_bytes_returned = returned;
+    c->opaque_bytes = result && returned <= capacity ? returned : capacity;
+    if (!result) {
+        c->win32_error = error; c->win32_error_valid = 1;
+        if (first_extent && error == ERROR_MORE_DATA) c->documented_partial = 1;
+        else r2_storage_fault_v1(op, R2_STORAGE_FAULT_WIN32, 0, error, c->ordinal, disk);
+    }
+    boundary = r2_storage_after_v1(c, 0);
+    if (!boundary) return 0;
+    if (returned > capacity)
+        return r2_storage_bad_v1(op, R2_STORAGE_REASON_BOUND, c, disk);
+    return result ? 1 : (c->documented_partial ? 2 : 0);
+}
+static int r2_storage_hex_v1(WCHAR c)
+{
+    return (c >= L'0' && c <= L'9') || (c >= L'a' && c <= L'f') ||
+        (c >= L'A' && c <= L'F');
+}
+static int r2_storage_copy_intent_v1(const struct r2_win_storage_spec_v1 *spec)
+{
+    struct r2_win_storage_spec_v1 s;
+    uint32_t i;
+    size_t bytes;
+    if (!r2_own_range_v1(spec, sizeof(*spec), _Alignof(struct r2_win_storage_spec_v1)) ||
+        !r2_storage_disjoint_v1(spec, sizeof(*spec))) return 0;
+    s = *spec;
+    if (s.abi != R2_WIN_STORAGE_RAW_ABI || s.size != sizeof(s) ||
+        s.reserved[0] || s.reserved[1] || s.reserved[2] ||
+        s.units < 7 || s.units > R2_WIN_STORAGE_PATH_UNITS) return 0;
+    bytes = (size_t)s.units * sizeof(uint16_t);
+    if (!r2_own_range_v1(s.volume_device, bytes, _Alignof(uint16_t)) ||
+        !r2_storage_disjoint_v1(s.volume_device, bytes) ||
+        !r2_mm_disjoint_v1(s.volume_device, bytes, spec, sizeof(*spec))) return 0;
+    for (i = 0; i < s.units; ++i) r2_storage_v1.volume[i] = s.volume_device[i];
+    if (r2_storage_v1.volume[s.units - 1] != 0) return 0;
+    for (i = 0; i + 1 < s.units; ++i) if (!r2_storage_v1.volume[i]) return 0;
+    if (s.units == 7) {
+        const WCHAR *p = r2_storage_v1.volume;
+        if (p[0] != L'\\' || p[1] != L'\\' || p[2] != L'.' || p[3] != L'\\' ||
+            p[4] < L'A' || p[4] > L'Z' || p[5] != L':') return 0;
+    } else {
+        const WCHAR *p = r2_storage_v1.volume;
+        static const WCHAR prefix[] = L"\\\\?\\Volume{";
+        if (s.units != 49 || p[47] != L'}') return 0;
+        for (i = 0; i < 11; ++i) if (p[i] != prefix[i]) return 0;
+        for (i = 11; i < 47; ++i) {
+            if (i == 19 || i == 24 || i == 29 || i == 34) {
+                if (p[i] != L'-') return 0;
+            } else if (!r2_storage_hex_v1(p[i])) return 0;
+        }
+    }
+    r2_storage_report_v1.path_units = s.units;
+    memcpy(r2_storage_report_v1.volume_device, r2_storage_v1.volume, bytes);
+    r2_storage_report_v1.intent_valid = 1;
+    return 1;
+}
+/* Disk path is derived ONLY from complete extents; no CRT/locale conversion. */
+static int r2_storage_disk_path_v1(DWORD number)
+{
+    static const WCHAR prefix[] = L"\\\\.\\PhysicalDrive";
+    WCHAR reversed[10];
+    uint32_t n = 0, i, at = (uint32_t)(sizeof(prefix) / sizeof(prefix[0]) - 1);
+    do {
+        if (n >= 10) return 0;
+        reversed[n++] = (WCHAR)(L'0' + number % 10); number /= 10;
+    } while (number);
+    if (at + n + 1 > sizeof(r2_storage_v1.derived_disk) / sizeof(WCHAR)) return 0;
+    for (i = 0; i < at; ++i) r2_storage_v1.derived_disk[i] = prefix[i];
+    for (i = 0; i < n; ++i) r2_storage_v1.derived_disk[at + i] = reversed[n - 1 - i];
+    r2_storage_v1.derived_disk[at + n] = 0;
+    return 1;
+}
+static int r2_storage_extents_v1(void)
+{
+    struct r2_win_storage_report_v1 *r = &r2_storage_report_v1;
+    struct r2_win_storage_call_v1 *c = NULL;
+    DWORD count = 0, initial_count = 0;
+    uint32_t source = 0, i, j;
+    size_t offset = offsetof(VOLUME_DISK_EXTENTS, Extents), available;
+    int result = r2_storage_ioctl_v1(0, 0, R2_STORAGE_OP_EXTENTS,
+        IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL, 0, r->extent_opaque[0].bytes,
+        (DWORD)sizeof(VOLUME_DISK_EXTENTS), 1, &c);
+    if (!result || !c) return 0;
+    if (c->raw_bytes_returned < offset)
+        return r2_storage_bad_v1(R2_STORAGE_OP_EXTENTS, R2_STORAGE_REASON_BOUND, c, 0);
+    memcpy(&count, r->extent_opaque[0].bytes +
+        offsetof(VOLUME_DISK_EXTENTS, NumberOfDiskExtents), sizeof(count));
+    r->extent_reported_count = count;
+    if (!count || count > R2_WIN_STORAGE_EXTENT_CAP)
+        return r2_storage_bad_v1(R2_STORAGE_OP_EXTENTS, R2_STORAGE_REASON_BOUND, c, 0);
+    if (result == 2) {
+        if (count <= 1)
+            return r2_storage_bad_v1(R2_STORAGE_OP_EXTENTS, R2_STORAGE_REASON_FORMAT, c, 0);
+        initial_count = count; source = 1;
+        result = r2_storage_ioctl_v1(0, 0, R2_STORAGE_OP_EXTENTS,
+            IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL, 0, r->extent_opaque[1].bytes,
+            (DWORD)(offset + R2_WIN_STORAGE_EXTENT_CAP * sizeof(DISK_EXTENT)), 0, &c);
+        if (result != 1 || !c) return 0;
+        if (c->raw_bytes_returned < offset)
+            return r2_storage_bad_v1(R2_STORAGE_OP_EXTENTS, R2_STORAGE_REASON_BOUND, c, 0);
+        memcpy(&count, r->extent_opaque[1].bytes +
+            offsetof(VOLUME_DISK_EXTENTS, NumberOfDiskExtents), sizeof(count));
+        r->extent_reported_count = count;
+        if (count != initial_count)
+            return r2_storage_bad_v1(R2_STORAGE_OP_EXTENTS, R2_STORAGE_REASON_ASSOCIATION, c, 0);
+    }
+    available = c->raw_bytes_returned - offset;
+    if (!count || count > R2_WIN_STORAGE_EXTENT_CAP ||
+        count > available / sizeof(DISK_EXTENT) ||
+        count > (c->capacity - offset) / sizeof(DISK_EXTENT))
+        return r2_storage_bad_v1(R2_STORAGE_OP_EXTENTS, R2_STORAGE_REASON_BOUND, c, 0);
+    /* No derived disk exists until the entire complete array fits both spans. */
+    c->output_valid = 1; r->extent_count_valid = 1; r->extent_source_call = c->ordinal;
+    for (i = 0; i < count; ++i) {
+        DISK_EXTENT native;
+        struct r2_win_storage_extent_v1 *e = &r->extents[i];
+        memcpy(&native, r->extent_opaque[source].bytes + offset + i * sizeof(native), sizeof(native));
+        e->disk_number = native.DiskNumber;
+        e->starting_offset = native.StartingOffset.QuadPart;
+        e->extent_length = native.ExtentLength.QuadPart;
+        ++r->extent_count;
+        if (e->starting_offset < 0 || e->extent_length <= 0)
+            return r2_storage_bad_v1(R2_STORAGE_OP_EXTENTS, R2_STORAGE_REASON_RANGE, c, i);
+    }
+    for (i = 0; i < count; ++i) {
+        for (j = 0; j < r->disk_count; ++j)
+            if (r->disks[j].extent_disk_number == r->extents[i].disk_number) break;
+        if (j == r->disk_count) {
+            if (j >= R2_WIN_STORAGE_DISK_CAP)
+                return r2_storage_bad_v1(R2_STORAGE_OP_EXTENTS, R2_STORAGE_REASON_BOUND, c, i);
+            r->disks[j].extent_disk_number = r->extents[i].disk_number; ++r->disk_count;
+        }
+        r->extents[i].disk_index = j;
+    }
+    return 1;
+}
+static int r2_storage_fixed_v1(uint32_t disk, uint32_t op, DWORD control,
+    void *input, DWORD input_size, void *output, DWORD size,
+    struct r2_win_storage_call_v1 **observed)
+{
+    if (r2_storage_ioctl_v1(disk + 1, disk, op, control, input, input_size,
+        output, size, 0, observed) != 1) return 0;
+    if ((*observed)->raw_bytes_returned != size)
+        return r2_storage_bad_v1(op, R2_STORAGE_REASON_BOUND, *observed, disk);
+    (*observed)->output_valid = 1;
+    return 1;
+}
+/* First pass validates every forward, nonoverlapping header/payload span.
+ * Second pass publishes metadata only; payload bytes always remain raw. */
+static int r2_storage_ids_v1(uint32_t disk, struct r2_win_storage_call_v1 *c)
+{
+    struct r2_win_storage_disk_v1 *d = &r2_storage_report_v1.disks[disk];
+    STORAGE_DEVICE_ID_DESCRIPTOR header;
+    STORAGE_IDENTIFIER identifier;
+    size_t start = offsetof(STORAGE_DEVICE_ID_DESCRIPTOR, Identifiers);
+    size_t fixed = offsetof(STORAGE_IDENTIFIER, Identifier), at, remaining, end = start;
+    uint32_t i, pass;
+    if (c->raw_bytes_returned < start)
+        return r2_storage_bad_v1(R2_STORAGE_OP_IDS, R2_STORAGE_REASON_BOUND, c, disk);
+    memset(&header, 0, sizeof(header)); memcpy(&header, d->id_opaque.bytes, start);
+    d->id_version = header.Version; d->id_size = header.Size;
+    d->id_reported_count = header.NumberOfIdentifiers; d->id_header_valid = 1;
+    d->id_state = R2_STORAGE_IDS_UNINTERPRETED;
+    if (header.Size < start || header.Size > c->raw_bytes_returned ||
+        header.Size > R2_WIN_STORAGE_ID_BYTES)
+        return r2_storage_bad_v1(R2_STORAGE_OP_IDS, R2_STORAGE_REASON_BOUND, c, disk);
+    c->output_valid = 1;
+    d->id_tail_offset = (uint32_t)start; d->id_tail_bytes = c->raw_bytes_returned - (uint32_t)start;
+    if (header.Version != sizeof(STORAGE_DEVICE_ID_DESCRIPTOR))
+        return r2_storage_bad_v1(R2_STORAGE_OP_IDS, R2_STORAGE_REASON_UNSUPPORTED, c, disk);
+    if (header.Size < sizeof(STORAGE_DEVICE_ID_DESCRIPTOR) ||
+        header.NumberOfIdentifiers > R2_WIN_STORAGE_IDENTIFIER_CAP)
+        return r2_storage_bad_v1(R2_STORAGE_OP_IDS, R2_STORAGE_REASON_BOUND, c, disk);
+    if (!header.NumberOfIdentifiers) return 1;
+    for (pass = 0; pass < 2; ++pass) {
+        at = start;
+        for (i = 0; i < header.NumberOfIdentifiers; ++i) {
+            if (at > header.Size || fixed > header.Size - at) goto malformed;
+            remaining = header.Size - at;
+            memset(&identifier, 0, sizeof(identifier));
+            memcpy(&identifier, d->id_opaque.bytes + at, fixed);
+            if (identifier.IdentifierSize > remaining - fixed) goto malformed;
+            end = at + fixed + identifier.IdentifierSize;
+            if (i + 1 < header.NumberOfIdentifiers) {
+                if (!identifier.NextOffset || identifier.NextOffset < fixed + identifier.IdentifierSize ||
+                    identifier.NextOffset > remaining ||
+                    fixed > remaining - identifier.NextOffset) goto malformed;
+            } else if (identifier.NextOffset != 0) goto malformed;
+            if (pass) {
+                struct r2_win_storage_identifier_v1 *out = &d->identifiers[i];
+                out->code_set = (uint32_t)identifier.CodeSet;
+                out->type = (uint32_t)identifier.Type;
+                out->association = (uint32_t)identifier.Association;
+                out->identifier_size = identifier.IdentifierSize;
+                out->next_offset = identifier.NextOffset; out->source_offset = (uint32_t)at;
+                out->payload_offset = (uint32_t)(at + fixed);
+                out->payload_bytes = identifier.IdentifierSize;
+                ++d->id_parsed_count;
+            }
+            if (i + 1 < header.NumberOfIdentifiers) at += identifier.NextOffset;
+        }
+    }
+    d->id_state = R2_STORAGE_IDS_PARSED;
+    d->id_tail_offset = (uint32_t)end;
+    d->id_tail_bytes = c->raw_bytes_returned - (uint32_t)end;
+    return 1;
+malformed:
+    d->id_state = R2_STORAGE_IDS_MALFORMED;
+    return r2_storage_bad_v1(R2_STORAGE_OP_IDS, R2_STORAGE_REASON_FORMAT, c, disk);
+}
+static int r2_storage_disk_v1(uint32_t disk)
+{
+    struct r2_win_storage_report_v1 *r = &r2_storage_report_v1;
+    struct r2_win_storage_disk_v1 *d = &r->disks[disk];
+    struct r2_win_storage_call_v1 *c = NULL;
+    STORAGE_DEVICE_NUMBER number;
+    GET_LENGTH_INFORMATION length;
+    STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR alignment;
+    STORAGE_PROPERTY_QUERY query;
+    uint32_t i;
+    if (!r2_storage_disk_path_v1(d->extent_disk_number))
+        return r2_storage_bad_v1(R2_STORAGE_OP_DISK_OPEN, R2_STORAGE_REASON_BOUND, NULL, disk);
+    if (!r2_storage_open_v1(r2_storage_v1.derived_disk, disk + 1, disk)) return 0;
+    if (!r2_storage_fixed_v1(disk, R2_STORAGE_OP_DEVICE_NUMBER,
+        IOCTL_STORAGE_GET_DEVICE_NUMBER, NULL, 0, d->device_number_opaque,
+        (DWORD)sizeof(number), &c)) return 0;
+    memcpy(&number, d->device_number_opaque, sizeof(number));
+    d->device_type = number.DeviceType; d->device_number = number.DeviceNumber;
+    d->partition_number = number.PartitionNumber; d->device_number_valid = 1;
+    if (number.DeviceType != FILE_DEVICE_DISK || number.DeviceNumber != d->extent_disk_number)
+        return r2_storage_bad_v1(R2_STORAGE_OP_DEVICE_NUMBER, R2_STORAGE_REASON_ASSOCIATION, c, disk);
+    if (!r2_storage_fixed_v1(disk, R2_STORAGE_OP_LENGTH, IOCTL_DISK_GET_LENGTH_INFO,
+        NULL, 0, d->length_opaque, (DWORD)sizeof(length), &c)) return 0;
+    memcpy(&length, d->length_opaque, sizeof(length));
+    d->disk_length = length.Length.QuadPart; d->length_valid = 1;
+    if (d->disk_length <= 0)
+        return r2_storage_bad_v1(R2_STORAGE_OP_LENGTH, R2_STORAGE_REASON_RANGE, c, disk);
+    for (i = 0; i < r->extent_count; ++i) {
+        struct r2_win_storage_extent_v1 *e = &r->extents[i];
+        if (e->disk_index != disk) continue;
+        if (e->starting_offset < 0 || e->extent_length <= 0 ||
+            e->starting_offset > d->disk_length ||
+            e->extent_length > d->disk_length - e->starting_offset)
+            return r2_storage_bad_v1(R2_STORAGE_OP_LENGTH, R2_STORAGE_REASON_RANGE, c, disk);
+        e->range_valid = 1;
+    }
+    memset(&query, 0, sizeof(query));
+    query.PropertyId = StorageAccessAlignmentProperty; query.QueryType = PropertyStandardQuery;
+    if (!r2_storage_fixed_v1(disk, R2_STORAGE_OP_ALIGNMENT, IOCTL_STORAGE_QUERY_PROPERTY,
+        &query, (DWORD)sizeof(query), d->alignment_opaque, (DWORD)sizeof(alignment), &c)) return 0;
+    memcpy(&alignment, d->alignment_opaque, sizeof(alignment));
+    d->alignment_version = alignment.Version; d->alignment_size = alignment.Size;
+    d->bytes_per_cache_line = alignment.BytesPerCacheLine;
+    d->cache_alignment_offset = alignment.BytesOffsetForCacheAlignment;
+    d->bytes_per_logical_sector = alignment.BytesPerLogicalSector;
+    d->bytes_per_physical_sector = alignment.BytesPerPhysicalSector;
+    d->sector_alignment_offset = alignment.BytesOffsetForSectorAlignment;
+    if (alignment.Version != sizeof(alignment) || alignment.Size != sizeof(alignment))
+        return r2_storage_bad_v1(R2_STORAGE_OP_ALIGNMENT, R2_STORAGE_REASON_UNSUPPORTED, c, disk);
+    if (!alignment.BytesPerLogicalSector || !alignment.BytesPerPhysicalSector ||
+        (alignment.BytesPerLogicalSector & (alignment.BytesPerLogicalSector - 1)) ||
+        (alignment.BytesPerPhysicalSector & (alignment.BytesPerPhysicalSector - 1)) ||
+        alignment.BytesPerPhysicalSector < alignment.BytesPerLogicalSector ||
+        alignment.BytesPerPhysicalSector % alignment.BytesPerLogicalSector ||
+        alignment.BytesOffsetForSectorAlignment >= alignment.BytesPerPhysicalSector ||
+        alignment.BytesOffsetForSectorAlignment % alignment.BytesPerLogicalSector ||
+        (uint64_t)d->disk_length % alignment.BytesPerLogicalSector)
+        return r2_storage_bad_v1(R2_STORAGE_OP_ALIGNMENT, R2_STORAGE_REASON_RANGE, c, disk);
+    d->alignment_valid = 1;
+    for (i = 0; i < r->extent_count; ++i) {
+        struct r2_win_storage_extent_v1 *e = &r->extents[i];
+        if (e->disk_index != disk) continue;
+        if (!e->range_valid || (uint64_t)e->starting_offset % alignment.BytesPerLogicalSector ||
+            (uint64_t)e->extent_length % alignment.BytesPerLogicalSector)
+            return r2_storage_bad_v1(R2_STORAGE_OP_ALIGNMENT, R2_STORAGE_REASON_RANGE, c, disk);
+        e->sector_mapping_valid = 1;
+    }
+    memset(&query, 0, sizeof(query));
+    query.PropertyId = StorageDeviceIdProperty; query.QueryType = PropertyStandardQuery;
+    if (r2_storage_ioctl_v1(disk + 1, disk, R2_STORAGE_OP_IDS, IOCTL_STORAGE_QUERY_PROPERTY,
+        &query, (DWORD)sizeof(query), d->id_opaque.bytes, R2_WIN_STORAGE_ID_BYTES, 0, &c) != 1)
+        return 0;
+    return r2_storage_ids_v1(disk, c);
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_acquire_once_v1(
+    const struct r2_win_storage_spec_v1 *raw_spec)
+{
+    struct r2_win_storage_report_v1 *r = &r2_storage_report_v1;
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    uint32_t i;
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_storage_v1.acquire_race, 1);
+        InterlockedExchange(&r2_own_stop_v1, 1);
+        return R2_STORAGE_BUSY;
+    }
+    r2_storage_refresh_v1();
+    if (r->acquisition_consumed || r->finish_consumed) {
+        r2_storage_bad_v1(R2_STORAGE_OP_STATE, R2_STORAGE_REASON_STATE, NULL, 0);
+        return r2_storage_leave_v1();
+    }
+    r->acquisition_consumed = 1;
+    r2_storage_v1.original_creator = r2_own_v1.creator;
+    r->creator_pid = o->creator_pid; r->creator_tid = o->creator_tid;
+    r->creator_creation_100ns = o->creator_creation_100ns.value;
+    r->intent_serial = o->intent_serial; r->lease_epoch_qpc = o->lease_epoch_qpc;
+    r->qpc_frequency = o->qpc_frequency; r->stop_deadline_qpc = o->stop_deadline_qpc;
+    r->cleanup_deadline_qpc = o->cleanup_deadline_qpc;
+    if (!o->attempt_consumed || !r2_own_v1.deadline_bound || !r2_own_v1.creator ||
+        o->creator_creation_100ns.state != R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle != R2_OWN_INTENT_HELD || o->birth_attempted || o->finish_started ||
+        r2_own_stopped_v1() || o->lease_epoch_qpc <= 0 || o->qpc_frequency <= 0 ||
+        o->stop_deadline_qpc <= o->lease_epoch_qpc ||
+        o->cleanup_deadline_qpc <= o->stop_deadline_qpc) {
+        r2_storage_bad_v1(R2_STORAGE_OP_STATE, R2_STORAGE_REASON_STATE, NULL, 0);
+        return r2_storage_leave_v1();
+    }
+    if (!r2_storage_copy_intent_v1(raw_spec)) {
+        r2_storage_bad_v1(R2_STORAGE_OP_ARGUMENT, R2_STORAGE_REASON_FORMAT, NULL, 0);
+        r2_storage_leave_v1(); return R2_STORAGE_BAD_ARGUMENT;
+    }
+    if (!r2_storage_open_v1(r2_storage_v1.volume, 0, 0) || !r2_storage_extents_v1())
+        return r2_storage_leave_v1();
+    for (i = 0; i < r->disk_count; ++i)
+        if (!r2_storage_disk_v1(i)) return r2_storage_leave_v1();
+    if (!r->fault_count && !r2_own_stopped_v1()) r->acquisition_complete = 1;
+    return r2_storage_leave_v1();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_finish_once_v1(void)
+{
+    struct r2_win_storage_report_v1 *r = &r2_storage_report_v1;
+    uint32_t slot;
+    InterlockedExchange(&r2_own_stop_v1, 1);
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_storage_v1.finish_race, 1);
+        return R2_STORAGE_BUSY;
+    }
+    r2_storage_refresh_v1();
+    if (r->finish_consumed) return r2_storage_leave_v1();
+    r->finish_consumed = 1;
+    if (!r->acquisition_consumed) {
+        r2_storage_bad_v1(R2_STORAGE_OP_FINISH, R2_STORAGE_REASON_STATE, NULL, 0);
+        return r2_storage_leave_v1();
+    }
+    /* Known original handles only, disks in reverse order, then volume. */
+    for (slot = 1 + R2_WIN_STORAGE_DISK_CAP; slot-- > 0;) {
+        uint32_t disk = slot ? slot - 1 : UINT32_MAX;
+        struct r2_win_storage_call_v1 *c;
+        BOOL result;
+        DWORD error = 0;
+        int boundary;
+        if (!r2_storage_v1.usable[slot]) continue;
+        c = r2_storage_call_v1(R2_STORAGE_OP_CLOSE, disk, 0, 1);
+        if (!c) { r2_storage_stop_v1(R2_OWN_RESIDUAL_CLOSE); break; }
+        /* Preserve numeric original privately, consume usability BEFORE close. */
+        r2_storage_v1.usable[slot] = 0;
+        if (slot) r->disks[disk].close_consumed = 1; else r->volume_close_consumed = 1;
+        ++r->close_consumed_count;
+        r2_storage_enter_native_v1(c);
+        result = CloseHandle(r2_storage_v1.originals[slot]);
+        if (!result) error = GetLastError();
+        c->raw_bool = (uint32_t)result; c->bool_observed = 1;
+        if (!result) {
+            c->win32_error = error; c->win32_error_valid = 1;
+            r2_storage_fault_v1(R2_STORAGE_OP_CLOSE, R2_STORAGE_FAULT_WIN32,
+                0, error, c->ordinal, disk);
+        } else {
+            if (slot) r->disks[disk].close_succeeded = 1; else r->volume_close_succeeded = 1;
+            ++r->close_succeeded_count;
+        }
+        boundary = r2_storage_after_v1(c, 1);
+        if (!boundary) { r2_storage_stop_v1(R2_OWN_RESIDUAL_CLOSE); break; }
+    }
+    if (r->close_succeeded_count != r->adopted_count || r->ambiguous_ownership)
+        r2_storage_stop_v1(R2_OWN_RESIDUAL_CLOSE);
+    return r2_storage_leave_v1();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_copy_report_v1(
+    struct r2_win_storage_report_v1 *out, size_t out_size)
+{
+    if (out_size != sizeof(*out) ||
+        !r2_own_range_v1(out, out_size, _Alignof(struct r2_win_storage_report_v1)) ||
+        !r2_storage_disjoint_v1(out, out_size)) return R2_STORAGE_BAD_ARGUMENT;
+    if (!r2_own_enter_v1()) return R2_STORAGE_BUSY;
+    r2_storage_refresh_v1();
+    memcpy(out, &r2_storage_report_v1, sizeof(*out));
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return R2_STORAGE_COPY_OK;
+}
+#endif
+#endif
