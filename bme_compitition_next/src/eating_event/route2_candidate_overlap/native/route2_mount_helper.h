@@ -1573,3 +1573,94 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_identity_copy_repo
     struct r2_win_storage_identity_report_v1 *out, size_t out_size);
 #endif
 #endif
+/* C00 original creator account-token facts. SOURCE_ONLY, uncompiled/unrun.
+ * This opt-in observes the original C02 creator before child birth. It grants
+ * no writer authority, effective access, preload ancestry or admission.
+ * The native SID pointer remains private; only bounded binary bytes cross ABI.
+ * Caller output must be accessible, stable and exclusive during copy.
+ * Current process/TID checks and C02 process creation do not prove thread birth
+ * or exclude TID reuse. The held token can cease to be the process primary
+ * token after opening; two thread-token absence checks cover endpoints only.
+ * RAW_COMPLETE covers this bounded capture and known token closes, not access
+ * rights, immutable privileges, all writers, token lifetime, or full C00.
+ * finish_once is token-only and must precede C02 creator-handle finish.
+ * COPY_OK means an exact report copy; no installed loader is supplied.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_OWNER_TOKEN_RAW_V1)
+#ifndef R2_WIN_OWNER_TOKEN_RAW_V1_DECLARED
+#define R2_WIN_OWNER_TOKEN_RAW_V1_DECLARED
+#define R2_WIN_OWNER_TOKEN_RAW_ABI 1u
+#define R2_WIN_OWNER_TOKEN_SID_CAP 68u
+#define R2_WIN_OWNER_TOKEN_PRIV_CAP 64u
+#define R2_WIN_OWNER_TOKEN_CALL_CAP 9u
+#define R2_WIN_OWNER_TOKEN_FAULT_CAP 8u
+enum r2_win_owner_token_status_v1 {
+    R2_OWNER_TOKEN_UNUSED = 0, R2_OWNER_TOKEN_PENDING = 1,
+    R2_OWNER_TOKEN_CAPTURED = 2, R2_OWNER_TOKEN_RAW_COMPLETE = 3,
+    R2_OWNER_TOKEN_FAULT = 4, R2_OWNER_TOKEN_BUSY = 5,
+    R2_OWNER_TOKEN_BAD_ARGUMENT = 6, R2_OWNER_TOKEN_COPY_OK = 7
+};
+enum r2_win_owner_token_operation_v1 {
+    R2_OWNER_TOKEN_OP_STATE = 1, R2_OWNER_TOKEN_OP_THREAD_BEFORE = 2,
+    R2_OWNER_TOKEN_OP_PROCESS = 3, R2_OWNER_TOKEN_OP_STATS_BEFORE = 4,
+    R2_OWNER_TOKEN_OP_USER = 5, R2_OWNER_TOKEN_OP_PRIVILEGES = 6,
+    R2_OWNER_TOKEN_OP_STATS_AFTER = 7, R2_OWNER_TOKEN_OP_THREAD_AFTER = 8,
+    R2_OWNER_TOKEN_OP_CLOSE_THREAD = 9, R2_OWNER_TOKEN_OP_CLOSE_PROCESS = 10,
+    R2_OWNER_TOKEN_OP_CLOCK = 11, R2_OWNER_TOKEN_OP_OWNER = 12,
+    R2_OWNER_TOKEN_OP_PARSE = 13, R2_OWNER_TOKEN_OP_RACE = 14
+};
+enum r2_win_owner_token_fault_kind_v1 {
+    R2_OWNER_TOKEN_FAULT_WIN32 = 1, R2_OWNER_TOKEN_FAULT_INVARIANT = 2,
+    R2_OWNER_TOKEN_FAULT_OWNER = 3, R2_OWNER_TOKEN_FAULT_CLOCK = 4
+};
+struct r2_win_owner_token_fault_v1 {
+    uint32_t operation, kind, reason, win32_error, win32_error_valid;
+};
+struct r2_win_owner_token_clock_v1 {
+    int64_t value;
+    uint32_t raw_result, win32_error, error_valid, valid;
+};
+struct r2_win_owner_token_call_v1 {
+    uint32_t ordinal, operation, attempted, raw_result;
+    uint32_t win32_error, error_valid, return_length, length_valid;
+    uint32_t capacity, before_owner_valid, after_owner_valid, in_flight;
+    struct r2_win_owner_token_clock_v1 qpc[4];
+};
+struct r2_win_owner_token_luid_v1 { uint32_t low; int32_t high; };
+struct r2_win_owner_token_stats_v1 {
+    struct r2_win_owner_token_luid_v1 token_id, authentication_id, modified_id;
+    int64_t expiration_raw_unsupported;
+    uint32_t token_type, group_count, privilege_count;
+    uint32_t dynamic_charged_token_bytes, dynamic_available_token_bytes;
+    uint32_t valid, reserved;
+};
+struct r2_win_owner_token_privilege_v1 {
+    struct r2_win_owner_token_luid_v1 luid;
+    uint32_t attributes, reserved;
+};
+struct r2_win_owner_token_report_v1 {
+    uint32_t abi, size, status, stop_new;
+    uint32_t acquisition_consumed, finish_consumed, capture_complete, raw_complete;
+    uint32_t pending, residual_bits, fault_count, omitted_fault_count;
+    uint32_t call_count, native_call_count, qpc_count, owner_check_count;
+    uint32_t creator_pid, creator_tid, original_lifecycle, process_token_acquired;
+    uint32_t process_token_close_consumed, process_token_close_succeeded;
+    uint32_t thread_token_acquired, thread_token_close_consumed, thread_token_close_succeeded;
+    uint32_t thread_before_absent, thread_after_absent, impersonation_observed;
+    uint32_t sid_valid, sid_length, sid_source_offset, sid_attributes;
+    uint32_t privileges_valid, privilege_count, stats_stable;
+    uint64_t creator_creation_100ns, intent_serial;
+    int64_t lease_epoch_qpc, qpc_frequency, stop_deadline_qpc, cleanup_deadline_qpc;
+    struct r2_win_owner_token_stats_v1 stats_before, stats_after;
+    uint8_t sid[R2_WIN_OWNER_TOKEN_SID_CAP];
+    struct r2_win_owner_token_privilege_v1 privileges[R2_WIN_OWNER_TOKEN_PRIV_CAP];
+    struct r2_win_owner_token_fault_v1 primary, secondary;
+    struct r2_win_owner_token_fault_v1 faults[R2_WIN_OWNER_TOKEN_FAULT_CAP];
+    struct r2_win_owner_token_call_v1 calls[R2_WIN_OWNER_TOKEN_CALL_CAP];
+};
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_owner_token_acquire_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_owner_token_finish_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_owner_token_copy_report_v1(
+    struct r2_win_owner_token_report_v1 *out, size_t out_size);
+#endif
+#endif

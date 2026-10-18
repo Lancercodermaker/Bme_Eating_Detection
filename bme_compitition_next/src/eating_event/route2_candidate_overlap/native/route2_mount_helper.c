@@ -5349,3 +5349,586 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_identity_copy_repo
 }
 #endif
 #endif
+
+/* C00 original C02 creator primary-token and endpoint thread-token facts.
+ * Advapi32.lib is required if this opt-in is built. No native use occurs merely
+ * by including this source; all facts remain SOURCE_ONLY until separately
+ * reviewed, built, loaded and bound to the original supervised invocation.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_OWNER_TOKEN_RAW_V1)
+#include <processthreadsapi.h>
+#include <securitybaseapi.h>
+#include <winnt.h>
+#ifndef R2_WIN_OWNER_TOKEN_RAW_V1_BODY
+#define R2_WIN_OWNER_TOKEN_RAW_V1_BODY
+_Static_assert(sizeof(TOKEN_STATISTICS) == 56 && sizeof(TOKEN_USER) == 16 &&
+    sizeof(SID_AND_ATTRIBUTES) == 16 && sizeof(LUID_AND_ATTRIBUTES) == 12 &&
+    offsetof(TOKEN_PRIVILEGES, Privileges) == 4 &&
+    offsetof(SID, SubAuthority) == 8 &&
+    SID_REVISION == 1 && SID_MAX_SUB_AUTHORITIES == 15 &&
+    SECURITY_MAX_SID_SIZE == R2_WIN_OWNER_TOKEN_SID_CAP,
+    "owner token requires actual native Win64 SDK layouts");
+_Static_assert(sizeof(struct r2_win_owner_token_privilege_v1) == 16 &&
+    sizeof(struct r2_win_owner_token_clock_v1) == 24 &&
+    sizeof(struct r2_win_owner_token_call_v1) == 144,
+    "owner token public ABI layout changed");
+_Static_assert(sizeof(struct r2_win_owner_token_stats_v1) == 64 &&
+    sizeof(struct r2_win_owner_token_report_v1) == 2912 &&
+    offsetof(struct r2_win_owner_token_report_v1, sid) == 320 &&
+    offsetof(struct r2_win_owner_token_report_v1, privileges) == 388 &&
+    offsetof(struct r2_win_owner_token_report_v1, calls) == 1616,
+    "owner token report size or offset changed");
+_Static_assert(R2_WIN_OWNER_TOKEN_CALL_CAP + 2 <= 16,
+    "owner token calls plus current-thread pseudohandles exceed bound");
+struct r2_owner_token_private_v1 {
+    HANDLE original_creator, process_token, thread_token;
+    HANDLE failed_process_token, failed_thread_token;
+    volatile LONG acquire_claimed, finish_claimed, race;
+    int64_t last_qpc;
+    union { max_align_t alignment; unsigned char bytes[56]; } stats_before, stats_after;
+    union { max_align_t alignment; unsigned char bytes[128]; } user;
+    union { max_align_t alignment; unsigned char bytes[1024]; } privileges;
+};
+static struct r2_owner_token_private_v1 r2_owner_token_v1;
+static struct r2_win_owner_token_report_v1 r2_owner_token_report_v1 = {
+    .abi = R2_WIN_OWNER_TOKEN_RAW_ABI,
+    .size = sizeof(struct r2_win_owner_token_report_v1),
+    .status = R2_OWNER_TOKEN_UNUSED
+};
+_Static_assert(sizeof(r2_owner_token_v1) + sizeof(r2_owner_token_report_v1) <= 8192,
+    "owner token fixed private and public memory bound");
+
+static void r2_owner_token_fault_v1(uint32_t operation, uint32_t kind,
+    uint32_t reason, DWORD error)
+{
+    struct r2_win_owner_token_report_v1 *r = &r2_owner_token_report_v1;
+    struct r2_win_owner_token_fault_v1 f = {operation, kind, reason, error,
+        kind == R2_OWNER_TOKEN_FAULT_WIN32};
+    InterlockedExchange(&r2_own_stop_v1, 1);
+    r2_own_report_v1.stop_new = 1;
+    r2_own_report_v1.residual_bits |= (operation == R2_OWNER_TOKEN_OP_CLOSE_THREAD ||
+        operation == R2_OWNER_TOKEN_OP_CLOSE_PROCESS) ?
+        R2_OWN_RESIDUAL_CLOSE : R2_OWN_RESIDUAL_SAMPLE;
+    r->stop_new = 1;
+    r->pending = 1;
+    r->residual_bits |= (operation == R2_OWNER_TOKEN_OP_CLOSE_THREAD ||
+        operation == R2_OWNER_TOKEN_OP_CLOSE_PROCESS) ?
+        R2_OWN_RESIDUAL_CLOSE : R2_OWN_RESIDUAL_SAMPLE;
+    if (r->fault_count < R2_WIN_OWNER_TOKEN_FAULT_CAP)
+        r->faults[r->fault_count] = f;
+    else if (r->omitted_fault_count != UINT32_MAX)
+        ++r->omitted_fault_count;
+    if (r->fault_count == 0) r->primary = f;
+    if (r->fault_count == 1) r->secondary = f;
+    if (r->fault_count != UINT32_MAX) ++r->fault_count;
+    r->status = R2_OWNER_TOKEN_FAULT;
+}
+static struct r2_win_owner_token_call_v1 *r2_owner_token_call_v1(uint32_t operation,
+    uint32_t capacity)
+{
+    struct r2_win_owner_token_report_v1 *r = &r2_owner_token_report_v1;
+    struct r2_win_owner_token_call_v1 *c;
+    if (r->call_count >= R2_WIN_OWNER_TOKEN_CALL_CAP) {
+        r2_owner_token_fault_v1(operation, R2_OWNER_TOKEN_FAULT_INVARIANT, 1, 0);
+        return NULL;
+    }
+    c = &r->calls[r->call_count++];
+    c->ordinal = r->call_count;
+    c->operation = operation;
+    c->capacity = capacity;
+    return c;
+}
+static int r2_owner_token_clock_v1(struct r2_win_owner_token_call_v1 *c,
+    uint32_t endpoint, int cleanup)
+{
+    LARGE_INTEGER now = {0};
+    struct r2_win_owner_token_report_v1 *r = &r2_owner_token_report_v1;
+    struct r2_win_owner_token_clock_v1 *sample = &c->qpc[endpoint];
+    int64_t deadline = cleanup ? r->cleanup_deadline_qpc : r->stop_deadline_qpc;
+    BOOL ok;
+    if (r->qpc_count >= 64) {
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_CLOCK,
+            R2_OWNER_TOKEN_FAULT_INVARIANT, 2, 0);
+        return 0;
+    }
+    ++r->qpc_count;
+    ok = QueryPerformanceCounter(&now);
+    sample->raw_result = (uint32_t)ok;
+    if (!ok) {
+        DWORD error = GetLastError();
+        sample->win32_error = error; sample->error_valid = 1;
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_CLOCK,
+            R2_OWNER_TOKEN_FAULT_WIN32, 0, error);
+        r->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        return 0;
+    }
+    sample->value = now.QuadPart;
+    if (now.QuadPart <= 0 || now.QuadPart < r->lease_epoch_qpc ||
+        (r2_owner_token_v1.last_qpc &&
+        now.QuadPart < r2_owner_token_v1.last_qpc) ||
+        deadline <= 0 || now.QuadPart >= deadline) {
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_CLOCK,
+            R2_OWNER_TOKEN_FAULT_CLOCK, 3, 0);
+        r->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        return 0;
+    }
+    r2_owner_token_v1.last_qpc = now.QuadPart;
+    sample->valid = 1;
+    return 1;
+}
+static int r2_owner_token_owner_v1(struct r2_win_owner_token_call_v1 *c,
+    int after, int cleanup)
+{
+    const struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    const struct r2_win_owner_token_report_v1 *r = &r2_owner_token_report_v1;
+    int valid;
+    if (r2_owner_token_report_v1.owner_check_count >= 32) {
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_OWNER,
+            R2_OWNER_TOKEN_FAULT_INVARIANT, 4, 0);
+        return 0;
+    }
+    ++r2_owner_token_report_v1.owner_check_count;
+    valid = r2_owner_token_v1.original_creator &&
+        r2_owner_token_v1.original_creator == r2_own_v1.creator &&
+        r2_own_v1.deadline_bound && o->attempt_consumed &&
+        o->creator_creation_100ns.state == R2_WIN_JOB_FIELD_VALID &&
+        o->creator_creation_100ns.value == r->creator_creation_100ns &&
+        o->creator_pid == r->creator_pid && o->creator_tid == r->creator_tid &&
+        o->intent_serial == r->intent_serial &&
+        o->lease_epoch_qpc == r->lease_epoch_qpc &&
+        o->qpc_frequency == r->qpc_frequency &&
+        o->stop_deadline_qpc == r->stop_deadline_qpc &&
+        o->cleanup_deadline_qpc == r->cleanup_deadline_qpc &&
+        o->lifecycle >= R2_OWN_INTENT_HELD &&
+        o->lifecycle != R2_OWN_CLOSING && o->lifecycle != R2_OWN_DONE &&
+        o->lifecycle <= R2_OWN_RETAINED &&
+        (cleanup || !r2_own_stopped_v1()) &&
+        GetCurrentProcessId() == r->creator_pid &&
+        GetCurrentThreadId() == r->creator_tid &&
+        r2_own_creator_identity_v1();
+    if (after) c->after_owner_valid = (uint32_t)valid;
+    else c->before_owner_valid = (uint32_t)valid;
+    if (!valid) r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_OWNER,
+        R2_OWNER_TOKEN_FAULT_OWNER, 5, 0);
+    return valid;
+}
+static int r2_owner_token_before_v1(struct r2_win_owner_token_call_v1 *c,
+    int cleanup)
+{
+    if (!r2_owner_token_clock_v1(c, 0, cleanup)) return 0;
+    if (!r2_owner_token_owner_v1(c, 0, cleanup)) return 0;
+    return r2_owner_token_clock_v1(c, 1, cleanup);
+}
+static int r2_owner_token_after_v1(struct r2_win_owner_token_call_v1 *c,
+    int cleanup)
+{
+    int a = r2_owner_token_clock_v1(c, 2, cleanup);
+    int b = r2_owner_token_owner_v1(c, 1, cleanup);
+    int d = r2_owner_token_clock_v1(c, 3, cleanup);
+    return a && b && d;
+}
+static int r2_owner_token_thread_v1(uint32_t operation, uint32_t *absent)
+{
+    struct r2_win_owner_token_call_v1 *c = r2_owner_token_call_v1(operation, 0);
+    HANDLE token = NULL;
+    BOOL result;
+    DWORD error = 0;
+    int ambiguous = 0, post_ok;
+    if (!c || !r2_owner_token_before_v1(c, 0)) return 0;
+    c->in_flight = 1;
+    c->attempted = 1;
+    r2_owner_token_report_v1.native_call_count += 2; /* pseudo + OpenThreadToken */
+    result = OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE, &token);
+    if (!result) error = GetLastError();
+    c->raw_result = (uint32_t)result;
+    if (!result) {
+        c->win32_error = error; c->error_valid = 1;
+    } else if (token && token != INVALID_HANDLE_VALUE) {
+        r2_owner_token_v1.thread_token = token; /* adopt before postchecks */
+        r2_owner_token_report_v1.thread_token_acquired = 1;
+        r2_owner_token_report_v1.impersonation_observed = 1;
+    } else {
+        r2_owner_token_report_v1.pending = 1;
+        ambiguous = 1;
+    }
+    c->in_flight = 0;
+    post_ok = r2_owner_token_after_v1(c, 0);
+    if (ambiguous)
+        r2_owner_token_fault_v1(operation, R2_OWNER_TOKEN_FAULT_INVARIANT, 6, 0);
+    else if (result)
+        r2_owner_token_fault_v1(operation, R2_OWNER_TOKEN_FAULT_INVARIANT, 7, 0);
+    else if (error != ERROR_NO_TOKEN)
+        r2_owner_token_fault_v1(operation, R2_OWNER_TOKEN_FAULT_WIN32, 0, error);
+    if (!post_ok) return 0;
+    if (result) {
+        return 0;
+    }
+    if (error != ERROR_NO_TOKEN) return 0;
+    *absent = 1;
+    return 1;
+}
+static int r2_owner_token_information_v1(uint32_t operation,
+    TOKEN_INFORMATION_CLASS cls, unsigned char *buffer, DWORD capacity,
+    DWORD minimum, DWORD *length)
+{
+    struct r2_win_owner_token_call_v1 *c = r2_owner_token_call_v1(operation, capacity);
+    DWORD returned = 0, error = 0;
+    BOOL result;
+    int post_ok;
+    if (!c || !r2_owner_token_before_v1(c, 0)) return 0;
+    c->in_flight = 1;
+    c->attempted = 1;
+    ++r2_owner_token_report_v1.native_call_count;
+    result = GetTokenInformation(r2_owner_token_v1.process_token, cls,
+        buffer, capacity, &returned);
+    if (!result) error = GetLastError();
+    c->raw_result = (uint32_t)result;
+    if (!result) {
+        c->win32_error = error; c->error_valid = 1;
+        if (error == ERROR_INSUFFICIENT_BUFFER) {
+            c->return_length = returned; c->length_valid = 1;
+        }
+    }
+    else { c->return_length = returned; c->length_valid = 1; }
+    c->in_flight = 0;
+    post_ok = r2_owner_token_after_v1(c, 0);
+    if (!result)
+        r2_owner_token_fault_v1(operation, R2_OWNER_TOKEN_FAULT_WIN32, 0, error);
+    if (!post_ok || !result) return 0;
+    if (returned < minimum || returned > capacity) {
+        r2_owner_token_fault_v1(operation, R2_OWNER_TOKEN_FAULT_INVARIANT, 8, 0);
+        return 0;
+    }
+    *length = returned;
+    return 1;
+}
+static void r2_owner_token_stats_v1(struct r2_win_owner_token_stats_v1 *out,
+    const unsigned char *buffer)
+{
+    TOKEN_STATISTICS native;
+    memcpy(&native, buffer, sizeof(native));
+    out->token_id.low = native.TokenId.LowPart;
+    out->token_id.high = native.TokenId.HighPart;
+    out->authentication_id.low = native.AuthenticationId.LowPart;
+    out->authentication_id.high = native.AuthenticationId.HighPart;
+    out->modified_id.low = native.ModifiedId.LowPart;
+    out->modified_id.high = native.ModifiedId.HighPart;
+    out->expiration_raw_unsupported = native.ExpirationTime.QuadPart;
+    out->token_type = (uint32_t)native.TokenType;
+    out->group_count = native.GroupCount;
+    out->privilege_count = native.PrivilegeCount;
+    out->dynamic_charged_token_bytes = native.DynamicCharged;
+    out->dynamic_available_token_bytes = native.DynamicAvailable;
+    /* Native primary-token ImpersonationLevel is undefined and omitted. */
+    out->valid = 1;
+}
+static int r2_owner_token_user_v1(DWORD returned)
+{
+    const unsigned char *buffer = r2_owner_token_v1.user.bytes;
+    TOKEN_USER user;
+    uintptr_t base = (uintptr_t)buffer, sid, end;
+    size_t offset, length;
+    uint8_t count;
+    memcpy(&user, buffer, sizeof(user));
+    sid = (uintptr_t)user.User.Sid;
+    if (returned < sizeof(TOKEN_USER) || returned > sizeof(r2_owner_token_v1.user.bytes) ||
+        returned > UINTPTR_MAX - base) goto bad;
+    end = base + returned;
+    if (sid < base + sizeof(TOKEN_USER) || sid > end ||
+        end - sid < offsetof(SID, SubAuthority)) goto bad;
+    offset = (size_t)(sid - base);
+    if (buffer[offset] != SID_REVISION) goto bad;
+    count = buffer[offset + 1];
+    if (count > SID_MAX_SUB_AUTHORITIES ||
+        count > (R2_WIN_OWNER_TOKEN_SID_CAP - offsetof(SID, SubAuthority)) /
+            sizeof(DWORD)) goto bad;
+    length = offsetof(SID, SubAuthority) + sizeof(DWORD) * (size_t)count;
+    if (length > end - sid || length > R2_WIN_OWNER_TOKEN_SID_CAP) goto bad;
+    memcpy(r2_owner_token_report_v1.sid, buffer + offset, length);
+    r2_owner_token_report_v1.sid_length = (uint32_t)length;
+    r2_owner_token_report_v1.sid_source_offset = (uint32_t)offset;
+    r2_owner_token_report_v1.sid_attributes = user.User.Attributes;
+    r2_owner_token_report_v1.sid_valid = 1;
+    return 1;
+bad:
+    r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_PARSE,
+        R2_OWNER_TOKEN_FAULT_INVARIANT, 9, 0);
+    return 0;
+}
+static int r2_owner_token_privileges_v1(DWORD returned)
+{
+    const unsigned char *buffer = r2_owner_token_v1.privileges.bytes;
+    const size_t prefix = offsetof(TOKEN_PRIVILEGES, Privileges);
+    DWORD count;
+    size_t i, required;
+    if (returned < prefix || returned > sizeof(r2_owner_token_v1.privileges.bytes))
+        goto bad;
+    memcpy(&count, buffer, sizeof(count));
+    if (count > R2_WIN_OWNER_TOKEN_PRIV_CAP ||
+        count > (returned - prefix) / sizeof(LUID_AND_ATTRIBUTES))
+        goto bad;
+    required = prefix + (size_t)count * sizeof(LUID_AND_ATTRIBUTES);
+    if (required > returned) goto bad;
+    for (i = 0; i < count; ++i) {
+        LUID_AND_ATTRIBUTES native;
+        struct r2_win_owner_token_privilege_v1 *p =
+            &r2_owner_token_report_v1.privileges[i];
+        memcpy(&native, buffer + prefix + i * sizeof(native), sizeof(native));
+        p->luid.low = native.Luid.LowPart;
+        p->luid.high = native.Luid.HighPart;
+        p->attributes = native.Attributes;
+    }
+    r2_owner_token_report_v1.privilege_count = count;
+    r2_owner_token_report_v1.privileges_valid = 1;
+    return 1;
+bad:
+    r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_PARSE,
+        R2_OWNER_TOKEN_FAULT_INVARIANT, 10, 0);
+    return 0;
+}
+static int r2_owner_token_stats_equal_v1(void)
+{
+    const struct r2_win_owner_token_stats_v1 *a =
+        &r2_owner_token_report_v1.stats_before;
+    const struct r2_win_owner_token_stats_v1 *b =
+        &r2_owner_token_report_v1.stats_after;
+    return a->valid && b->valid && a->token_type == TokenPrimary &&
+        b->token_type == TokenPrimary &&
+        a->token_id.low == b->token_id.low &&
+        a->token_id.high == b->token_id.high &&
+        a->authentication_id.low == b->authentication_id.low &&
+        a->authentication_id.high == b->authentication_id.high &&
+        a->modified_id.low == b->modified_id.low &&
+        a->modified_id.high == b->modified_id.high &&
+        a->group_count == b->group_count &&
+        a->privilege_count == b->privilege_count &&
+        a->privilege_count == r2_owner_token_report_v1.privilege_count;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_owner_token_acquire_once_v1(void)
+{
+    struct r2_win_owner_token_report_v1 *r = &r2_owner_token_report_v1;
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    struct r2_win_owner_token_call_v1 *c;
+    HANDLE token = NULL;
+    DWORD error = 0, length = 0;
+    BOOL result;
+    uint32_t result_status;
+    int post_ok, ambiguous = 0;
+    if (InterlockedCompareExchange(&r2_owner_token_v1.acquire_claimed, 1, 0) != 0)
+        return R2_OWNER_TOKEN_PENDING;
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_owner_token_v1.race, 1);
+        InterlockedExchange(&r2_own_stop_v1, 1);
+        return R2_OWNER_TOKEN_BUSY;
+    }
+    r->acquisition_consumed = 1;
+    r->status = R2_OWNER_TOKEN_PENDING;
+    r->original_lifecycle = o->lifecycle;
+    if (!o->attempt_consumed || !r2_own_v1.deadline_bound || !r2_own_v1.creator ||
+        o->creator_creation_100ns.state != R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle != R2_OWN_INTENT_HELD || o->birth_attempted ||
+        o->finish_started || r2_own_stopped_v1() ||
+        o->lease_epoch_qpc <= 0 || o->qpc_frequency <= 0 ||
+        o->stop_deadline_qpc <= o->lease_epoch_qpc ||
+        o->cleanup_deadline_qpc <= o->stop_deadline_qpc) {
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_STATE,
+            R2_OWNER_TOKEN_FAULT_INVARIANT, 11, 0);
+        goto done;
+    }
+    r2_owner_token_v1.original_creator = r2_own_v1.creator;
+    r->creator_pid = o->creator_pid; r->creator_tid = o->creator_tid;
+    r->creator_creation_100ns = o->creator_creation_100ns.value;
+    r->intent_serial = o->intent_serial; r->lease_epoch_qpc = o->lease_epoch_qpc;
+    r->qpc_frequency = o->qpc_frequency;
+    r->stop_deadline_qpc = o->stop_deadline_qpc;
+    r->cleanup_deadline_qpc = o->cleanup_deadline_qpc;
+    r2_owner_token_v1.last_qpc = o->last_qpc;
+    if (!r2_owner_token_thread_v1(R2_OWNER_TOKEN_OP_THREAD_BEFORE,
+        &r->thread_before_absent)) goto done;
+    c = r2_owner_token_call_v1(R2_OWNER_TOKEN_OP_PROCESS, 0);
+    if (!c || !r2_owner_token_before_v1(c, 0)) goto done;
+    c->in_flight = 1; c->attempted = 1;
+    ++r->native_call_count;
+    result = OpenProcessToken(r2_owner_token_v1.original_creator, TOKEN_QUERY, &token);
+    if (!result) error = GetLastError();
+    c->raw_result = (uint32_t)result;
+    if (!result) { c->win32_error = error; c->error_valid = 1; }
+    else if (token && token != INVALID_HANDLE_VALUE) {
+        r2_owner_token_v1.process_token = token; /* adopt before postchecks */
+        r->process_token_acquired = 1;
+    } else ambiguous = 1;
+    c->in_flight = 0;
+    post_ok = r2_owner_token_after_v1(c, 0);
+    if (!result)
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_PROCESS,
+            R2_OWNER_TOKEN_FAULT_WIN32, 0, error);
+    else if (ambiguous)
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_PROCESS,
+            R2_OWNER_TOKEN_FAULT_INVARIANT, 12, 0);
+    if (!post_ok || !result || ambiguous) goto done;
+    if (!r->process_token_acquired || r->fault_count) goto done;
+    if (!r2_owner_token_information_v1(R2_OWNER_TOKEN_OP_STATS_BEFORE,
+        TokenStatistics, r2_owner_token_v1.stats_before.bytes,
+        sizeof(r2_owner_token_v1.stats_before.bytes), sizeof(TOKEN_STATISTICS),
+        &length)) goto done;
+    r2_owner_token_stats_v1(&r->stats_before, r2_owner_token_v1.stats_before.bytes);
+    if (r->stats_before.token_type != TokenPrimary) {
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_STATS_BEFORE,
+            R2_OWNER_TOKEN_FAULT_INVARIANT, 13, 0); goto done;
+    }
+    if (!r2_owner_token_information_v1(R2_OWNER_TOKEN_OP_USER, TokenUser,
+        r2_owner_token_v1.user.bytes, sizeof(r2_owner_token_v1.user.bytes),
+        sizeof(TOKEN_USER), &length) || !r2_owner_token_user_v1(length)) goto done;
+    if (!r2_owner_token_information_v1(R2_OWNER_TOKEN_OP_PRIVILEGES,
+        TokenPrivileges, r2_owner_token_v1.privileges.bytes,
+        sizeof(r2_owner_token_v1.privileges.bytes),
+        offsetof(TOKEN_PRIVILEGES, Privileges), &length) ||
+        !r2_owner_token_privileges_v1(length)) goto done;
+    if (!r2_owner_token_information_v1(R2_OWNER_TOKEN_OP_STATS_AFTER,
+        TokenStatistics, r2_owner_token_v1.stats_after.bytes,
+        sizeof(r2_owner_token_v1.stats_after.bytes), sizeof(TOKEN_STATISTICS),
+        &length)) goto done;
+    r2_owner_token_stats_v1(&r->stats_after, r2_owner_token_v1.stats_after.bytes);
+    if (!r2_owner_token_stats_equal_v1()) {
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_STATS_AFTER,
+            R2_OWNER_TOKEN_FAULT_INVARIANT, 14, 0); goto done;
+    }
+    r->stats_stable = 1;
+    if (!r2_owner_token_thread_v1(R2_OWNER_TOKEN_OP_THREAD_AFTER,
+        &r->thread_after_absent)) goto done;
+    if (!r->fault_count && !r2_own_stopped_v1()) {
+        r->capture_complete = 1;
+        r->status = R2_OWNER_TOKEN_CAPTURED;
+    }
+done:
+    r->stop_new = (uint32_t)r2_own_stopped_v1();
+    result_status = r->status;
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return result_status;
+}
+static int r2_owner_token_close_v1(HANDLE *slot, HANDLE *failed,
+    uint32_t operation, uint32_t *consumed, uint32_t *succeeded)
+{
+    struct r2_win_owner_token_call_v1 *c;
+    HANDLE value;
+    BOOL result;
+    DWORD error = 0;
+    int post_ok;
+    if (!*slot) return 1;
+    c = r2_owner_token_call_v1(operation, 0);
+    if (!c || !r2_owner_token_before_v1(c, 1)) return 0;
+    value = *slot;
+    *slot = NULL;
+    *failed = value; /* unusable private original retained even on close error */
+    *consumed = 1;
+    c->in_flight = 1; c->attempted = 1;
+    ++r2_owner_token_report_v1.native_call_count;
+    result = CloseHandle(value);
+    if (!result) error = GetLastError();
+    c->raw_result = (uint32_t)result;
+    if (!result) { c->win32_error = error; c->error_valid = 1; }
+    else { *failed = NULL; *succeeded = 1; }
+    c->in_flight = 0;
+    post_ok = r2_owner_token_after_v1(c, 1);
+    if (!result)
+        r2_owner_token_fault_v1(operation, R2_OWNER_TOKEN_FAULT_WIN32, 0, error);
+    return post_ok && result;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_owner_token_finish_once_v1(void)
+{
+    struct r2_win_owner_token_report_v1 *r = &r2_owner_token_report_v1;
+    uint32_t result_status;
+    int thread_ok, process_ok;
+    if (InterlockedCompareExchange(&r2_owner_token_v1.finish_claimed, 1, 0) != 0)
+        return R2_OWNER_TOKEN_PENDING;
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_owner_token_v1.race, 1);
+        InterlockedExchange(&r2_own_stop_v1, 1);
+        return R2_OWNER_TOKEN_BUSY;
+    }
+    r->finish_consumed = 1;
+    if (!r->acquisition_consumed || !r2_owner_token_v1.original_creator ||
+        r2_own_report_v1.lifecycle == R2_OWN_CLOSING ||
+        r2_own_report_v1.lifecycle == R2_OWN_DONE) {
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_STATE,
+            R2_OWNER_TOKEN_FAULT_INVARIANT, 15, 0);
+        goto done;
+    }
+    thread_ok = r2_owner_token_close_v1(&r2_owner_token_v1.thread_token,
+        &r2_owner_token_v1.failed_thread_token, R2_OWNER_TOKEN_OP_CLOSE_THREAD,
+        &r->thread_token_close_consumed, &r->thread_token_close_succeeded);
+    process_ok = r2_owner_token_close_v1(&r2_owner_token_v1.process_token,
+        &r2_owner_token_v1.failed_process_token, R2_OWNER_TOKEN_OP_CLOSE_PROCESS,
+        &r->process_token_close_consumed, &r->process_token_close_succeeded);
+    if (!thread_ok || !process_ok) r->pending = 1;
+    if (r->capture_complete && r->thread_before_absent && r->thread_after_absent &&
+        r->process_token_acquired && r->process_token_close_succeeded &&
+        !r->thread_token_acquired && !r->fault_count && !r->pending &&
+        !r2_own_stopped_v1()) {
+        r->raw_complete = 1;
+        r->status = R2_OWNER_TOKEN_RAW_COMPLETE;
+    } else {
+        r->pending = 1;
+        r->status = r->fault_count ? R2_OWNER_TOKEN_FAULT : R2_OWNER_TOKEN_PENDING;
+    }
+done:
+    r->stop_new = (uint32_t)r2_own_stopped_v1();
+    result_status = r->status;
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return result_status;
+}
+static int r2_owner_token_disjoint_v1(const void *out, size_t size)
+{
+    if (!r2_mm_disjoint_v1(out, size, &r2_owner_token_v1, sizeof(r2_owner_token_v1)) ||
+        !r2_mm_disjoint_v1(out, size, &r2_owner_token_report_v1,
+            sizeof(r2_owner_token_report_v1)) ||
+        !r2_mm_disjoint_v1(out, size, &r2_own_v1, sizeof(r2_own_v1)) ||
+        !r2_mm_disjoint_v1(out, size, &r2_own_report_v1, sizeof(r2_own_report_v1)) ||
+        !r2_mm_disjoint_v1(out, size, (const void *)&r2_own_guard_v1,
+            sizeof(r2_own_guard_v1)) ||
+        !r2_mm_disjoint_v1(out, size, (const void *)&r2_own_stop_v1,
+            sizeof(r2_own_stop_v1)) ||
+        !r2_mm_disjoint_v1(out, size, &r2_mm_report_v1, sizeof(r2_mm_report_v1)))
+        return 0;
+#if defined(R2_ENABLE_WIN_GPU_RAW_V1)
+    if (!r2_mm_disjoint_v1(out, size, &r2_gpu_v1, sizeof(r2_gpu_v1)) ||
+        !r2_mm_disjoint_v1(out, size, &r2_gpu_report_v1, sizeof(r2_gpu_report_v1)))
+        return 0;
+#endif
+#if defined(R2_ENABLE_WIN_STORAGE_RAW_V1)
+    if (!r2_mm_disjoint_v1(out, size, &r2_storage_v1, sizeof(r2_storage_v1)) ||
+        !r2_mm_disjoint_v1(out, size, &r2_storage_report_v1, sizeof(r2_storage_report_v1)))
+        return 0;
+#endif
+#if defined(R2_ENABLE_WIN_STORAGE_IDENTITY_RAW_V1)
+    if (!r2_mm_disjoint_v1(out, size, &r2_storage_identity_v1,
+            sizeof(r2_storage_identity_v1)) ||
+        !r2_mm_disjoint_v1(out, size, &r2_storage_identity_report_v1,
+            sizeof(r2_storage_identity_report_v1)))
+        return 0;
+#endif
+    return 1;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_owner_token_copy_report_v1(
+    struct r2_win_owner_token_report_v1 *out, size_t out_size)
+{
+    if (out_size != sizeof(*out) ||
+        !r2_own_range_v1(out, out_size, _Alignof(struct r2_win_owner_token_report_v1)) ||
+        !r2_owner_token_disjoint_v1(out, out_size))
+        return R2_OWNER_TOKEN_BAD_ARGUMENT;
+    if (!r2_own_enter_v1()) return R2_OWNER_TOKEN_BUSY;
+    if (InterlockedCompareExchange(&r2_owner_token_v1.race, 0, 0) &&
+        !r2_owner_token_report_v1.pending)
+        r2_owner_token_fault_v1(R2_OWNER_TOKEN_OP_RACE,
+            R2_OWNER_TOKEN_FAULT_INVARIANT, 16, 0);
+    r2_owner_token_report_v1.acquisition_consumed =
+        (uint32_t)InterlockedCompareExchange(&r2_owner_token_v1.acquire_claimed, 0, 0);
+    r2_owner_token_report_v1.finish_consumed =
+        (uint32_t)InterlockedCompareExchange(&r2_owner_token_v1.finish_claimed, 0, 0);
+    r2_owner_token_report_v1.stop_new = (uint32_t)r2_own_stopped_v1();
+    memcpy(out, &r2_owner_token_report_v1, sizeof(*out));
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return R2_OWNER_TOKEN_COPY_OK;
+}
+#endif
+#endif
