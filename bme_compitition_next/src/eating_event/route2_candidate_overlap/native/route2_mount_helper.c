@@ -4891,3 +4891,461 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_copy_report_v1(
 }
 #endif
 #endif
+
+/* C00 original GPT association. Primary references: winioctl partition/layout
+ * IOCTLs and structures, ioapiset/DeviceIoControl; actual public SDK layouts,
+ * never the extra PartitionOrdinal shown in current Learn web syntax.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_STORAGE_IDENTITY_RAW_V1)
+#ifndef R2_WIN_STORAGE_IDENTITY_RAW_V1_BODY
+#define R2_WIN_STORAGE_IDENTITY_RAW_V1_BODY
+_Static_assert(sizeof(GUID) == 16 && sizeof(WCHAR) == 2 &&
+    sizeof(PARTITION_INFORMATION_EX) == 144 &&
+    offsetof(PARTITION_INFORMATION_EX, StartingOffset) == 8 &&
+    offsetof(PARTITION_INFORMATION_EX, PartitionLength) == 16 &&
+    offsetof(PARTITION_INFORMATION_EX, PartitionNumber) == 24 &&
+    offsetof(PARTITION_INFORMATION_EX, Gpt) == 32 &&
+    sizeof(PARTITION_INFORMATION_GPT) == 112 &&
+    sizeof(DRIVE_LAYOUT_INFORMATION_GPT) == 40 &&
+    offsetof(DRIVE_LAYOUT_INFORMATION_EX, PartitionEntry) == 48 &&
+    48 + R2_WIN_STORAGE_IDENTITY_PARTITION_CAP * 144 ==
+        R2_WIN_STORAGE_IDENTITY_LAYOUT_BYTES,
+    "identity requires actual naturally aligned Win64 SDK layouts");
+_Static_assert(sizeof(struct r2_win_storage_identity_report_v1) ==
+    R2_WIN_STORAGE_IDENTITY_REPORT_BYTES &&
+    R2_WIN_STORAGE_CALL_CAP + R2_WIN_STORAGE_IDENTITY_CALL_CAP == 54,
+    "identity report ABI and combined storage lifetime bound");
+struct r2_storage_identity_private_v1 {
+    HANDLE original_creator;
+    volatile LONG acquire_race;
+    uint32_t race_recorded;
+};
+static struct r2_storage_identity_private_v1 r2_storage_identity_v1;
+static struct r2_win_storage_identity_report_v1 r2_storage_identity_report_v1 = {
+    .abi = R2_WIN_STORAGE_IDENTITY_RAW_ABI,
+    .size = sizeof(struct r2_win_storage_identity_report_v1),
+    .remaining_unproven = R2_WIN_STORAGE_UNPROVEN_ALL
+};
+_Static_assert(sizeof(r2_storage_identity_v1) + sizeof(r2_storage_identity_report_v1)
+    <= 32768, "identity fixed private state and report bound");
+_Static_assert(sizeof(r2_storage_v1) + sizeof(r2_storage_report_v1) +
+    sizeof(r2_storage_identity_v1) + sizeof(r2_storage_identity_report_v1) <= 106496,
+    "combined original storage and identity fixed memory bound");
+
+static void r2_storage_identity_fault_v1(uint32_t op, uint32_t kind,
+    uint32_t reason, DWORD error, const struct r2_win_storage_call_v1 *c)
+{
+    struct r2_win_storage_identity_report_v1 *r = &r2_storage_identity_report_v1;
+    struct r2_win_storage_fault_v1 f = {
+        op, kind, reason, c ? c->ordinal : 0,
+        c ? c->disk_index : UINT32_MAX, (uint32_t)error,
+        kind == R2_STORAGE_FAULT_WIN32, 0
+    };
+    r2_storage_stop_v1(0); r->stop_new = 1;
+    if (!r->fault_count) r->primary = f;
+    else if (r->fault_count == 1) r->secondary = f;
+    if (r->fault_count < R2_WIN_STORAGE_FAULT_CAP) r->faults[r->fault_count] = f;
+    else if (r->omitted_fault_count != UINT32_MAX) ++r->omitted_fault_count;
+    if (r->fault_count != UINT32_MAX) ++r->fault_count;
+}
+static int r2_storage_identity_bad_v1(uint32_t op, uint32_t reason,
+    const struct r2_win_storage_call_v1 *c)
+{
+    r2_storage_identity_fault_v1(op, R2_STORAGE_FAULT_INVARIANT, reason, 0, c);
+    return 0;
+}
+static void r2_storage_identity_refresh_v1(void)
+{
+    struct r2_win_storage_identity_report_v1 *r = &r2_storage_identity_report_v1;
+    struct r2_win_storage_report_v1 *s = &r2_storage_report_v1;
+    r2_storage_refresh_v1();
+    if (InterlockedCompareExchange(&r2_storage_identity_v1.acquire_race, 0, 0) &&
+        !r2_storage_identity_v1.race_recorded) {
+        r2_storage_identity_v1.race_recorded = 1; r->acquisition_consumed = 1;
+        r2_storage_identity_bad_v1(R2_STORAGE_IDENTITY_OP_STATE,
+            R2_STORAGE_REASON_RACE, NULL);
+    }
+    r->stop_new = (uint32_t)r2_own_stopped_v1();
+    r->owner_lifecycle = r2_own_report_v1.lifecycle;
+    r->storage_finish_observed = s->finish_consumed;
+    r->pending_liability = r->in_flight || r->fault_count ||
+        (r->acquisition_consumed && s->pending_liability);
+    if (r->acquisition_consumed && s->finish_consumed && r->pending_liability)
+        r->status = R2_STORAGE_IDENTITY_RETAINED;
+    else if (r->acquisition_complete && s->acquisition_complete &&
+        s->finish_consumed && s->all_known_once_closed && !s->fault_count &&
+        !r->pending_liability)
+        r->status = R2_STORAGE_IDENTITY_RAW_COMPLETE;
+    else if (r->fault_count) r->status = R2_STORAGE_IDENTITY_RAW_PARTIAL;
+    else r->status = r->acquisition_consumed ?
+        R2_STORAGE_IDENTITY_PENDING : R2_STORAGE_IDENTITY_UNUSED;
+}
+static uint32_t r2_storage_identity_leave_v1(void)
+{
+    uint32_t status;
+    r2_storage_identity_refresh_v1(); status = r2_storage_identity_report_v1.status;
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return status;
+}
+static int r2_storage_identity_disjoint_v1(const void *p, size_t size)
+{
+    return r2_storage_disjoint_v1(p, size) &&
+        r2_mm_disjoint_v1(p, size, &r2_storage_identity_v1, sizeof(r2_storage_identity_v1)) &&
+        r2_mm_disjoint_v1(p, size, &r2_storage_identity_report_v1,
+            sizeof(r2_storage_identity_report_v1));
+}
+static int r2_storage_identity_context_v1(struct r2_win_storage_call_v1 *c)
+{
+    struct r2_win_storage_identity_report_v1 *r = &r2_storage_identity_report_v1;
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    struct r2_win_storage_report_v1 *s = &r2_storage_report_v1;
+    if (!r2_own_v1.creator || r2_own_v1.creator != r2_storage_identity_v1.original_creator ||
+        r2_own_v1.creator != r2_storage_v1.original_creator || !r2_own_v1.deadline_bound ||
+        !o->attempt_consumed || o->finish_started || o->birth_attempted ||
+        o->lifecycle != R2_OWN_INTENT_HELD ||
+        o->creator_creation_100ns.state != R2_WIN_JOB_FIELD_VALID ||
+        !s->acquisition_complete || s->finish_consumed || s->fault_count ||
+        s->ambiguous_ownership || !r2_storage_v1.usable[0] || !r2_storage_v1.usable[1] ||
+        o->creator_pid != r->creator_pid || o->creator_tid != r->creator_tid ||
+        o->creator_creation_100ns.value != r->creator_creation_100ns ||
+        o->intent_serial != r->intent_serial || o->lease_epoch_qpc != r->lease_epoch_qpc ||
+        o->qpc_frequency != r->qpc_frequency || o->stop_deadline_qpc != r->stop_deadline_qpc ||
+        o->cleanup_deadline_qpc != r->cleanup_deadline_qpc ||
+        s->creator_pid != r->creator_pid || s->creator_tid != r->creator_tid ||
+        s->creator_creation_100ns != r->creator_creation_100ns ||
+        s->intent_serial != r->intent_serial || s->lease_epoch_qpc != r->lease_epoch_qpc ||
+        s->qpc_frequency != r->qpc_frequency || s->stop_deadline_qpc != r->stop_deadline_qpc ||
+        s->cleanup_deadline_qpc != r->cleanup_deadline_qpc) {
+        r2_storage_identity_fault_v1(c->operation, R2_STORAGE_FAULT_OWNER,
+            R2_STORAGE_REASON_CONTEXT, 0, c); return 0;
+    }
+    if (r->identity_check_count >= 2 * R2_WIN_STORAGE_IDENTITY_CALL_CAP)
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_COUNTER, c);
+    ++r->identity_check_count;
+    if (GetCurrentProcessId() != r->creator_pid || GetCurrentThreadId() != r->creator_tid ||
+        !r2_own_creator_identity_v1()) {
+        r2_storage_identity_fault_v1(c->operation, R2_STORAGE_FAULT_OWNER,
+            R2_STORAGE_REASON_IDENTITY, 0, c); return 0;
+    }
+    return 1;
+}
+static int r2_storage_identity_clock_v1(struct r2_win_storage_call_v1 *c, uint32_t endpoint)
+{
+    struct r2_win_storage_identity_report_v1 *r = &r2_storage_identity_report_v1;
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    struct r2_win_storage_clock_v1 *clock = &c->clocks[endpoint];
+    LARGE_INTEGER now = {0};
+    BOOL result;
+    DWORD error;
+    if (r->qpc_work_count >= 4 * R2_WIN_STORAGE_IDENTITY_CALL_CAP)
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_COUNTER, c);
+    ++r->qpc_work_count; clock->attempted = 1;
+    result = QueryPerformanceCounter(&now);
+    if (!result) {
+        error = GetLastError();
+        clock->raw_result = (uint32_t)result;
+        clock->win32_error = error; clock->win32_error_valid = 1;
+        o->clock_valid = 0; o->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        r2_storage_identity_fault_v1(c->operation, R2_STORAGE_FAULT_WIN32,
+            R2_STORAGE_REASON_CLOCK, error, c); return 0;
+    }
+    clock->raw_result = (uint32_t)result; clock->raw_qpc = now.QuadPart;
+    if (now.QuadPart <= 0 || now.QuadPart < o->last_qpc || !o->clock_valid ||
+        (o->residual_bits & R2_OWN_RESIDUAL_CLOCK)) {
+        o->clock_valid = 0; o->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_CLOCK, c);
+    }
+    o->last_qpc = now.QuadPart;
+    if (r->stop_deadline_qpc <= 0 || now.QuadPart >= r->stop_deadline_qpc) {
+        o->residual_bits |= R2_OWN_RESIDUAL_DEADLINE;
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_DEADLINE, c);
+    }
+    return 1;
+}
+static int r2_storage_identity_ioctl_v1(uint32_t slot, uint32_t op,
+    DWORD control, void *output, DWORD capacity, struct r2_win_storage_call_v1 **observed)
+{
+    struct r2_win_storage_identity_report_v1 *r = &r2_storage_identity_report_v1;
+    struct r2_win_storage_call_v1 *c;
+    DWORD returned = 0, error = 0;
+    BOOL result;
+    int before_identity, before_clock, after_first, after_identity, after_last;
+    *observed = NULL;
+    if (r->call_count >= R2_WIN_STORAGE_IDENTITY_CALL_CAP ||
+        r->native_work_count >= R2_WIN_STORAGE_IDENTITY_CALL_CAP)
+        return r2_storage_identity_bad_v1(op, R2_STORAGE_REASON_COUNTER, NULL);
+    c = &r->calls[r->call_count++]; *observed = c;
+    c->ordinal = r->call_count; c->operation = op;
+    c->disk_index = slot ? 0 : UINT32_MAX; c->capacity = capacity;
+    if (r2_own_stopped_v1())
+        return r2_storage_identity_bad_v1(op, R2_STORAGE_REASON_STATE, c);
+    if (!r2_storage_identity_clock_v1(c, 0)) return 0;
+    before_identity = r2_storage_identity_context_v1(c);
+    before_clock = r2_storage_identity_clock_v1(c, 1);
+    if (!before_identity || !before_clock) return 0;
+    if (r2_own_stopped_v1())
+        return r2_storage_identity_bad_v1(op, R2_STORAGE_REASON_RACE, c);
+    c->attempted = 1; ++r->native_work_count;
+    r->in_flight_ordinal = c->ordinal; r->in_flight = 1; r->pending_liability = 1;
+    result = DeviceIoControl(r2_storage_v1.originals[slot], control, NULL, 0,
+        output, capacity, &returned, NULL);
+    if (!result) error = GetLastError();
+    c->raw_bool = (uint32_t)result; c->bool_observed = 1;
+    c->raw_bytes_returned = returned;
+    c->opaque_bytes = result && returned <= capacity ? returned : capacity;
+    if (!result) {
+        c->win32_error = error; c->win32_error_valid = 1;
+        r2_storage_identity_fault_v1(op, R2_STORAGE_FAULT_WIN32, 0, error, c);
+    }
+    r->in_flight = 0;
+    after_first = r2_storage_identity_clock_v1(c, 2);
+    after_identity = r2_storage_identity_context_v1(c);
+    after_last = r2_storage_identity_clock_v1(c, 3);
+    c->boundary_valid = after_first && after_identity && after_last;
+    if (r2_own_stopped_v1()) {
+        if (!r->fault_count)
+            r2_storage_identity_bad_v1(op, R2_STORAGE_REASON_RACE, c);
+        return 0;
+    }
+    if (!c->boundary_valid || !result) return 0;
+    if (returned > capacity)
+        return r2_storage_identity_bad_v1(op, R2_STORAGE_REASON_BOUND, c);
+    return 1;
+}
+static int r2_storage_identity_zero_guid_v1(const GUID *guid)
+{
+    const unsigned char *p = (const unsigned char *)guid;
+    size_t i;
+    for (i = 0; i < sizeof(*guid); ++i) if (p[i]) return 0;
+    return 1;
+}
+static int r2_storage_identity_range_v1(int64_t start, int64_t length,
+    int64_t disk_length, uint32_t sector)
+{
+    return sector && start >= 0 && length > 0 && disk_length > 0 &&
+        start <= disk_length && length <= disk_length - start &&
+        (uint64_t)start % sector == 0 && (uint64_t)length % sector == 0;
+}
+static int r2_storage_identity_partition_v1(void)
+{
+    struct r2_win_storage_identity_report_v1 *r = &r2_storage_identity_report_v1;
+    struct r2_win_storage_disk_v1 *d = &r2_storage_report_v1.disks[0];
+    struct r2_win_storage_call_v1 *c = NULL;
+    PARTITION_INFORMATION_EX partition;
+    if (!r2_storage_identity_ioctl_v1(0, R2_STORAGE_IDENTITY_OP_PARTITION,
+        IOCTL_DISK_GET_PARTITION_INFO_EX, r->partition_opaque.bytes,
+        (DWORD)sizeof(partition), &c)) return 0;
+    if (c->raw_bytes_returned != sizeof(partition))
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_BOUND, c);
+    memcpy(&partition, r->partition_opaque.bytes, sizeof(partition));
+    r->partition_style = (uint32_t)partition.PartitionStyle;
+    if (partition.PartitionStyle != PARTITION_STYLE_GPT)
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_UNSUPPORTED, c);
+    /* The union is inspected only AFTER its actual style is known. */
+    if (r2_storage_identity_zero_guid_v1(&partition.Gpt.PartitionType) ||
+        r2_storage_identity_zero_guid_v1(&partition.Gpt.PartitionId) ||
+        !partition.PartitionNumber ||
+        !r2_storage_identity_range_v1(partition.StartingOffset.QuadPart,
+            partition.PartitionLength.QuadPart, d->disk_length, d->bytes_per_logical_sector))
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_RANGE, c);
+    r->partition_number = partition.PartitionNumber;
+    r->partition_start = partition.StartingOffset.QuadPart;
+    r->partition_length = partition.PartitionLength.QuadPart;
+    memcpy(r->partition_type, &partition.Gpt.PartitionType, sizeof(GUID));
+    memcpy(r->partition_id, &partition.Gpt.PartitionId, sizeof(GUID));
+    r->partition_attributes = partition.Gpt.Attributes;
+    memcpy(r->partition_name, partition.Gpt.Name, sizeof(r->partition_name));
+    r->volume_source_ordinal = c->ordinal;
+    c->output_valid = 1; r->partition_valid = 1;
+    return 1;
+}
+/* Complete bounded spans were checked before any entry read. SDK locals avoid
+ * alignment/effective-type assumptions about the opaque byte arrays. */
+static void r2_storage_identity_entry_v1(uint32_t index, PARTITION_INFORMATION_EX *out)
+{
+    memcpy(out, r2_storage_identity_report_v1.layout_opaque.bytes +
+        offsetof(DRIVE_LAYOUT_INFORMATION_EX, PartitionEntry) + index * sizeof(*out), sizeof(*out));
+}
+static int r2_storage_identity_layout_v1(void)
+{
+    struct r2_win_storage_identity_report_v1 *r = &r2_storage_identity_report_v1;
+    struct r2_win_storage_disk_v1 *d = &r2_storage_report_v1.disks[0];
+    struct r2_win_storage_call_v1 *c = NULL;
+    DRIVE_LAYOUT_INFORMATION_EX header;
+    PARTITION_INFORMATION_EX entry, previous;
+    size_t offset = offsetof(DRIVE_LAYOUT_INFORMATION_EX, PartitionEntry);
+    uint32_t count, i, j, used = 0;
+    int64_t usable_start, usable_length;
+    if (!r2_storage_identity_ioctl_v1(1, R2_STORAGE_IDENTITY_OP_LAYOUT,
+        IOCTL_DISK_GET_DRIVE_LAYOUT_EX, r->layout_opaque.bytes,
+        R2_WIN_STORAGE_IDENTITY_LAYOUT_BYTES, &c)) return 0;
+    if (c->raw_bytes_returned < offset)
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_BOUND, c);
+    memset(&header, 0, sizeof(header)); memcpy(&header, r->layout_opaque.bytes, offset);
+    r->layout_partition_style = header.PartitionStyle;
+    r->layout_partition_count = header.PartitionCount;
+    count = header.PartitionCount;
+    if (count > R2_WIN_STORAGE_IDENTITY_PARTITION_CAP ||
+        count > (c->raw_bytes_returned - offset) / sizeof(entry) ||
+        count > (c->capacity - offset) / sizeof(entry))
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_BOUND, c);
+    if (header.PartitionStyle != PARTITION_STYLE_GPT)
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_UNSUPPORTED, c);
+    /* Only the GPT arm is defined by the supported actual discriminator. */
+    usable_start = header.Gpt.StartingUsableOffset.QuadPart;
+    usable_length = header.Gpt.UsableLength.QuadPart;
+    if (r2_storage_identity_zero_guid_v1(&header.Gpt.DiskId) ||
+        !header.Gpt.MaxPartitionCount || count > header.Gpt.MaxPartitionCount ||
+        !r2_storage_identity_range_v1(usable_start, usable_length,
+            d->disk_length, d->bytes_per_logical_sector))
+        return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_RANGE, c);
+    memcpy(r->disk_id, &header.Gpt.DiskId, sizeof(GUID));
+    r->gpt_usable_offset = usable_start; r->gpt_usable_length = usable_length;
+    r->max_partition_count = header.Gpt.MaxPartitionCount; r->layout_header_valid = 1;
+    for (i = 0; i < count; ++i) {
+        r2_storage_identity_entry_v1(i, &entry);
+        if (entry.PartitionStyle != PARTITION_STYLE_GPT)
+            return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_UNSUPPORTED, c);
+        if (r2_storage_identity_zero_guid_v1(&entry.Gpt.PartitionType)) {
+            ++r->layout_validated_count; continue; /* unused/raw, no ID/name interpretation */
+        }
+        if (r2_storage_identity_zero_guid_v1(&entry.Gpt.PartitionId) || !entry.PartitionNumber ||
+            !r2_storage_identity_range_v1(entry.StartingOffset.QuadPart,
+                entry.PartitionLength.QuadPart, d->disk_length, d->bytes_per_logical_sector) ||
+            entry.StartingOffset.QuadPart < usable_start ||
+            entry.StartingOffset.QuadPart - usable_start > usable_length ||
+            entry.PartitionLength.QuadPart >
+                usable_length - (entry.StartingOffset.QuadPart - usable_start))
+            return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_RANGE, c);
+        for (j = 0; j < i; ++j) {
+            r2_storage_identity_entry_v1(j, &previous);
+            /* Every earlier discriminator/range was validated on its iteration. */
+            if (previous.PartitionStyle != PARTITION_STYLE_GPT)
+                return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_UNSUPPORTED, c);
+            if (r2_storage_identity_zero_guid_v1(&previous.Gpt.PartitionType)) continue;
+            if (entry.PartitionNumber == previous.PartitionNumber ||
+                !memcmp(&entry.Gpt.PartitionId, &previous.Gpt.PartitionId, sizeof(GUID)) ||
+                (entry.StartingOffset.QuadPart < previous.StartingOffset.QuadPart +
+                    previous.PartitionLength.QuadPart &&
+                 previous.StartingOffset.QuadPart < entry.StartingOffset.QuadPart +
+                    entry.PartitionLength.QuadPart))
+                return r2_storage_identity_bad_v1(c->operation, R2_STORAGE_REASON_ASSOCIATION, c);
+        }
+        ++used; ++r->layout_validated_count;
+    }
+    r->used_entry_count = used;
+    r->layout_tail_offset = (uint32_t)(offset + count * sizeof(entry));
+    r->layout_tail_bytes = c->raw_bytes_returned - r->layout_tail_offset;
+    r->layout_source_ordinal = c->ordinal;
+    c->output_valid = 1; r->layout_valid = 1;
+    return 1;
+}
+static int r2_storage_identity_associate_v1(void)
+{
+    struct r2_win_storage_identity_report_v1 *r = &r2_storage_identity_report_v1;
+    const struct r2_win_storage_extent_v1 *extent = &r2_storage_report_v1.extents[0];
+    /* Documented PARTITION_BASIC_DATA_GUID, not an observed target identity.
+     * winioctl/PARTITION_INFORMATION_GPT documents the retained OEM exception;
+     * this type gate does not establish that the disk itself is basic.
+     */
+    const GUID basic_data_type = {
+        0xebd0a0a2u, 0xb9e5u, 0x4433u, {0x87u, 0xc0u, 0x68u, 0xb6u, 0xb7u, 0x26u, 0x99u, 0xc7u}
+    };
+    PARTITION_INFORMATION_EX entry;
+    uint32_t i, matches = 0, matched = 0;
+    if (!r->partition_valid || !r->layout_valid || extent->disk_index != 0 ||
+        extent->disk_number != r2_storage_report_v1.disks[0].extent_disk_number ||
+        !extent->range_valid || !extent->sector_mapping_valid ||
+        extent->starting_offset != r->partition_start || extent->extent_length != r->partition_length)
+        return r2_storage_identity_bad_v1(R2_STORAGE_IDENTITY_OP_ASSOCIATION,
+            R2_STORAGE_REASON_ASSOCIATION, NULL);
+    for (i = 0; i < r->layout_partition_count; ++i) {
+        r2_storage_identity_entry_v1(i, &entry);
+        if (entry.PartitionStyle != PARTITION_STYLE_GPT)
+            return r2_storage_identity_bad_v1(R2_STORAGE_IDENTITY_OP_ASSOCIATION,
+                R2_STORAGE_REASON_UNSUPPORTED, NULL);
+        if (r2_storage_identity_zero_guid_v1(&entry.Gpt.PartitionType)) continue;
+        if (entry.PartitionNumber == r->partition_number &&
+            entry.StartingOffset.QuadPart == r->partition_start &&
+            entry.PartitionLength.QuadPart == r->partition_length &&
+            !memcmp(&entry.Gpt.PartitionType, r->partition_type, sizeof(GUID)) &&
+            !memcmp(&entry.Gpt.PartitionId, r->partition_id, sizeof(GUID)) &&
+            entry.Gpt.Attributes == r->partition_attributes &&
+            !memcmp(entry.Gpt.Name, r->partition_name, sizeof(r->partition_name))) {
+            matched = i; ++matches;
+        }
+    }
+    if (matches != 1)
+        return r2_storage_identity_bad_v1(R2_STORAGE_IDENTITY_OP_ASSOCIATION,
+            R2_STORAGE_REASON_ASSOCIATION, NULL);
+    /* Other layout types remain raw structural facts. Only the exact matched
+     * target must be BasicData before any supported association is published.
+     */
+    if (memcmp(r->partition_type, &basic_data_type, sizeof(basic_data_type)))
+        return r2_storage_identity_bad_v1(R2_STORAGE_IDENTITY_OP_ASSOCIATION,
+            R2_STORAGE_REASON_UNSUPPORTED, NULL);
+    r->matched_layout_index = matched; r->association_valid = 1;
+    r->supported_gpt_observed = 1;
+    return 1;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_identity_acquire_once_v1(void)
+{
+    struct r2_win_storage_identity_report_v1 *r = &r2_storage_identity_report_v1;
+    struct r2_win_storage_report_v1 *s = &r2_storage_report_v1;
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_storage_identity_v1.acquire_race, 1);
+        InterlockedExchange(&r2_own_stop_v1, 1);
+        return R2_STORAGE_IDENTITY_BUSY;
+    }
+    r2_storage_identity_refresh_v1();
+    if (r->acquisition_consumed) {
+        r2_storage_identity_bad_v1(R2_STORAGE_IDENTITY_OP_STATE, R2_STORAGE_REASON_STATE, NULL);
+        return r2_storage_identity_leave_v1();
+    }
+    r->acquisition_consumed = 1;
+    r2_storage_identity_v1.original_creator = r2_own_v1.creator;
+    r->creator_pid = o->creator_pid; r->creator_tid = o->creator_tid;
+    r->creator_creation_100ns = o->creator_creation_100ns.value;
+    r->intent_serial = o->intent_serial; r->lease_epoch_qpc = o->lease_epoch_qpc;
+    r->qpc_frequency = o->qpc_frequency; r->stop_deadline_qpc = o->stop_deadline_qpc;
+    r->cleanup_deadline_qpc = o->cleanup_deadline_qpc;
+    if (!s->acquisition_complete || s->finish_consumed || s->fault_count || s->ambiguous_ownership ||
+        !r2_storage_v1.usable[0] || !r2_storage_v1.usable[1] ||
+        !r2_own_v1.creator || !r2_own_v1.deadline_bound || !o->attempt_consumed ||
+        o->creator_creation_100ns.state != R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle != R2_OWN_INTENT_HELD || o->birth_attempted || o->finish_started ||
+        r2_own_stopped_v1() || r->lease_epoch_qpc <= 0 || r->qpc_frequency <= 0 ||
+        r->stop_deadline_qpc <= r->lease_epoch_qpc ||
+        r->cleanup_deadline_qpc <= r->stop_deadline_qpc) {
+        r2_storage_identity_bad_v1(R2_STORAGE_IDENTITY_OP_STATE, R2_STORAGE_REASON_STATE, NULL);
+        return r2_storage_identity_leave_v1();
+    }
+    if (!s->extent_count_valid || s->extent_count != 1 || s->disk_count != 1 ||
+        !s->disks[0].adopted || !s->disks[0].device_number_valid ||
+        !s->disks[0].length_valid || !s->disks[0].alignment_valid) {
+        r2_storage_identity_bad_v1(R2_STORAGE_IDENTITY_OP_STATE,
+            R2_STORAGE_REASON_UNSUPPORTED, NULL);
+        return r2_storage_identity_leave_v1();
+    }
+    r->extent_disk_number = s->extents[0].disk_number;
+    r->extent_sector_mapping_valid = s->extents[0].sector_mapping_valid;
+    if (!r2_storage_identity_partition_v1() || !r2_storage_identity_layout_v1() ||
+        !r2_storage_identity_associate_v1()) return r2_storage_identity_leave_v1();
+    if (!r->fault_count && !r2_own_stopped_v1()) r->acquisition_complete = 1;
+    return r2_storage_identity_leave_v1();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_identity_copy_report_v1(
+    struct r2_win_storage_identity_report_v1 *out, size_t out_size)
+{
+    if (out_size != sizeof(*out) ||
+        !r2_own_range_v1(out, out_size, _Alignof(struct r2_win_storage_identity_report_v1)) ||
+        !r2_storage_identity_disjoint_v1(out, out_size)) return R2_STORAGE_IDENTITY_BAD_ARGUMENT;
+    if (!r2_own_enter_v1()) return R2_STORAGE_IDENTITY_BUSY;
+    r2_storage_identity_refresh_v1();
+    memcpy(out, &r2_storage_identity_report_v1, sizeof(*out));
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return R2_STORAGE_IDENTITY_COPY_OK;
+}
+#endif
+#endif

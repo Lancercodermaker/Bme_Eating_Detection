@@ -1453,3 +1453,123 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_copy_report_v1(
     struct r2_win_storage_report_v1 *out, size_t out_size);
 #endif
 #endif
+
+/* C00 original GPT association limb; raw source only. The new opt-in requires
+ * the original storage collector in the SAME C11 native Win64 translation unit.
+ * Actual Windows SDK Windows.h/winioctl.h and Kernel32.lib are required; all
+ * existing target/SDK floors remain in force. No loader or invocation is added.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_STORAGE_IDENTITY_RAW_V1)
+#if !defined(R2_ENABLE_WIN_STORAGE_RAW_V1)
+#error R2_ENABLE_WIN_STORAGE_IDENTITY_RAW_V1 requires R2_ENABLE_WIN_STORAGE_RAW_V1
+#endif
+#ifndef R2_WIN_STORAGE_IDENTITY_RAW_V1_DECLARED
+#define R2_WIN_STORAGE_IDENTITY_RAW_V1_DECLARED
+#define R2_WIN_STORAGE_IDENTITY_RAW_ABI 1u
+#define R2_WIN_STORAGE_IDENTITY_REPORT_BYTES 19632u
+#define R2_WIN_STORAGE_IDENTITY_PARTITION_CAP 128u
+#define R2_WIN_STORAGE_IDENTITY_LAYOUT_BYTES 18480u
+#define R2_WIN_STORAGE_IDENTITY_CALL_CAP 2u
+
+enum r2_win_storage_identity_status_v1 {
+    R2_STORAGE_IDENTITY_UNUSED = 0, R2_STORAGE_IDENTITY_PENDING = 0xC301u,
+    R2_STORAGE_IDENTITY_RAW_COMPLETE = 0xC302u,
+    R2_STORAGE_IDENTITY_RAW_PARTIAL = 0xC303u,
+    R2_STORAGE_IDENTITY_RETAINED = 0xC304u,
+    R2_STORAGE_IDENTITY_BAD_ARGUMENT = 0xC305u,
+    R2_STORAGE_IDENTITY_BUSY = 0xC306u, R2_STORAGE_IDENTITY_COPY_OK = 0xC307u
+};
+enum r2_win_storage_identity_operation_v1 {
+    R2_STORAGE_IDENTITY_OP_STATE = 1, R2_STORAGE_IDENTITY_OP_PARTITION,
+    R2_STORAGE_IDENTITY_OP_LAYOUT, R2_STORAGE_IDENTITY_OP_ASSOCIATION
+};
+union r2_win_storage_identity_partition_bytes_v1 {
+    uint64_t alignment;
+    unsigned char bytes[144];
+};
+union r2_win_storage_identity_layout_bytes_v1 {
+    uint64_t alignment;
+    unsigned char bytes[R2_WIN_STORAGE_IDENTITY_LAYOUT_BYTES];
+};
+struct r2_win_storage_identity_report_v1 {
+    uint32_t abi, size, status, stop_new;
+    uint32_t acquisition_consumed, acquisition_complete, partition_valid, layout_valid;
+    uint32_t association_valid, supported_gpt_observed, pending_liability, in_flight;
+    uint32_t in_flight_ordinal, native_work_count, call_count, qpc_work_count;
+    uint32_t identity_check_count, fault_count, omitted_fault_count, remaining_unproven;
+    uint32_t creator_pid, creator_tid, owner_lifecycle, storage_finish_observed;
+    uint64_t intent_serial, creator_creation_100ns;
+    int64_t lease_epoch_qpc, qpc_frequency, stop_deadline_qpc, cleanup_deadline_qpc;
+    uint32_t partition_style, partition_number, layout_partition_count, layout_partition_style;
+    uint32_t matched_layout_index, layout_tail_offset, layout_tail_bytes, reserved;
+    int64_t partition_start, partition_length, gpt_usable_offset, gpt_usable_length;
+    uint32_t max_partition_count, layout_header_valid, used_entry_count, layout_validated_count;
+    uint32_t extent_disk_number, extent_sector_mapping_valid, volume_source_ordinal, layout_source_ordinal;
+    unsigned char partition_type[16], partition_id[16], disk_id[16];
+    uint64_t partition_attributes;
+    uint16_t partition_name[36];
+    struct r2_win_storage_fault_v1 primary, secondary;
+    struct r2_win_storage_fault_v1 faults[R2_WIN_STORAGE_FAULT_CAP];
+    union r2_win_storage_identity_partition_bytes_v1 partition_opaque;
+    union r2_win_storage_identity_layout_bytes_v1 layout_opaque;
+    struct r2_win_storage_call_v1 calls[R2_WIN_STORAGE_IDENTITY_CALL_CAP];
+};
+/* No arguments: borrow ONLY existing private originals[0]/originals[1]. Call
+ * after original storage acquisition_complete, before its finish, C02 birth
+ * reservation or C02 finish. ONE complete extent/ONE disk is the supported
+ * policy; 128 layout entries is a fixed bound, never an OS/hardware maximum.
+ * Same original creator HANDLE/PID/TID/creation, intent, lease and deadlines
+ * are checked with the existing guard around each synchronous IOCTL. The new
+ * ledger allows <=2 IOCTL, <=8 QPC and <=4 creator-helper calls. The original
+ * storage ledger remains <=52 lifetime calls; combined storage work is <=54.
+ * No new handles, ownership transfer, close, heap, thread, callback or retry.
+ * Existing storage finish is the ONLY once-close owner, before C02 finish.
+ *
+ * Actual SDK structures define partition144 and layout48+128*144 bytes.
+ * FALSE outputs (including MORE_DATA/INSUFFICIENT_BUFFER) stay opaque and stop;
+ * their retained byte span is buffer capacity, not an output-definedness claim.
+ * Only TRUE complete bounded arrays are traversed, only actual GPT unions are
+ * interpreted. GPT type0 entries are unused/raw; other entries require nonzero
+ * IDs/numbers, positive disk/usable/sector ranges, no overlaps and no duplicate
+ * IDs/numbers. Complete layout validity is published after ALL entries pass.
+ * layout_validated_count counts structurally checked entries including unused;
+ * used_entry_count is valid only with layout_valid and excludes type0. A match
+ * index is valid only with association_valid. Tail bytes stay raw, never extra
+ * entries. Report+private state <=32768B; combined original storage plus this
+ * component <=106496B. These are fixed source object bounds, not whole resource
+ * budgets or limits on external driver/OS allocations.
+ * The sole volume partition/extent/layout entry must match number, range,
+ * type/id/attributes/fixed36-WCHAR name exactly; names need not contain NUL.
+ * Only a matched PARTITION_BASIC_DATA_GUID target is supported. Matched LDM,
+ * unknown or other types retain raw facts and stop as unsupported before any
+ * association_valid/supported flag. Other entries (including EFI/MSR) remain
+ * bounded raw structural metadata, without a whole-layout type whitelist.
+ *
+ * acquisition_complete/association_valid mean raw GPT observations only.
+ * Query success does not certify a basic disk: retained/system dynamic cases
+ * can also succeed; BasicData itself has a documented retained OEM/dynamic
+ * exception. Disk basicness and actual backing remain unproven. RAW_COMPLETE
+ * additionally requires existing storage finish
+ * to have once successfully closed ALL its known originals with no faults or
+ * pending liability. Copies refresh this state; no separate finish is needed.
+ * Errors latch original STOP_NEW/SAMPLE, preserving primary/secondary and first
+ * eight faults plus saturating omitted count. Busy acquisition consumes its
+ * sole chance via a race latch. In-flight state is saved BEFORE each call;
+ * synchronous driver stalls have no bounded latency/cancel/drain guarantee and
+ * retain original handles and liability. A copy needs the existing guard.
+ *
+ * No actual volume GUID, persistent/unique physical medium identity, complete
+ * virtual/RAID/provider backing, topology immutability, competing writer/resize
+ * closure, E binding, capacity/free floor, fee or admission PASS is supplied.
+ * All storage remaining_unproven bits stay set; fees UNKNOWN_NOT_ZERO. This
+ * adds no full producer or C04-C12 assembly. All source is UNCOMPILED_UNRUN.
+ * Caller output must be accessible/stable/exclusive/aligned; range checks do
+ * not establish that precondition. COPY_OK means exact byte copy only. Copy
+ * excludes every new private static plus original storage/owner/RAM/GPU state;
+ * old copy functions retain their exclusive-caller-memory preconditions.
+ */
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_identity_acquire_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_identity_copy_report_v1(
+    struct r2_win_storage_identity_report_v1 *out, size_t out_size);
+#endif
+#endif
