@@ -3502,3 +3502,254 @@ uint32_t route2_elf_preload_parse_raw_v1(
 }
 #endif
 #endif
+
+/* C00 machine-memory raw acquisition; root selected this exact limb before
+ * authoring. Public APIs: sysinfoapi.h / Windows.h, Kernel32.lib; installed
+ * memory requires Vista SP1. Existing C11/Windows-seed build contract applies.
+ * No dynamic loading, new thread, caller evidence or admission integration.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED)
+#ifndef R2_WIN_MACHINE_MEMORY_V1_BODY
+#define R2_WIN_MACHINE_MEMORY_V1_BODY
+_Static_assert(sizeof(ULONGLONG) == sizeof(uint64_t) && sizeof(BOOL) == 4,
+               "machine-memory native scalar ABI changed");
+_Static_assert(sizeof(MEMORYSTATUSEX) == 64 &&
+    sizeof(struct r2_win_machine_memory_fault_v1) == 24 &&
+    sizeof(struct r2_win_machine_memory_clock_v1) == 24 &&
+    sizeof(struct r2_win_machine_memory_snapshot_v1) == 304 &&
+    sizeof(struct r2_win_machine_memory_report_v1) == R2_WIN_MACHINE_MEMORY_REPORT_BYTES,
+    "machine-memory raw report ABI changed");
+static struct r2_win_machine_memory_report_v1 r2_mm_report_v1 = {
+    .abi = R2_WIN_MACHINE_MEMORY_ABI,
+    .size = sizeof(struct r2_win_machine_memory_report_v1),
+    .remaining_unproven = R2_WIN_MACHINE_MEMORY_UNPROVEN_ALL
+};
+static void r2_mm_stop_v1(void)
+{
+    InterlockedExchange(&r2_own_stop_v1, 1);
+    r2_own_report_v1.stop_new = 1;
+    r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_SAMPLE;
+    r2_mm_report_v1.stop_new = 1;
+}
+static void r2_mm_fault_v1(struct r2_win_machine_memory_snapshot_v1 *s,
+    uint32_t operation, uint32_t kind, uint32_t code, DWORD error)
+{
+    struct r2_win_machine_memory_fault_v1 f = {
+        operation, kind, code, (uint32_t)error, kind == R2_MM_FAULT_WIN32, 0
+    };
+    struct r2_win_machine_memory_report_v1 *r = &r2_mm_report_v1;
+    r2_mm_stop_v1();
+    if (s->fault_count < 2) s->faults[s->fault_count] = f;
+    else if (s->omitted_fault_count != UINT32_MAX) ++s->omitted_fault_count;
+    if (s->fault_count != UINT32_MAX) ++s->fault_count;
+    if (!r->fault_count) r->primary = f;
+    else if (r->fault_count == 1) r->secondary = f;
+    else if (r->omitted_fault_count != UINT32_MAX) ++r->omitted_fault_count;
+    if (r->fault_count != UINT32_MAX) ++r->fault_count;
+}
+static int r2_mm_clock_v1(struct r2_win_machine_memory_snapshot_v1 *s,
+    uint32_t index, uint32_t operation, int64_t deadline)
+{
+    LARGE_INTEGER now = {0};
+    BOOL result;
+    struct r2_win_machine_memory_clock_v1 *c = &s->clocks[index];
+    c->attempted = 1;
+    result = QueryPerformanceCounter(&now);
+    if (!result) {
+        DWORD error = GetLastError();
+        c->raw_result = (uint32_t)result;
+        c->win32_error = error; c->win32_error_valid = 1;
+        r2_own_report_v1.clock_valid = 0;
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        r2_mm_fault_v1(s, operation, R2_MM_FAULT_WIN32, 0, error);
+        return 0;
+    }
+    c->raw_result = (uint32_t)result; c->raw_qpc = now.QuadPart;
+    if (now.QuadPart <= 0 || now.QuadPart < r2_own_report_v1.last_qpc ||
+        !r2_own_report_v1.clock_valid ||
+        (r2_own_report_v1.residual_bits & R2_OWN_RESIDUAL_CLOCK)) {
+        r2_own_report_v1.clock_valid = 0;
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        r2_mm_fault_v1(s, operation, R2_MM_FAULT_INVARIANT, R2_MM_REASON_CLOCK, 0);
+        return 0;
+    }
+    r2_own_report_v1.last_qpc = now.QuadPart;
+    if (deadline <= 0 || now.QuadPart >= deadline) {
+        r2_own_report_v1.residual_bits |= R2_OWN_RESIDUAL_DEADLINE;
+        r2_mm_fault_v1(s, operation, R2_MM_FAULT_INVARIANT, R2_MM_REASON_DEADLINE, 0);
+        return 0;
+    }
+    s->valid_fields |= index == 0 ? R2_MM_VALID_BEGIN_CLOCK :
+        index == 1 ? R2_MM_VALID_INSTALLED_BEGIN_CLOCK :
+        index == 2 ? R2_MM_VALID_INSTALLED_END_CLOCK : R2_MM_VALID_END_CLOCK;
+    return 1;
+}
+static int r2_mm_identity_v1(struct r2_win_machine_memory_snapshot_v1 *s,
+    uint32_t operation)
+{
+    /* C02 retains the actual creator-query errors in its original report. */
+    if (GetCurrentProcessId() != r2_own_report_v1.creator_pid ||
+        GetCurrentThreadId() != r2_own_report_v1.creator_tid ||
+        !r2_own_creator_identity_v1()) {
+        r2_mm_fault_v1(s, operation, R2_MM_FAULT_OWNER, R2_MM_REASON_IDENTITY, 0);
+        return 0;
+    }
+    return 1;
+}
+static uint32_t r2_mm_publish_v1(struct r2_win_machine_memory_snapshot_v1 *s)
+{
+    struct r2_win_machine_memory_report_v1 *r = &r2_mm_report_v1;
+    if (!r->initial_present) { r->initial = *s; r->initial_present = 1; }
+    if (s->raw_complete) {
+        r->latest = *s; r->latest_present = 1;
+        if (r->successful_captures != UINT32_MAX) ++r->successful_captures;
+        r->status = R2_MM_RAW_COMPLETE;
+    } else {
+        r->failed = *s; r->failed_present = 1;
+        if (r->failed_captures != UINT32_MAX) ++r->failed_captures;
+        r->status = R2_MM_RAW_PARTIAL;
+    }
+    r->stop_new = (uint32_t)r2_own_stopped_v1();
+    /* Preserve this call's result before releasing shared report ownership. */
+    uint32_t status = r->status;
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return status;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_machine_memory_observe_step_v1(void)
+{
+    struct r2_win_machine_memory_snapshot_v1 s = {0};
+    struct r2_win_machine_memory_report_v1 *r = &r2_mm_report_v1;
+    struct r2_win_owned_report_v1 *owner = &r2_own_report_v1;
+    MEMORYSTATUSEX native = {0};
+    ULONGLONG installed = 0;
+    BOOL result;
+    int64_t deadline;
+    int first;
+    if (!r2_own_enter_v1()) {
+        /* Do not mutate guarded storage from the losing caller. */
+        InterlockedExchange(&r2_own_stop_v1, 1);
+        return R2_MM_BUSY;
+    }
+    if (r->attempt_count == UINT32_MAX) {
+        s.ordinal = UINT32_MAX; s.lifecycle = owner->lifecycle;
+        r2_mm_fault_v1(&s, R2_MM_OP_COUNTER, R2_MM_FAULT_INVARIANT, R2_MM_REASON_COUNTER, 0);
+        r->failed = s; r->failed_present = 1;
+        if (r->failed_captures != UINT32_MAX) ++r->failed_captures;
+        r->status = R2_MM_LIMIT_REACHED;
+        InterlockedExchange(&r2_own_guard_v1, 0);
+        return R2_MM_LIMIT_REACHED;
+    }
+    first = !r->initial_present;
+    s.ordinal = ++r->attempt_count; s.lifecycle = owner->lifecycle;
+    if (!owner->attempt_consumed || !r2_own_v1.deadline_bound || !r2_own_v1.creator ||
+        owner->creator_creation_100ns.state != R2_WIN_JOB_FIELD_VALID ||
+        owner->lease_epoch_qpc <= 0 || owner->qpc_frequency <= 0 ||
+        owner->stop_deadline_qpc <= owner->lease_epoch_qpc ||
+        owner->cleanup_deadline_qpc <= owner->stop_deadline_qpc ||
+        owner->lifecycle < R2_OWN_INTENT_HELD || owner->lifecycle == R2_OWN_DONE ||
+        owner->lifecycle == R2_OWN_CLOSING || owner->lifecycle > R2_OWN_RETAINED ||
+        (first && (owner->lifecycle != R2_OWN_INTENT_HELD || owner->birth_attempted ||
+                   r2_own_stopped_v1()))) {
+        r2_mm_fault_v1(&s, R2_MM_OP_STATE, R2_MM_FAULT_INVARIANT, R2_MM_REASON_STATE, 0);
+        return r2_mm_publish_v1(&s);
+    }
+    r->creator_pid = owner->creator_pid; r->creator_tid = owner->creator_tid;
+    r->intent_serial = owner->intent_serial; r->lease_epoch_qpc = owner->lease_epoch_qpc;
+    r->qpc_frequency = owner->qpc_frequency;
+    r->stop_deadline_qpc = owner->stop_deadline_qpc;
+    r->cleanup_deadline_qpc = owner->cleanup_deadline_qpc;
+    deadline = r2_own_stopped_v1() || owner->lifecycle >= R2_OWN_STOPPING ?
+        owner->cleanup_deadline_qpc : owner->stop_deadline_qpc;
+    if (!r2_mm_clock_v1(&s, 0, R2_MM_OP_CLOCK_BEGIN, deadline)) return r2_mm_publish_v1(&s);
+    if (!r2_mm_identity_v1(&s, R2_MM_OP_OWNER_BEFORE)) return r2_mm_publish_v1(&s);
+    s.owner_before = 1; s.prebirth_first = first ? 1u : 0u;
+    /* Recheck after synchronous identity queries before beginning memory I/O. */
+    if (!r2_mm_clock_v1(&s, 1, R2_MM_OP_CLOCK_INSTALLED_BEGIN, deadline))
+        return r2_mm_publish_v1(&s);
+    s.installed_attempted = 1;
+    result = GetPhysicallyInstalledSystemMemory(&installed);
+    if (!result) {
+        DWORD error = GetLastError();
+        s.installed_raw_result = (uint32_t)result;
+        s.installed_win32_error = error; s.installed_error_valid = 1;
+        r2_mm_fault_v1(&s, R2_MM_OP_INSTALLED, R2_MM_FAULT_WIN32, 0, error);
+    } else {
+        s.installed_raw_result = (uint32_t)result; s.installed_kib = installed;
+        s.valid_fields |= R2_MM_VALID_INSTALLED_KIB;
+        if (!installed) r2_mm_fault_v1(&s, R2_MM_OP_VALUES,
+            R2_MM_FAULT_INVARIANT, R2_MM_REASON_VALUE, 0);
+        else if (installed > UINT64_MAX / 1024u) r2_mm_fault_v1(&s, R2_MM_OP_VALUES,
+            R2_MM_FAULT_INVARIANT, R2_MM_REASON_OVERFLOW, 0);
+        else { s.installed_bytes = (uint64_t)installed * 1024u;
+               s.valid_fields |= R2_MM_VALID_INSTALLED_BYTES; }
+    }
+    /* After a primary failure, endpoint diagnostics use only the unchanged
+     * original cleanup deadline. They never revive active work. */
+    if (!r2_mm_clock_v1(&s, 2, R2_MM_OP_CLOCK_INSTALLED_END,
+        s.fault_count ? owner->cleanup_deadline_qpc : deadline)) return r2_mm_publish_v1(&s);
+    if (!s.fault_count) {
+        native.dwLength = sizeof(native); s.global_attempted = 1;
+        result = GlobalMemoryStatusEx(&native);
+        if (!result) {
+            DWORD error = GetLastError();
+            s.global_raw_result = (uint32_t)result;
+            s.global_win32_error = error; s.global_error_valid = 1;
+            r2_mm_fault_v1(&s, R2_MM_OP_GLOBAL, R2_MM_FAULT_WIN32, 0, error);
+        } else {
+            s.global_raw_result = (uint32_t)result;
+            s.valid_fields |= R2_MM_VALID_GLOBAL_FIELDS;
+        }
+        /* Retain the returned buffer even on FALSE, without granting its
+         * fields validity. The error was captured before this local copy. */
+        s.native_length = native.dwLength; s.native_memory_load = native.dwMemoryLoad;
+        s.total_phys = native.ullTotalPhys; s.avail_phys = native.ullAvailPhys;
+        s.total_page_file = native.ullTotalPageFile; s.avail_page_file = native.ullAvailPageFile;
+        s.total_virtual = native.ullTotalVirtual; s.avail_virtual = native.ullAvailVirtual;
+        s.avail_extended_virtual = native.ullAvailExtendedVirtual;
+        if (result) {
+            if (native.dwLength != sizeof(native) || native.dwMemoryLoad > 100 ||
+                !s.total_phys || s.avail_phys > s.total_phys ||
+                !s.total_page_file || s.avail_page_file > s.total_page_file ||
+                !s.total_virtual || s.avail_virtual > s.total_virtual ||
+                s.avail_extended_virtual || s.total_phys > s.installed_bytes)
+                r2_mm_fault_v1(&s, R2_MM_OP_VALUES, R2_MM_FAULT_INVARIANT, R2_MM_REASON_VALUE, 0);
+            if (r->initial.raw_complete &&
+                (s.installed_bytes != r->initial.installed_bytes || s.total_phys != r->initial.total_phys))
+                r2_mm_fault_v1(&s, R2_MM_OP_CAPACITY_CHANGE, R2_MM_FAULT_INVARIANT,
+                    R2_MM_REASON_CAPACITY_CHANGE, 0);
+        }
+    }
+    if (r2_mm_identity_v1(&s, R2_MM_OP_OWNER_AFTER)) s.owner_after = 1;
+    if (!r2_mm_clock_v1(&s, 3, R2_MM_OP_CLOCK_END,
+        s.fault_count ? owner->cleanup_deadline_qpc : deadline)) return r2_mm_publish_v1(&s);
+    if (!s.fault_count && s.owner_before && s.owner_after &&
+        s.valid_fields == (R2_MM_VALID_INSTALLED_KIB | R2_MM_VALID_INSTALLED_BYTES |
+            R2_MM_VALID_GLOBAL_FIELDS | R2_MM_VALID_BEGIN_CLOCK |
+            R2_MM_VALID_INSTALLED_BEGIN_CLOCK | R2_MM_VALID_INSTALLED_END_CLOCK | R2_MM_VALID_END_CLOCK)) s.raw_complete = 1;
+    if (!s.raw_complete) r2_mm_stop_v1();
+    return r2_mm_publish_v1(&s);
+}
+static int r2_mm_disjoint_v1(const void *out, size_t size, const void *private_bytes, size_t private_size)
+{
+    uintptr_t a = (uintptr_t)out, b = (uintptr_t)private_bytes;
+    return a + size <= b || b + private_size <= a;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_machine_memory_copy_report_v1(
+    struct r2_win_machine_memory_report_v1 *out, size_t out_size)
+{
+    if (out_size != sizeof(*out) ||
+        !r2_own_range_v1(out, out_size, _Alignof(struct r2_win_machine_memory_report_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, &r2_mm_report_v1, sizeof(r2_mm_report_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, &r2_own_report_v1, sizeof(r2_own_report_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, &r2_own_v1, sizeof(r2_own_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, (const void *)&r2_own_guard_v1, sizeof(r2_own_guard_v1)) ||
+        !r2_mm_disjoint_v1(out, out_size, (const void *)&r2_own_stop_v1, sizeof(r2_own_stop_v1)))
+        return R2_MM_BAD_ARGUMENT;
+    if (!r2_own_enter_v1()) return R2_MM_BUSY;
+    r2_mm_report_v1.stop_new = (uint32_t)r2_own_stopped_v1();
+    memcpy(out, &r2_mm_report_v1, sizeof(*out));
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return R2_MM_COPY_OK;
+}
+#endif
+#endif

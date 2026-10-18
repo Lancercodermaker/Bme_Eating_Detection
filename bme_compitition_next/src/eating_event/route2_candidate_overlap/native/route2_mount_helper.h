@@ -970,3 +970,127 @@ uint32_t route2_elf_preload_parse_raw_v1(
     struct r2_elf_raw_report_v1 *out, size_t out_size);
 #endif
 #endif
+
+/* C00 positive machine-memory acquisition limb, SOURCE ONLY / UNCOMPILED.
+ * This independent raw ABI neither replaces the protected owned-child ABI
+ * nor supplies VM/service scope, resource admission or causal accounting.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED)
+#ifndef R2_WIN_MACHINE_MEMORY_V1_DECLARED
+#define R2_WIN_MACHINE_MEMORY_V1_DECLARED
+#define R2_WIN_MACHINE_MEMORY_ABI 1u
+#define R2_WIN_MACHINE_MEMORY_REPORT_BYTES 1064u
+#define R2_WIN_MACHINE_MEMORY_UNPROVEN_ALL 63u
+#define R2_MM_VALID_INSTALLED_KIB 1u
+#define R2_MM_VALID_INSTALLED_BYTES 2u
+#define R2_MM_VALID_GLOBAL_FIELDS 4u
+#define R2_MM_VALID_BEGIN_CLOCK 8u
+#define R2_MM_VALID_INSTALLED_BEGIN_CLOCK 16u
+#define R2_MM_VALID_INSTALLED_END_CLOCK 32u
+#define R2_MM_VALID_END_CLOCK 64u
+
+enum r2_win_machine_memory_status_v1 {
+    R2_MM_RAW_COMPLETE = 0xC001u, R2_MM_RAW_PARTIAL = 0xC002u,
+    R2_MM_BAD_ARGUMENT = 0xC003u, R2_MM_BUSY = 0xC004u,
+    R2_MM_LIMIT_REACHED = 0xC005u, R2_MM_COPY_OK = 0xC006u
+};
+enum r2_win_machine_memory_operation_v1 {
+    R2_MM_OP_STATE = 1, R2_MM_OP_OWNER_BEFORE, R2_MM_OP_CLOCK_BEGIN,
+    R2_MM_OP_CLOCK_INSTALLED_BEGIN, R2_MM_OP_INSTALLED, R2_MM_OP_CLOCK_INSTALLED_END, R2_MM_OP_GLOBAL,
+    R2_MM_OP_OWNER_AFTER, R2_MM_OP_CLOCK_END, R2_MM_OP_VALUES,
+    R2_MM_OP_CAPACITY_CHANGE, R2_MM_OP_COUNTER
+};
+enum r2_win_machine_memory_fault_kind_v1 {
+    R2_MM_FAULT_WIN32 = 1, R2_MM_FAULT_INVARIANT = 2,
+    R2_MM_FAULT_OWNER = 3
+};
+enum r2_win_machine_memory_reason_v1 {
+    R2_MM_REASON_STATE = 1, R2_MM_REASON_IDENTITY, R2_MM_REASON_CLOCK,
+    R2_MM_REASON_DEADLINE, R2_MM_REASON_VALUE, R2_MM_REASON_OVERFLOW,
+    R2_MM_REASON_CAPACITY_CHANGE, R2_MM_REASON_COUNTER
+};
+struct r2_win_machine_memory_fault_v1 {
+    uint32_t operation, kind, code, win32_error, win32_error_valid, reserved;
+};
+struct r2_win_machine_memory_clock_v1 {
+    int64_t raw_qpc;
+    uint32_t attempted, raw_result, win32_error, win32_error_valid;
+};
+struct r2_win_machine_memory_snapshot_v1 {
+    uint32_t ordinal, lifecycle, valid_fields, raw_complete;
+    struct r2_win_machine_memory_clock_v1 clocks[4];
+    uint32_t installed_attempted, installed_raw_result;
+    uint32_t installed_win32_error, installed_error_valid;
+    uint32_t global_attempted, global_raw_result;
+    uint32_t global_win32_error, global_error_valid;
+    uint64_t installed_kib, installed_bytes;
+    uint32_t native_length, native_memory_load;
+    uint64_t total_phys, avail_phys, total_page_file, avail_page_file;
+    uint64_t total_virtual, avail_virtual, avail_extended_virtual;
+    uint32_t owner_before, owner_after, prebirth_first, reserved;
+    uint32_t fault_count, omitted_fault_count, reserved_faults[2];
+    struct r2_win_machine_memory_fault_v1 faults[2];
+};
+struct r2_win_machine_memory_report_v1 {
+    uint32_t abi, size, status, stop_new;
+    uint32_t attempt_count, initial_present, latest_present, failed_present;
+    uint32_t successful_captures, failed_captures, fault_count, omitted_fault_count;
+    uint32_t creator_pid, creator_tid, remaining_unproven, reserved;
+    uint64_t intent_serial;
+    int64_t lease_epoch_qpc, qpc_frequency, stop_deadline_qpc, cleanup_deadline_qpc;
+    struct r2_win_machine_memory_fault_v1 primary, secondary;
+    struct r2_win_machine_memory_snapshot_v1 initial, latest, failed;
+};
+/* No parameters supply samples, clocks, handles, flags, permissions or limits.
+ * The first attempted observation must find the ORIGINAL private C02 context
+ * INTENT_HELD, not stopped, before any birth reservation. It consumes that
+ * initial serialized position even on failure; no later capture repairs it.
+ * Each call uses the existing owner guard, held original creator identity and
+ * original PID/TID, lease, QPC frequency and absolute stop/cleanup deadlines.
+ * Subsequent calls may retain diagnostic observations after STOP_NEW while
+ * the original creator remains held and its ORIGINAL cleanup time remains.
+ * No clock, attempt, native ownership, STOP_NEW or fault history is reset.
+ * Failed/busy/state/identity/clock/deadline/value observations latch the SAME
+ * owned-child STOP_NEW. Failed observations mark its residual SAMPLE liability.
+ * No automatic birth/resume/termination/join/close or new thread is performed.
+ * Original finish/drain is still required; this API owns no additional HANDLE.
+ *
+ * GetPhysicallyInstalledSystemMemory supplies SMBIOS-reported KiB, not a proven
+ * immutable hardware ceiling. GlobalMemoryStatusEx supplies separate volatile
+ * facts. clocks[0..3] bracket entry/installed start/installed return/end; they
+ * do not make the
+ * two memory calls atomic. Raw BOOL and each failed call's immediate Win32
+ * error are retained; validity bits distinguish failure from a valid raw zero.
+ * A successful native result can retain raw values yet fail invariants.
+ * All returned MEMORYSTATUSEX fields are retained. Physical fields cover all
+ * NUMA nodes; available includes standby/free/zero lists. Pagefile fields are
+ * caller-constrained commit facts and virtual fields are caller address space,
+ * not whole-system commitment. No subtraction is a causal RAM charge.
+ * Checked KiB conversion, nonzero totals, returned-field consistency and
+ * observed changes in installed/OS physical totals fail closed. This detects
+ * observed drift ONLY; unchanged samples do not exclude hot-add/removal between
+ * calls or prove capacity, provider closure, RAM/VRAM/CPU caps or phase fees.
+ * remaining_unproven always retains all six exclusions: whole RAM, VRAM, CPU,
+ * immutable topology, phase/causal billing, and trusted pre-load provenance.
+ * No SCOPE_PROVEN/16GiB PASS or authority is produced, even on RAW_COMPLETE.
+ *
+ * Fixed private initial/latest/failed snapshots retain the first attempt,
+ * most recent complete sample and most recent failed attempt, respectively.
+ * Primary/secondary report faults never change after their first assignments;
+ * per-snapshot faults retain the first two, with omitted counts. This is NOT
+ * a complete sample/fault ledger. C02 identity-query faults remain in its
+ * protected owner report; new memory/clock outcomes remain here. Counters
+ * never wrap; exhaustion stops.
+ * A synchronous native stall is not cancelled or bounded by these checks:
+ * original owner/liability remains pending; no successful result is emitted.
+ * copy requires exact ABI size, aligned accessible exclusive writable memory
+ * disjoint from private owner/report/guard storage. Range checks cannot prove
+ * accessibility. Copy has no native sampling, clock or attempt consumption;
+ * COPY_OK means only that bytes were copied; inspect the retained status.
+ * BAD_ARGUMENT/BUSY leave output untouched and issue no proof.
+ */
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_machine_memory_observe_step_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_machine_memory_copy_report_v1(
+    struct r2_win_machine_memory_report_v1 *out, size_t out_size);
+#endif
+#endif
