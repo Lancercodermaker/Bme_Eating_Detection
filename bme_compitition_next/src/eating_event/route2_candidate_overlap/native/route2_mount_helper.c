@@ -5932,3 +5932,416 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_owner_token_copy_report_v1
 }
 #endif
 #endif
+/* C00 original-volume backing-dependency metadata. SOURCE_ONLY.
+ * Microsoft virtdisk/GetStorageDependencyInformation, INFO, TYPE_2 and flags.
+ * This borrows the original storage volume; no new lifecycle owner is made.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_STORAGE_DEPENDENCY_RAW_V1)
+#ifndef R2_WIN_STORAGE_DEPENDENCY_RAW_V1_BODY
+#define R2_WIN_STORAGE_DEPENDENCY_RAW_V1_BODY
+#include <virtdisk.h>
+_Static_assert(sizeof(WCHAR) == 2 && sizeof(PWSTR) == 8 &&
+    sizeof(STORAGE_DEPENDENCY_INFO_VERSION) == 4 &&
+    sizeof(VIRTUAL_STORAGE_TYPE) == 20 &&
+    sizeof(STORAGE_DEPENDENCY_INFO_TYPE_2) == 64 &&
+    offsetof(STORAGE_DEPENDENCY_INFO, Version2Entries) == 8 &&
+    GET_STORAGE_DEPENDENCY_FLAG_HOST_VOLUMES == 1,
+    "dependency requires actual Win64 virtdisk SDK ABI");
+_Static_assert(sizeof(struct r2_win_storage_dependency_string_v1) == 12 &&
+    sizeof(struct r2_win_storage_dependency_entry_v1) == 80 &&
+    sizeof(struct r2_win_storage_dependency_clock_v1) == 32 &&
+    sizeof(struct r2_win_storage_dependency_call_v1) == 168 &&
+    sizeof(struct r2_win_storage_dependency_fault_v1) == 32 &&
+    offsetof(struct r2_win_storage_dependency_report_v1, call) == 584 &&
+    offsetof(struct r2_win_storage_dependency_report_v1, entries) == 752 &&
+    offsetof(struct r2_win_storage_dependency_report_v1, utf16_pool) == 2032 &&
+    sizeof(struct r2_win_storage_dependency_report_v1) == 34800,
+    "dependency public ABI assumptions");
+_Static_assert(R2_WIN_STORAGE_DEPENDENCY_ENTRY_CAP * 4u *
+    R2_WIN_STORAGE_DEPENDENCY_STRING_UNITS ==
+    R2_WIN_STORAGE_DEPENDENCY_POOL_UNITS,
+    "dependency fixed scan and pool bound");
+
+struct r2_storage_dependency_private_v1 {
+    HANDLE original_creator;
+    volatile LONG acquire_claimed, race;
+    uint32_t race_recorded;
+    union {
+        max_align_t alignment;
+        unsigned char bytes[R2_WIN_STORAGE_DEPENDENCY_BUFFER_BYTES];
+    } buffer;
+};
+static struct r2_storage_dependency_private_v1 r2_dependency_v1;
+static struct r2_win_storage_dependency_report_v1 r2_dependency_report_v1 = {
+    .abi = R2_WIN_STORAGE_DEPENDENCY_RAW_ABI,
+    .size = sizeof(struct r2_win_storage_dependency_report_v1),
+    .remaining_unproven = R2_WIN_STORAGE_UNPROVEN_ALL
+};
+_Static_assert(sizeof(r2_dependency_v1) + sizeof(r2_dependency_report_v1) <=
+    131072, "dependency fixed private buffer and public report bound");
+
+static void r2_dependency_fault_v1(uint32_t op, uint32_t kind,
+    uint32_t reason, DWORD direct, uint32_t direct_valid, DWORD immediate,
+    uint32_t error_valid)
+{
+    struct r2_win_storage_dependency_report_v1 *r = &r2_dependency_report_v1;
+    struct r2_win_storage_dependency_fault_v1 f = {
+        op, kind, reason, r->native_work_count,
+        (uint32_t)direct, direct_valid, (uint32_t)immediate, error_valid
+    };
+    r2_storage_stop_v1(0);
+    r->stop_new = 1;
+    if (!r->fault_count) r->primary = f;
+    else if (r->fault_count == 1) r->secondary = f;
+    if (r->fault_count < R2_WIN_STORAGE_DEPENDENCY_FAULT_CAP)
+        r->faults[r->fault_count] = f;
+    else if (r->omitted_fault_count != UINT32_MAX)
+        ++r->omitted_fault_count;
+    if (r->fault_count != UINT32_MAX) ++r->fault_count;
+}
+static int r2_dependency_bad_v1(uint32_t op, uint32_t reason)
+{
+    r2_dependency_fault_v1(op, R2_DEPENDENCY_FAULT_INVARIANT,
+        reason, 0, 0, 0, 0);
+    return 0;
+}
+static void r2_dependency_refresh_v1(void)
+{
+    struct r2_win_storage_dependency_report_v1 *r = &r2_dependency_report_v1;
+    struct r2_win_storage_report_v1 *s = &r2_storage_report_v1;
+    r2_storage_refresh_v1();
+    if (InterlockedCompareExchange(&r2_dependency_v1.race, 0, 0) &&
+        !r2_dependency_v1.race_recorded) {
+        r2_dependency_v1.race_recorded = 1;
+        r->acquisition_consumed = 1;
+        r2_dependency_bad_v1(R2_DEPENDENCY_OP_RACE, R2_DEPENDENCY_REASON_RACE);
+    }
+    r->stop_new = (uint32_t)r2_own_stopped_v1();
+    r->owner_lifecycle = r2_own_report_v1.lifecycle;
+    r->base_finish_observed = s->finish_consumed;
+    r->pending_liability = r->in_flight || r->fault_count ||
+        (r->acquisition_consumed && s->pending_liability);
+    r->raw_complete = r->capture_complete && s->acquisition_complete &&
+        s->finish_consumed && s->all_known_once_closed &&
+        !s->fault_count && !r->pending_liability;
+    if (r->raw_complete) r->status = R2_DEPENDENCY_RAW_COMPLETE;
+    else if (r->acquisition_consumed && s->finish_consumed &&
+        r->pending_liability) r->status = R2_DEPENDENCY_RETAINED;
+    else if (r->fault_count) r->status = R2_DEPENDENCY_RAW_PARTIAL;
+    else r->status = r->acquisition_consumed ?
+        R2_DEPENDENCY_PENDING : R2_DEPENDENCY_UNUSED;
+}
+static uint32_t r2_dependency_leave_v1(void)
+{
+    uint32_t result_status;
+    r2_dependency_refresh_v1();
+    result_status = r2_dependency_report_v1.status;
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return result_status;
+}
+static int r2_dependency_disjoint_v1(const void *out, size_t size)
+{
+    int old_ok;
+#if defined(R2_ENABLE_WIN_OWNER_TOKEN_RAW_V1)
+    old_ok = r2_owner_token_disjoint_v1(out, size);
+#elif defined(R2_ENABLE_WIN_STORAGE_IDENTITY_RAW_V1)
+    old_ok = r2_storage_identity_disjoint_v1(out, size);
+#else
+    old_ok = r2_storage_disjoint_v1(out, size);
+#endif
+    return old_ok &&
+        r2_mm_disjoint_v1(out, size, &r2_dependency_v1, sizeof(r2_dependency_v1)) &&
+        r2_mm_disjoint_v1(out, size, &r2_dependency_report_v1,
+            sizeof(r2_dependency_report_v1));
+}
+static int r2_dependency_context_v1(void)
+{
+    struct r2_win_storage_dependency_report_v1 *r = &r2_dependency_report_v1;
+    struct r2_win_storage_report_v1 *s = &r2_storage_report_v1;
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    if (!r2_own_v1.creator || r2_own_v1.creator != r2_dependency_v1.original_creator ||
+        r2_own_v1.creator != r2_storage_v1.original_creator ||
+        !r2_own_v1.deadline_bound || !o->attempt_consumed ||
+        o->finish_started || o->birth_attempted ||
+        o->lifecycle != R2_OWN_INTENT_HELD ||
+        o->creator_creation_100ns.state != R2_WIN_JOB_FIELD_VALID ||
+        !s->acquisition_complete || s->finish_consumed || s->fault_count ||
+        s->ambiguous_ownership || !s->volume_adopted ||
+        !r2_storage_v1.usable[0] || !r->canonical_guid_valid ||
+        s->path_units != 49 ||
+        memcmp(s->volume_device, r->original_volume_guid,
+            sizeof(r->original_volume_guid)) != 0 ||
+        memcmp(r2_storage_v1.volume, r->original_volume_guid,
+            sizeof(r->original_volume_guid)) != 0 ||
+        o->creator_pid != r->creator_pid || o->creator_tid != r->creator_tid ||
+        o->creator_creation_100ns.value != r->creator_creation_100ns ||
+        o->intent_serial != r->intent_serial || o->lease_epoch_qpc != r->lease_epoch_qpc ||
+        o->qpc_frequency != r->qpc_frequency ||
+        o->stop_deadline_qpc != r->stop_deadline_qpc ||
+        o->cleanup_deadline_qpc != r->cleanup_deadline_qpc ||
+        s->creator_pid != r->creator_pid || s->creator_tid != r->creator_tid ||
+        s->creator_creation_100ns != r->creator_creation_100ns ||
+        s->intent_serial != r->intent_serial || s->lease_epoch_qpc != r->lease_epoch_qpc ||
+        s->qpc_frequency != r->qpc_frequency ||
+        s->stop_deadline_qpc != r->stop_deadline_qpc ||
+        s->cleanup_deadline_qpc != r->cleanup_deadline_qpc) {
+        r2_dependency_fault_v1(R2_DEPENDENCY_OP_STATE, R2_DEPENDENCY_FAULT_OWNER,
+            R2_DEPENDENCY_REASON_CONTEXT, 0, 0, 0, 0);
+        return 0;
+    }
+    if (r->identity_check_count >= 2)
+        return r2_dependency_bad_v1(R2_DEPENDENCY_OP_STATE,
+            R2_DEPENDENCY_REASON_COUNTER);
+    ++r->identity_check_count;
+    if (GetCurrentProcessId() != r->creator_pid ||
+        GetCurrentThreadId() != r->creator_tid ||
+        !r2_own_creator_identity_v1()) {
+        r2_dependency_fault_v1(R2_DEPENDENCY_OP_STATE, R2_DEPENDENCY_FAULT_OWNER,
+            R2_DEPENDENCY_REASON_IDENTITY, 0, 0, 0, 0);
+        return 0;
+    }
+    return 1;
+}
+static int r2_dependency_clock_v1(uint32_t endpoint)
+{
+    struct r2_win_storage_dependency_report_v1 *r = &r2_dependency_report_v1;
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    struct r2_win_storage_dependency_clock_v1 *c;
+    LARGE_INTEGER now = {0};
+    BOOL result;
+    DWORD error;
+    if (endpoint >= 4 || r->qpc_work_count >= 4)
+        return r2_dependency_bad_v1(R2_DEPENDENCY_OP_QUERY,
+            R2_DEPENDENCY_REASON_COUNTER);
+    c = &r->call.clocks[endpoint];
+    ++r->qpc_work_count;
+    c->attempted = 1;
+    result = QueryPerformanceCounter(&now);
+    c->raw_bool = (uint32_t)result;
+    if (!result) {
+        error = GetLastError();
+        c->immediate_error = error;
+        c->error_valid = 1;
+        o->clock_valid = 0;
+        o->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        r2_dependency_fault_v1(R2_DEPENDENCY_OP_QUERY, R2_DEPENDENCY_FAULT_QPC,
+            R2_DEPENDENCY_REASON_CLOCK, 0, 0, error, 1);
+        return 0;
+    }
+    c->raw_qpc = now.QuadPart;
+    if (now.QuadPart <= 0 || now.QuadPart < o->last_qpc ||
+        !o->clock_valid || (o->residual_bits & R2_OWN_RESIDUAL_CLOCK)) {
+        o->clock_valid = 0;
+        o->residual_bits |= R2_OWN_RESIDUAL_CLOCK;
+        return r2_dependency_bad_v1(R2_DEPENDENCY_OP_QUERY,
+            R2_DEPENDENCY_REASON_CLOCK);
+    }
+    o->last_qpc = now.QuadPart;
+    if (r->stop_deadline_qpc <= 0 || now.QuadPart >= r->stop_deadline_qpc) {
+        o->residual_bits |= R2_OWN_RESIDUAL_DEADLINE;
+        return r2_dependency_bad_v1(R2_DEPENDENCY_OP_QUERY,
+            R2_DEPENDENCY_REASON_DEADLINE);
+    }
+    c->sample_valid = 1;
+    return 1;
+}
+static int r2_dependency_string_v1(PWSTR source, uint32_t entry, uint32_t slot,
+    ULONG size_used, size_t table_end)
+{
+    struct r2_win_storage_dependency_report_v1 *r = &r2_dependency_report_v1;
+    struct r2_win_storage_dependency_string_v1 *dst = &r->entries[entry].strings[slot];
+    const unsigned char *buffer = r2_dependency_v1.buffer.bytes;
+    uintptr_t base = (uintptr_t)buffer, ptr = (uintptr_t)source, limit;
+    size_t offset, available, i;
+    uint16_t unit;
+    if (!source) {
+        dst->state = R2_DEPENDENCY_STRING_ABSENT;
+        return 1;
+    }
+    if ((size_t)size_used > UINTPTR_MAX - base)
+        return r2_dependency_bad_v1(R2_DEPENDENCY_OP_STRING,
+            R2_DEPENDENCY_REASON_POINTER);
+    limit = base + size_used;
+    if (ptr < base || ptr < base + table_end || ptr >= limit ||
+        (ptr % _Alignof(WCHAR)) != 0)
+        return r2_dependency_bad_v1(R2_DEPENDENCY_OP_STRING,
+            R2_DEPENDENCY_REASON_POINTER);
+    offset = (size_t)(ptr - base);
+    available = ((size_t)size_used - offset) / sizeof(WCHAR);
+    if (available > R2_WIN_STORAGE_DEPENDENCY_STRING_UNITS)
+        available = R2_WIN_STORAGE_DEPENDENCY_STRING_UNITS;
+    for (i = 0; i < available; ++i) {
+        if (r->scan_work_count >= R2_WIN_STORAGE_DEPENDENCY_POOL_UNITS)
+            return r2_dependency_bad_v1(R2_DEPENDENCY_OP_STRING,
+                R2_DEPENDENCY_REASON_COUNTER);
+        ++r->scan_work_count;
+        memcpy(&unit, buffer + offset + i * sizeof(WCHAR), sizeof(unit));
+        if (!unit) {
+            size_t units = i + 1;
+            if (units > R2_WIN_STORAGE_DEPENDENCY_POOL_UNITS - r->pool_used_units)
+                return r2_dependency_bad_v1(R2_DEPENDENCY_OP_POOL,
+                    R2_DEPENDENCY_REASON_POOL);
+            dst->offset_units = r->pool_used_units;
+            dst->length_units = (uint32_t)units;
+            memcpy(&r->utf16_pool[r->pool_used_units], buffer + offset,
+                units * sizeof(WCHAR));
+            r->pool_used_units += (uint32_t)units;
+            dst->state = R2_DEPENDENCY_STRING_PRESENT;
+            return 1;
+        }
+    }
+    return r2_dependency_bad_v1(R2_DEPENDENCY_OP_STRING,
+        R2_DEPENDENCY_REASON_TERMINATOR);
+}
+static int r2_dependency_parse_v1(ULONG size_used)
+{
+    struct r2_win_storage_dependency_report_v1 *r = &r2_dependency_report_v1;
+    const unsigned char *buffer = r2_dependency_v1.buffer.bytes;
+    STORAGE_DEPENDENCY_INFO_VERSION version;
+    ULONG count, i;
+    size_t table_end;
+    if (size_used < 8 || size_used > R2_WIN_STORAGE_DEPENDENCY_BUFFER_BYTES)
+        return r2_dependency_bad_v1(R2_DEPENDENCY_OP_ENTRIES,
+            R2_DEPENDENCY_REASON_BOUND);
+    memcpy(&version, buffer, sizeof(version));
+    memcpy(&count, buffer + 4, sizeof(count));
+    r->raw_version = (uint32_t)version;
+    r->raw_entry_count = count;
+    if (version != STORAGE_DEPENDENCY_INFO_VERSION_2)
+        return r2_dependency_bad_v1(R2_DEPENDENCY_OP_VERSION,
+            R2_DEPENDENCY_REASON_VERSION);
+    if (count > R2_WIN_STORAGE_DEPENDENCY_ENTRY_CAP ||
+        count > (size_used - 8) / sizeof(STORAGE_DEPENDENCY_INFO_TYPE_2))
+        return r2_dependency_bad_v1(R2_DEPENDENCY_OP_ENTRIES,
+            R2_DEPENDENCY_REASON_BOUND);
+    table_end = 8 + (size_t)count * sizeof(STORAGE_DEPENDENCY_INFO_TYPE_2);
+    r->entry_count_valid = 1;
+    for (i = 0; i < count; ++i) {
+        STORAGE_DEPENDENCY_INFO_TYPE_2 native;
+        struct r2_win_storage_dependency_entry_v1 *dst = &r->entries[i];
+        PWSTR names[4];
+        uint32_t j;
+        memcpy(&native, buffer + 8 + (size_t)i * sizeof(native), sizeof(native));
+        dst->dependency_type_flags = (uint32_t)native.DependencyTypeFlags;
+        dst->provider_specific_flags = native.ProviderSpecificFlags;
+        dst->virtual_device_id = native.VirtualStorageType.DeviceId;
+        memcpy(dst->virtual_vendor_guid, &native.VirtualStorageType.VendorId, 16);
+        dst->ancestor_level = native.AncestorLevel;
+        names[0] = native.DependencyDeviceName;
+        names[1] = native.HostVolumeName;
+        names[2] = native.DependentVolumeName;
+        names[3] = native.DependentVolumeRelativePath;
+        for (j = 0; j < 4; ++j)
+            if (!r2_dependency_string_v1(names[j], i, j, size_used, table_end))
+                return 0;
+        ++r->parsed_entry_count;
+    }
+    return 1;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_dependency_acquire_once_v1(void)
+{
+    struct r2_win_storage_dependency_report_v1 *r = &r2_dependency_report_v1;
+    struct r2_win_storage_report_v1 *s = &r2_storage_report_v1;
+    struct r2_win_owned_report_v1 *o = &r2_own_report_v1;
+    ULONG size_used = 0;
+    STORAGE_DEPENDENCY_INFO_VERSION version = STORAGE_DEPENDENCY_INFO_VERSION_2;
+    DWORD status;
+    int before_owner, before_clock, after_first, after_owner, after_last;
+    if (InterlockedCompareExchange(&r2_dependency_v1.acquire_claimed, 1, 0) != 0) {
+        InterlockedExchange(&r2_dependency_v1.race, 1);
+        InterlockedExchange(&r2_own_stop_v1, 1);
+        return R2_DEPENDENCY_BUSY;
+    }
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_dependency_v1.race, 1);
+        InterlockedExchange(&r2_own_stop_v1, 1);
+        return R2_DEPENDENCY_BUSY;
+    }
+    r->acquisition_consumed = 1;
+    r2_dependency_v1.original_creator = r2_own_v1.creator;
+    r->creator_pid = o->creator_pid;
+    r->creator_tid = o->creator_tid;
+    r->creator_creation_100ns = o->creator_creation_100ns.value;
+    r->intent_serial = o->intent_serial;
+    r->lease_epoch_qpc = o->lease_epoch_qpc;
+    r->qpc_frequency = o->qpc_frequency;
+    r->stop_deadline_qpc = o->stop_deadline_qpc;
+    r->cleanup_deadline_qpc = o->cleanup_deadline_qpc;
+    if (!s->acquisition_complete || s->finish_consumed || s->fault_count ||
+        s->ambiguous_ownership || !s->volume_adopted ||
+        !r2_storage_v1.usable[0] || !r2_own_v1.creator ||
+        !r2_own_v1.deadline_bound || !o->attempt_consumed ||
+        o->creator_creation_100ns.state != R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle != R2_OWN_INTENT_HELD || o->birth_attempted ||
+        o->finish_started || r2_own_stopped_v1() ||
+        r->lease_epoch_qpc <= 0 || r->qpc_frequency <= 0 ||
+        r->stop_deadline_qpc <= r->lease_epoch_qpc ||
+        r->cleanup_deadline_qpc <= r->stop_deadline_qpc) {
+        r2_dependency_bad_v1(R2_DEPENDENCY_OP_STATE, R2_DEPENDENCY_REASON_STATE);
+        return r2_dependency_leave_v1();
+    }
+    if (s->path_units != 49 ||
+        memcmp(r2_storage_v1.volume, s->volume_device, 49 * sizeof(WCHAR)) != 0) {
+        r2_dependency_bad_v1(R2_DEPENDENCY_OP_STATE, R2_DEPENDENCY_REASON_CANONICAL);
+        return r2_dependency_leave_v1();
+    }
+    memcpy(r->original_volume_guid, s->volume_device,
+        sizeof(r->original_volume_guid));
+    r->canonical_guid_valid = 1;
+    r->call.flags = GET_STORAGE_DEPENDENCY_FLAG_HOST_VOLUMES;
+    r->call.capacity = R2_WIN_STORAGE_DEPENDENCY_BUFFER_BYTES;
+    if (!r2_dependency_clock_v1(0)) return r2_dependency_leave_v1();
+    before_owner = r2_dependency_context_v1();
+    before_clock = r2_dependency_clock_v1(1);
+    if (!before_owner || !before_clock || r2_own_stopped_v1())
+        return r2_dependency_leave_v1();
+    memcpy(r2_dependency_v1.buffer.bytes, &version, sizeof(version));
+    r->in_flight = 1;
+    r->pending_liability = 1;
+    r->call.in_flight = 1;
+    r->call.attempted = 1;
+    ++r->native_work_count;
+    status = GetStorageDependencyInformation(r2_storage_v1.originals[0],
+        GET_STORAGE_DEPENDENCY_FLAG_HOST_VOLUMES,
+        R2_WIN_STORAGE_DEPENDENCY_BUFFER_BYTES,
+        (PSTORAGE_DEPENDENCY_INFO)(void *)r2_dependency_v1.buffer.bytes,
+        &size_used);
+    r->call.raw_status = status;
+    r->call.status_valid = 1;
+    r->call.raw_size_used = size_used;
+    r->call.size_used_valid = status == ERROR_SUCCESS;
+    r->in_flight = 0;
+    r->call.in_flight = 0;
+    if (status != ERROR_SUCCESS)
+        r2_dependency_fault_v1(R2_DEPENDENCY_OP_QUERY, R2_DEPENDENCY_FAULT_API,
+            0, status, 1, 0, 0);
+    after_first = r2_dependency_clock_v1(2);
+    after_owner = r2_dependency_context_v1();
+    after_last = r2_dependency_clock_v1(3);
+    r->call.boundary_valid = after_first && after_owner && after_last;
+    if (r2_own_stopped_v1() && !r->fault_count)
+        r2_dependency_bad_v1(R2_DEPENDENCY_OP_RACE, R2_DEPENDENCY_REASON_RACE);
+    if (status == ERROR_SUCCESS && r->call.boundary_valid &&
+        !r->fault_count && !r2_own_stopped_v1() &&
+        r2_dependency_parse_v1(size_used))
+        r->capture_complete = 1;
+    return r2_dependency_leave_v1();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_dependency_copy_report_v1(
+    struct r2_win_storage_dependency_report_v1 *out, size_t out_size)
+{
+    uint32_t result_status;
+    if (out_size != sizeof(*out) ||
+        !r2_own_range_v1(out, out_size,
+            _Alignof(struct r2_win_storage_dependency_report_v1)) ||
+        !r2_dependency_disjoint_v1(out, out_size))
+        return R2_DEPENDENCY_BAD_ARGUMENT;
+    if (!r2_own_enter_v1()) return R2_DEPENDENCY_BUSY;
+    r2_dependency_refresh_v1();
+    memcpy(out, &r2_dependency_report_v1, sizeof(*out));
+    result_status = R2_DEPENDENCY_COPY_OK;
+    InterlockedExchange(&r2_own_guard_v1, 0);
+    return result_status;
+}
+#endif
+#endif

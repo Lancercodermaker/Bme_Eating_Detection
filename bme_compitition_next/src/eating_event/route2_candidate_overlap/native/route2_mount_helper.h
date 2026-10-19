@@ -1664,3 +1664,117 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_owner_token_copy_report_v1
     struct r2_win_owner_token_report_v1 *out, size_t out_size);
 #endif
 #endif
+/* C00 bounded original-volume backing-dependency metadata, SOURCE_ONLY.
+ * Opt in with the original storage collector in the same Win64 C11 unit.
+ * Actual virtdisk.h and VirtDisk.lib are required; existing Win10 target stays.
+ * Call after base storage capture and before base finish or child birth. Borrow
+ * its original volume HANDLE; base finish alone owns the close. No caller
+ * handle, clock, PID, permission flag, path open, retry or auto invocation.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_STORAGE_DEPENDENCY_RAW_V1)
+#if !defined(R2_ENABLE_WIN_STORAGE_RAW_V1)
+#error R2_ENABLE_WIN_STORAGE_DEPENDENCY_RAW_V1 requires R2_ENABLE_WIN_STORAGE_RAW_V1
+#endif
+#ifndef R2_WIN_STORAGE_DEPENDENCY_RAW_V1_DECLARED
+#define R2_WIN_STORAGE_DEPENDENCY_RAW_V1_DECLARED
+#define R2_WIN_STORAGE_DEPENDENCY_RAW_ABI 1u
+#define R2_WIN_STORAGE_DEPENDENCY_BUFFER_BYTES 65536u
+#define R2_WIN_STORAGE_DEPENDENCY_ENTRY_CAP 16u
+#define R2_WIN_STORAGE_DEPENDENCY_STRING_UNITS 256u
+#define R2_WIN_STORAGE_DEPENDENCY_POOL_UNITS 16384u
+#define R2_WIN_STORAGE_DEPENDENCY_FAULT_CAP 8u
+
+enum r2_win_storage_dependency_status_v1 {
+    R2_DEPENDENCY_UNUSED = 0, R2_DEPENDENCY_PENDING = 0xC401u,
+    R2_DEPENDENCY_RAW_COMPLETE = 0xC402u,
+    R2_DEPENDENCY_RAW_PARTIAL = 0xC403u,
+    R2_DEPENDENCY_RETAINED = 0xC404u,
+    R2_DEPENDENCY_BAD_ARGUMENT = 0xC405u,
+    R2_DEPENDENCY_BUSY = 0xC406u, R2_DEPENDENCY_COPY_OK = 0xC407u
+};
+enum r2_win_storage_dependency_operation_v1 {
+    R2_DEPENDENCY_OP_STATE = 1, R2_DEPENDENCY_OP_QUERY,
+    R2_DEPENDENCY_OP_VERSION, R2_DEPENDENCY_OP_ENTRIES,
+    R2_DEPENDENCY_OP_STRING, R2_DEPENDENCY_OP_POOL,
+    R2_DEPENDENCY_OP_RACE
+};
+enum r2_win_storage_dependency_fault_kind_v1 {
+    R2_DEPENDENCY_FAULT_API = 1, R2_DEPENDENCY_FAULT_QPC,
+    R2_DEPENDENCY_FAULT_OWNER, R2_DEPENDENCY_FAULT_INVARIANT
+};
+enum r2_win_storage_dependency_reason_v1 {
+    R2_DEPENDENCY_REASON_STATE = 1, R2_DEPENDENCY_REASON_CONTEXT,
+    R2_DEPENDENCY_REASON_IDENTITY, R2_DEPENDENCY_REASON_CLOCK,
+    R2_DEPENDENCY_REASON_DEADLINE, R2_DEPENDENCY_REASON_BOUND,
+    R2_DEPENDENCY_REASON_VERSION, R2_DEPENDENCY_REASON_POINTER,
+    R2_DEPENDENCY_REASON_TERMINATOR, R2_DEPENDENCY_REASON_POOL,
+    R2_DEPENDENCY_REASON_COUNTER, R2_DEPENDENCY_REASON_RACE,
+    R2_DEPENDENCY_REASON_CANONICAL
+};
+enum r2_win_storage_dependency_string_state_v1 {
+    R2_DEPENDENCY_STRING_UNOBSERVED = 0,
+    R2_DEPENDENCY_STRING_ABSENT = 1,
+    R2_DEPENDENCY_STRING_PRESENT = 2
+};
+struct r2_win_storage_dependency_clock_v1 {
+    int64_t raw_qpc;
+    uint32_t attempted, raw_bool, immediate_error, error_valid;
+    uint32_t sample_valid, reserved;
+};
+struct r2_win_storage_dependency_call_v1 {
+    uint32_t flags, capacity, attempted, in_flight;
+    uint32_t raw_status, status_valid, raw_size_used, size_used_valid;
+    uint32_t boundary_valid, reserved;
+    struct r2_win_storage_dependency_clock_v1 clocks[4];
+};
+struct r2_win_storage_dependency_fault_v1 {
+    uint32_t operation, kind, reason, call_ordinal;
+    uint32_t direct_status, direct_status_valid, immediate_error, error_valid;
+};
+struct r2_win_storage_dependency_string_v1 {
+    uint32_t state, offset_units, length_units;
+};
+struct r2_win_storage_dependency_entry_v1 {
+    uint32_t dependency_type_flags, provider_specific_flags;
+    uint32_t virtual_device_id, ancestor_level;
+    unsigned char virtual_vendor_guid[16];
+    struct r2_win_storage_dependency_string_v1 strings[4];
+};
+struct r2_win_storage_dependency_report_v1 {
+    uint32_t abi, size, status, stop_new;
+    uint32_t acquisition_consumed, capture_complete, raw_complete, pending_liability;
+    uint32_t in_flight, native_work_count, qpc_work_count, identity_check_count;
+    uint32_t scan_work_count, fault_count, omitted_fault_count, base_finish_observed;
+    uint32_t creator_pid, creator_tid, owner_lifecycle, canonical_guid_valid;
+    uint64_t intent_serial, creator_creation_100ns;
+    int64_t lease_epoch_qpc, qpc_frequency, stop_deadline_qpc, cleanup_deadline_qpc;
+    uint16_t original_volume_guid[49];
+    uint16_t reserved_alignment;
+    uint32_t raw_version, raw_entry_count, entry_count_valid, parsed_entry_count;
+    uint32_t pool_used_units, remaining_unproven, reserved[2];
+    struct r2_win_storage_dependency_fault_v1 primary, secondary;
+    struct r2_win_storage_dependency_fault_v1 faults[R2_WIN_STORAGE_DEPENDENCY_FAULT_CAP];
+    struct r2_win_storage_dependency_call_v1 call;
+    struct r2_win_storage_dependency_entry_v1 entries[R2_WIN_STORAGE_DEPENDENCY_ENTRY_CAP];
+    uint16_t utf16_pool[R2_WIN_STORAGE_DEPENDENCY_POOL_UNITS];
+};
+/* Fixed one-call input is Version2/HOST_VOLUMES on the SAME original volume.
+ * ERROR_SUCCESS alone defines output; failed buffer and SizeUsed stay opaque.
+ * Successful SizeUsed/header/whole entry table and every nonnull PWSTR span
+ * and bounded NUL are checked before copying raw UTF16. NULL is ABSENT.
+ * Flags, device IDs, vendor GUIDs and levels remain opaque; zero entries give
+ * no physical/backing proof. Public report contains no native pointer.
+ * At most 1 dependency call, 4 QPC and 2 original creator checks, with
+ * bounded 16 entries, 64 strings, 16384 scanned UTF16 units and 32768-byte
+ * pool. Synchronous provider stalls retain in-flight liability; no cancel or
+ * bounded completion is claimed. A busy acquisition consumes its chance.
+ * RAW_COMPLETE requires capture plus base once-close without fault/pending.
+ * COPY_OK is an exact report copy. Caller output must be accessible, stable,
+ * exclusive, aligned and disjoint. All physical chain, writer, capacity,
+ * installed ABI, service exit, budget and admission claims remain UNPROVEN.
+ */
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_dependency_acquire_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_dependency_copy_report_v1(
+    struct r2_win_storage_dependency_report_v1 *out, size_t out_size);
+#endif
+#endif
