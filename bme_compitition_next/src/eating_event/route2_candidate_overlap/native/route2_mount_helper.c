@@ -6345,3 +6345,475 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_dependency_copy_re
 }
 #endif
 #endif
+
+/* C00 held root and original-volume NTFS raw facts; SOURCE ONLY. */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_STORAGE_ROOT_RAW_V1)
+#ifndef R2_WIN_STORAGE_ROOT_RAW_V1_BODY
+#define R2_WIN_STORAGE_ROOT_RAW_V1_BODY
+#include <Windows.h>
+#include <fileapi.h>
+#include <winbase.h>
+#include <winioctl.h>
+_Static_assert(sizeof(FILE_ID_128)==16 && sizeof(FILE_ID_INFO)==24 &&
+    offsetof(FILE_ID_INFO,FileId)==8 && sizeof(FILE_ATTRIBUTE_TAG_INFO)==8 &&
+    sizeof(FILE_STANDARD_INFO)==24 && offsetof(FILE_STANDARD_INFO,Directory)==21 &&
+    sizeof(NTFS_VOLUME_DATA_BUFFER)==96 &&
+    offsetof(NTFS_VOLUME_DATA_BUFFER,FreeClusters)==24 &&
+    offsetof(NTFS_VOLUME_DATA_BUFFER,BytesPerSector)==40 &&
+    offsetof(NTFS_VOLUME_DATA_BUFFER,MftValidDataLength)==56,
+    "held root requires actual native Win64 SDK layouts");
+_Static_assert(sizeof(struct r2_win_storage_root_clock_v1)==32 &&
+    sizeof(struct r2_win_storage_root_call_v1)==184 &&
+    sizeof(struct r2_win_storage_root_fault_v1)==24 &&
+    sizeof(struct r2_win_storage_root_ntfs_v1)==96 &&
+    sizeof(struct r2_win_storage_root_report_v1)==1800 &&
+    offsetof(struct r2_win_storage_root_report_v1,original_volume_guid)==192 &&
+    offsetof(struct r2_win_storage_root_report_v1,file_id_volume_serial)==296 &&
+    offsetof(struct r2_win_storage_root_report_v1,ntfs)==360 &&
+    offsetof(struct r2_win_storage_root_report_v1,calls)==696,
+    "held root public raw ABI structures changed");
+struct r2_storage_root_private_v1 {
+    HANDLE creator, volume, root;
+    WCHAR path[50];
+    uint32_t usable;
+    volatile LONG acquire_race, finish_race;
+    uint32_t acquire_race_recorded, finish_race_recorded;
+    unsigned char file_id_opaque[24], attribute_tag_opaque[8];
+    unsigned char standard_opaque[24], ntfs_opaque[96];
+};
+static struct r2_storage_root_private_v1 r2_root_v1;
+static struct r2_win_storage_root_report_v1 r2_root_report_v1 = {
+    .abi=R2_WIN_STORAGE_ROOT_RAW_ABI,
+    .size=sizeof(struct r2_win_storage_root_report_v1),
+    .remaining_unproven=R2_WIN_STORAGE_UNPROVEN_ALL
+};
+_Static_assert(sizeof(r2_root_v1)==296 &&
+    sizeof(r2_root_v1)+sizeof(r2_root_report_v1)==2096 &&
+    sizeof(r2_root_v1)+sizeof(r2_root_report_v1)<=8192,
+    "held root private plus report bound");
+_Static_assert(R2_WIN_STORAGE_ROOT_CALL_CAP==6,"held root lifetime calls");
+static void r2_root_fault_v1(uint32_t op,uint32_t kind,uint32_t reason,
+    uint32_t ordinal,DWORD error,uint32_t valid)
+{
+    struct r2_win_storage_root_report_v1 *r=&r2_root_report_v1;
+    struct r2_win_storage_root_fault_v1 f={op,kind,reason,ordinal,(uint32_t)error,valid};
+    r2_storage_stop_v1(op==R2_ROOT_OP_CLOSE ? R2_OWN_RESIDUAL_CLOSE : 0);
+    if (!r->fault_count) r->primary=f;
+    else if (r->fault_count==1) r->secondary=f;
+    if (r->fault_count<R2_WIN_STORAGE_ROOT_FAULT_CAP) r->faults[r->fault_count]=f;
+    else if (r->omitted_fault_count!=UINT32_MAX) ++r->omitted_fault_count;
+    if (r->fault_count!=UINT32_MAX) ++r->fault_count;
+}
+static int r2_root_bad_v1(uint32_t op,uint32_t reason,uint32_t ordinal)
+{
+    r2_root_fault_v1(op,R2_ROOT_FAULT_INVARIANT,reason,ordinal,0,0); return 0;
+}
+static void r2_root_refresh_v1(void)
+{
+    struct r2_win_storage_root_report_v1 *r=&r2_root_report_v1;
+    struct r2_win_storage_report_v1 *s=&r2_storage_report_v1;
+    r2_storage_refresh_v1();
+    if (InterlockedCompareExchange(&r2_root_v1.acquire_race,0,0) &&
+        !r2_root_v1.acquire_race_recorded) {
+        r2_root_v1.acquire_race_recorded=1; r->acquisition_consumed=1;
+        r2_root_bad_v1(R2_ROOT_OP_RACE,R2_ROOT_REASON_RACE,0);
+    }
+    if (InterlockedCompareExchange(&r2_root_v1.finish_race,0,0) &&
+        !r2_root_v1.finish_race_recorded) {
+        r2_root_v1.finish_race_recorded=1; r->finish_consumed=1;
+        r2_root_bad_v1(R2_ROOT_OP_RACE,R2_ROOT_REASON_RACE,0);
+    }
+    r->stop_new=(uint32_t)r2_own_stopped_v1();
+    r->owner_lifecycle=r2_own_report_v1.lifecycle;
+    r->root_known_once_closed=r->root_adopted && r->root_close_consumed &&
+        r->root_close_succeeded && !r->ambiguous_ownership;
+    r->base_finish_observed=s->finish_consumed;
+    r->base_known_once_closed=s->acquisition_complete && s->finish_consumed &&
+        s->all_known_once_closed && !s->fault_count && !s->pending_liability;
+    r->pending_liability=r->in_flight || r->ambiguous_ownership || r->fault_count ||
+        (r->root_adopted && !r->root_known_once_closed) ||
+        (s->finish_consumed && !r->base_known_once_closed);
+    r->raw_complete=r->capture_complete && r->finish_consumed &&
+        r->root_known_once_closed && r->base_known_once_closed &&
+        !r->fault_count && !r->pending_liability;
+    if (r->raw_complete) r->status=R2_ROOT_RAW_COMPLETE;
+    else if (r->finish_consumed && r->pending_liability) r->status=R2_ROOT_RETAINED;
+    else if (r->fault_count) r->status=R2_ROOT_RAW_PARTIAL;
+    else r->status=r->acquisition_consumed ? R2_ROOT_PENDING : R2_ROOT_UNUSED;
+}
+static uint32_t r2_root_leave_v1(void)
+{
+    uint32_t local_status;
+    r2_root_refresh_v1(); local_status=r2_root_report_v1.status;
+    InterlockedExchange(&r2_own_guard_v1,0); return local_status;
+}
+static int r2_root_disjoint_v1(const void *p,size_t n)
+{
+    int old_ok;
+#if defined(R2_ENABLE_WIN_STORAGE_DEPENDENCY_RAW_V1)
+    old_ok=r2_dependency_disjoint_v1(p,n);
+#elif defined(R2_ENABLE_WIN_OWNER_TOKEN_RAW_V1)
+    old_ok=r2_owner_token_disjoint_v1(p,n);
+#elif defined(R2_ENABLE_WIN_STORAGE_IDENTITY_RAW_V1)
+    old_ok=r2_storage_identity_disjoint_v1(p,n);
+#else
+    old_ok=r2_storage_disjoint_v1(p,n);
+#endif
+    return old_ok && r2_mm_disjoint_v1(p,n,&r2_root_v1,sizeof(r2_root_v1)) &&
+        r2_mm_disjoint_v1(p,n,&r2_root_report_v1,sizeof(r2_root_report_v1));
+}
+static int r2_root_context_v1(struct r2_win_storage_root_call_v1 *c,int cleanup)
+{
+    struct r2_win_storage_root_report_v1 *r=&r2_root_report_v1;
+    struct r2_win_storage_report_v1 *s=&r2_storage_report_v1;
+    struct r2_win_owned_report_v1 *o=&r2_own_report_v1;
+    if (!r2_own_v1.creator || r2_own_v1.creator!=r2_root_v1.creator ||
+        r2_own_v1.creator!=r2_storage_v1.original_creator ||
+        !r2_own_v1.deadline_bound || !o->attempt_consumed || o->finish_started ||
+        o->creator_creation_100ns.state!=R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle<R2_OWN_INTENT_HELD || o->lifecycle==R2_OWN_CLOSING ||
+        o->lifecycle==R2_OWN_DONE || o->lifecycle>R2_OWN_RETAINED ||
+        (!cleanup && (o->birth_attempted || o->lifecycle!=R2_OWN_INTENT_HELD)) ||
+        !s->acquisition_complete || s->finish_consumed || s->fault_count ||
+        s->ambiguous_ownership || !s->volume_adopted || !r2_storage_v1.usable[0] ||
+        r2_storage_v1.originals[0]!=r2_root_v1.volume ||
+        !r->canonical_guid_valid || s->path_units!=49 ||
+        memcmp(s->volume_device,r->original_volume_guid,
+            sizeof(r->original_volume_guid))!=0 ||
+        memcmp(r2_storage_v1.volume,r->original_volume_guid,
+            sizeof(r->original_volume_guid))!=0 ||
+        o->creator_pid!=r->creator_pid || o->creator_tid!=r->creator_tid ||
+        o->creator_creation_100ns.value!=r->creator_creation_100ns ||
+        o->intent_serial!=r->intent_serial || o->lease_epoch_qpc!=r->lease_epoch_qpc ||
+        o->qpc_frequency!=r->qpc_frequency ||
+        o->stop_deadline_qpc!=r->stop_deadline_qpc ||
+        o->cleanup_deadline_qpc!=r->cleanup_deadline_qpc ||
+        s->creator_pid!=r->creator_pid || s->creator_tid!=r->creator_tid ||
+        s->creator_creation_100ns!=r->creator_creation_100ns ||
+        s->intent_serial!=r->intent_serial || s->lease_epoch_qpc!=r->lease_epoch_qpc ||
+        s->qpc_frequency!=r->qpc_frequency ||
+        s->stop_deadline_qpc!=r->stop_deadline_qpc ||
+        s->cleanup_deadline_qpc!=r->cleanup_deadline_qpc) {
+        r2_root_fault_v1(c->operation,R2_ROOT_FAULT_OWNER,
+            R2_ROOT_REASON_CONTEXT,c->ordinal,0,0); return 0;
+    }
+    if (r->identity_check_count>=2*R2_WIN_STORAGE_ROOT_CALL_CAP)
+        return r2_root_bad_v1(c->operation,R2_ROOT_REASON_COUNTER,c->ordinal);
+    ++r->identity_check_count;
+    if (GetCurrentProcessId()!=r->creator_pid ||
+        GetCurrentThreadId()!=r->creator_tid || !r2_own_creator_identity_v1()) {
+        r2_root_fault_v1(c->operation,R2_ROOT_FAULT_OWNER,
+            R2_ROOT_REASON_IDENTITY,c->ordinal,0,0); return 0;
+    }
+    return 1;
+}
+static int r2_root_clock_v1(struct r2_win_storage_root_call_v1 *c,
+    uint32_t endpoint,int cleanup)
+{
+    struct r2_win_storage_root_report_v1 *r=&r2_root_report_v1;
+    struct r2_win_owned_report_v1 *o=&r2_own_report_v1;
+    struct r2_win_storage_root_clock_v1 *q=&c->clocks[endpoint];
+    LARGE_INTEGER now={0}; BOOL result; DWORD error;
+    int64_t deadline=cleanup ? r->cleanup_deadline_qpc : r->stop_deadline_qpc;
+    if (r->qpc_work_count>=4*R2_WIN_STORAGE_ROOT_CALL_CAP)
+        return r2_root_bad_v1(c->operation,R2_ROOT_REASON_COUNTER,c->ordinal);
+    ++r->qpc_work_count; q->attempted=1;
+    result=QueryPerformanceCounter(&now);
+    if (!result) {
+        error=GetLastError(); q->raw_bool=(uint32_t)result;
+        q->immediate_error=error; q->error_valid=1;
+        o->clock_valid=0; o->residual_bits|=R2_OWN_RESIDUAL_CLOCK;
+        r2_root_fault_v1(c->operation,R2_ROOT_FAULT_CLOCK,
+            R2_ROOT_REASON_CLOCK,c->ordinal,error,1); return 0;
+    }
+    q->raw_bool=(uint32_t)result; q->raw_qpc=now.QuadPart;
+    if (now.QuadPart<=0 || now.QuadPart<o->last_qpc || !o->clock_valid ||
+        (o->residual_bits&R2_OWN_RESIDUAL_CLOCK)) {
+        o->clock_valid=0; o->residual_bits|=R2_OWN_RESIDUAL_CLOCK;
+        return r2_root_bad_v1(c->operation,R2_ROOT_REASON_CLOCK,c->ordinal);
+    }
+    o->last_qpc=now.QuadPart;
+    if (deadline<=0 || now.QuadPart>=deadline) {
+        o->residual_bits|=R2_OWN_RESIDUAL_DEADLINE;
+        return r2_root_bad_v1(c->operation,R2_ROOT_REASON_DEADLINE,c->ordinal);
+    }
+    q->sample_valid=1; return 1;
+}
+static struct r2_win_storage_root_call_v1 *r2_root_call_v1(
+    uint32_t op,uint32_t capacity,int cleanup)
+{
+    struct r2_win_storage_root_report_v1 *r=&r2_root_report_v1;
+    struct r2_win_storage_root_call_v1 *c;
+    int owner_ok,clock_ok;
+    if (r->call_count>=R2_WIN_STORAGE_ROOT_CALL_CAP ||
+        r->native_work_count>=R2_WIN_STORAGE_ROOT_CALL_CAP) {
+        r2_root_bad_v1(op,R2_ROOT_REASON_COUNTER,0); return NULL;
+    }
+    c=&r->calls[r->call_count++]; c->ordinal=r->call_count;
+    c->operation=op; c->capacity=capacity;
+    if (!cleanup && (r2_own_stopped_v1() || r->finish_consumed ||
+        r2_own_report_v1.birth_attempted ||
+        r2_own_report_v1.lifecycle!=R2_OWN_INTENT_HELD)) {
+        r2_root_bad_v1(op,R2_ROOT_REASON_STATE,c->ordinal); return NULL;
+    }
+    if (!r2_root_clock_v1(c,0,cleanup)) return NULL;
+    owner_ok=r2_root_context_v1(c,cleanup);
+    clock_ok=r2_root_clock_v1(c,1,cleanup);
+    if (!owner_ok || !clock_ok) return NULL;
+    if (!cleanup && r2_own_stopped_v1()) {
+        r2_root_bad_v1(op,R2_ROOT_REASON_RACE,c->ordinal); return NULL;
+    }
+    return c;
+}
+static void r2_root_enter_native_v1(struct r2_win_storage_root_call_v1 *c)
+{
+    c->attempted=1; c->in_flight=1; ++r2_root_report_v1.native_work_count;
+    r2_root_report_v1.in_flight=1; r2_root_report_v1.in_flight_ordinal=c->ordinal;
+    r2_root_report_v1.pending_liability=1;
+}
+static int r2_root_after_v1(struct r2_win_storage_root_call_v1 *c,int cleanup)
+{
+    int first_ok,owner_ok,last_ok;
+    c->in_flight=0; r2_root_report_v1.in_flight=0;
+    first_ok=r2_root_clock_v1(c,2,cleanup);
+    owner_ok=r2_root_context_v1(c,cleanup);
+    last_ok=r2_root_clock_v1(c,3,cleanup);
+    if (!cleanup && r2_own_stopped_v1()) {
+        if (!r2_root_report_v1.fault_count)
+            r2_root_bad_v1(c->operation,R2_ROOT_REASON_RACE,c->ordinal);
+        return 0;
+    }
+    c->boundary_valid=first_ok && owner_ok && last_ok;
+    return c->boundary_valid!=0;
+}
+static int r2_root_open_v1(void)
+{
+    struct r2_win_storage_root_call_v1 *c=r2_root_call_v1(R2_ROOT_OP_OPEN,0,0);
+    HANDLE h; DWORD error; int boundary;
+    if (!c) return 0;
+    r2_root_enter_native_v1(c);
+    h=CreateFileW(r2_root_v1.path,GENERIC_READ,
+        FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+    if (h==INVALID_HANDLE_VALUE) {
+        error=GetLastError(); c->handle_outcome=R2_STORAGE_HANDLE_INVALID;
+        c->immediate_error=error; c->error_valid=1;
+        r2_root_fault_v1(R2_ROOT_OP_OPEN,R2_ROOT_FAULT_WIN32,0,c->ordinal,error,1);
+    } else {
+        r2_root_v1.root=h; /* adopt before any post-call API */
+        if (h) {
+            r2_root_v1.usable=1; r2_root_report_v1.root_adopted=1;
+            c->handle_outcome=R2_STORAGE_HANDLE_VALID;
+        } else {
+            c->handle_outcome=R2_STORAGE_HANDLE_NULL_AMBIGUOUS;
+            r2_root_report_v1.ambiguous_ownership=1;
+            r2_root_bad_v1(R2_ROOT_OP_OPEN,R2_ROOT_REASON_HANDLE,c->ordinal);
+        }
+    }
+    boundary=r2_root_after_v1(c,0);
+    return c->handle_outcome==R2_STORAGE_HANDLE_VALID && boundary;
+}
+static int r2_root_info_v1(uint32_t op,FILE_INFO_BY_HANDLE_CLASS cls,
+    void *out,DWORD capacity)
+{
+    struct r2_win_storage_root_call_v1 *c=r2_root_call_v1(op,capacity,0);
+    BOOL result; DWORD error=0; int boundary;
+    if (!c) return 0;
+    if (!r2_root_v1.usable)
+        return r2_root_bad_v1(op,R2_ROOT_REASON_HANDLE,c->ordinal);
+    r2_root_enter_native_v1(c);
+    result=GetFileInformationByHandleEx(r2_root_v1.root,cls,out,capacity);
+    if (!result) error=GetLastError();
+    c->raw_bool=(uint32_t)result; c->bool_observed=1;
+    /* Retain fixed SDK bytes even on FALSE; only TRUE establishes validity. */
+    if (op==R2_ROOT_OP_FILE_ID)
+        memcpy(r2_root_v1.file_id_opaque,out,capacity);
+    else if (op==R2_ROOT_OP_ATTRIBUTES)
+        memcpy(r2_root_v1.attribute_tag_opaque,out,capacity);
+    else if (op==R2_ROOT_OP_STANDARD)
+        memcpy(r2_root_v1.standard_opaque,out,capacity);
+    if (!result) {
+        c->immediate_error=error; c->error_valid=1;
+        r2_root_fault_v1(op,R2_ROOT_FAULT_WIN32,0,c->ordinal,error,1);
+    } else c->output_valid=1;
+    boundary=r2_root_after_v1(c,0);
+    return result && boundary;
+}
+static int r2_root_ntfs_v1(void)
+{
+    NTFS_VOLUME_DATA_BUFFER v={0};
+    struct r2_win_storage_root_call_v1 *c=r2_root_call_v1(
+        R2_ROOT_OP_NTFS,sizeof(v),0);
+    struct r2_win_storage_root_ntfs_v1 *n=&r2_root_report_v1.ntfs;
+    DWORD returned=0,error=0; BOOL result; int boundary;
+    if (!c) return 0;
+    if (!r2_storage_v1.usable[0] ||
+        r2_storage_v1.originals[0]!=r2_root_v1.volume)
+        return r2_root_bad_v1(c->operation,R2_ROOT_REASON_HANDLE,c->ordinal);
+    r2_root_enter_native_v1(c);
+    result=DeviceIoControl(r2_root_v1.volume,FSCTL_GET_NTFS_VOLUME_DATA,
+        NULL,0,&v,sizeof(v),&returned,NULL);
+    if (!result) error=GetLastError();
+    c->raw_bool=(uint32_t)result; c->bool_observed=1;
+    c->returned_bytes=returned;
+    memcpy(r2_root_v1.ntfs_opaque,&v,sizeof(v));
+    if (!result) {
+        c->immediate_error=error; c->error_valid=1;
+        r2_root_fault_v1(c->operation,R2_ROOT_FAULT_WIN32,0,c->ordinal,error,1);
+    } else {
+        c->returned_bytes_valid=1;
+        if (returned>=sizeof(v) && returned<=c->capacity) {
+            c->output_valid=1;
+        }
+    }
+    boundary=r2_root_after_v1(c,0);
+    if (!result || !boundary) return 0;
+    if (returned<sizeof(v) || returned>c->capacity)
+        return r2_root_bad_v1(R2_ROOT_OP_PARSE,R2_ROOT_REASON_BOUND,c->ordinal);
+    n->volume_serial_number=v.VolumeSerialNumber.QuadPart;
+    n->number_sectors=v.NumberSectors.QuadPart;
+    n->total_clusters=v.TotalClusters.QuadPart;
+    n->free_clusters=v.FreeClusters.QuadPart;
+    n->total_reserved=v.TotalReserved.QuadPart;
+    n->bytes_per_sector=v.BytesPerSector;
+    n->bytes_per_cluster=v.BytesPerCluster;
+    n->bytes_per_file_record_segment=v.BytesPerFileRecordSegment;
+    n->clusters_per_file_record_segment=v.ClustersPerFileRecordSegment;
+    n->mft_valid_data_length=v.MftValidDataLength.QuadPart;
+    n->mft_start_lcn=v.MftStartLcn.QuadPart;
+    n->mft2_start_lcn=v.Mft2StartLcn.QuadPart;
+    n->mft_zone_start=v.MftZoneStart.QuadPart;
+    n->mft_zone_end=v.MftZoneEnd.QuadPart;
+    r2_root_report_v1.ntfs_valid=1; return 1;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_root_acquire_once_v1(void)
+{
+    struct r2_win_storage_root_report_v1 *r=&r2_root_report_v1;
+    struct r2_win_storage_report_v1 *s=&r2_storage_report_v1;
+    struct r2_win_owned_report_v1 *o=&r2_own_report_v1;
+    FILE_ID_INFO id={0}; FILE_ATTRIBUTE_TAG_INFO tag={0};
+    FILE_STANDARD_INFO std={0}; uint32_t i;
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_root_v1.acquire_race,1);
+        InterlockedExchange(&r2_own_stop_v1,1); return R2_ROOT_BUSY;
+    }
+    r2_root_refresh_v1();
+    if (r->acquisition_consumed || r->finish_consumed) {
+        r2_root_bad_v1(R2_ROOT_OP_STATE,R2_ROOT_REASON_STATE,0);
+        return r2_root_leave_v1();
+    }
+    r->acquisition_consumed=1;
+    r2_root_v1.creator=r2_own_v1.creator;
+    r2_root_v1.volume=r2_storage_v1.originals[0];
+    r->creator_pid=o->creator_pid; r->creator_tid=o->creator_tid;
+    r->creator_creation_100ns=o->creator_creation_100ns.value;
+    r->intent_serial=o->intent_serial; r->lease_epoch_qpc=o->lease_epoch_qpc;
+    r->qpc_frequency=o->qpc_frequency; r->stop_deadline_qpc=o->stop_deadline_qpc;
+    r->cleanup_deadline_qpc=o->cleanup_deadline_qpc;
+    if (!o->attempt_consumed || !r2_own_v1.deadline_bound || !r2_own_v1.creator ||
+        o->creator_creation_100ns.state!=R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle!=R2_OWN_INTENT_HELD || o->birth_attempted || o->finish_started ||
+        r2_own_stopped_v1() || o->lease_epoch_qpc<=0 || o->qpc_frequency<=0 ||
+        o->stop_deadline_qpc<=o->lease_epoch_qpc ||
+        o->cleanup_deadline_qpc<=o->stop_deadline_qpc ||
+        !s->acquisition_complete || s->finish_consumed || s->fault_count ||
+        s->ambiguous_ownership || s->in_flight || !s->volume_adopted ||
+        !r2_storage_v1.usable[0] || !r2_root_v1.volume ||
+        r2_root_v1.volume==INVALID_HANDLE_VALUE || !s->intent_valid ||
+        s->path_units!=49 || r2_storage_v1.volume[48]!=0 ||
+        memcmp(s->volume_device,r2_storage_v1.volume,49*sizeof(WCHAR))!=0) {
+        r2_root_bad_v1(R2_ROOT_OP_STATE,R2_ROOT_REASON_STATE,0);
+        return r2_root_leave_v1();
+    }
+    for (i=0;i<49;++i) {
+        r->original_volume_guid[i]=(uint16_t)r2_storage_v1.volume[i];
+        r2_root_v1.path[i]=r2_storage_v1.volume[i];
+    }
+    r2_root_v1.path[48]=L'\\'; r2_root_v1.path[49]=0;
+    r->canonical_guid_valid=1;
+    if (!r2_root_open_v1() ||
+        !r2_root_info_v1(R2_ROOT_OP_FILE_ID,FileIdInfo,&id,sizeof(id)))
+        return r2_root_leave_v1();
+    memcpy(r2_root_v1.file_id_opaque,&id,sizeof(id));
+    r->file_id_volume_serial=id.VolumeSerialNumber;
+    memcpy(r->file_id_128,id.FileId.Identifier,16); r->file_id_valid=1;
+    if (!r2_root_info_v1(R2_ROOT_OP_ATTRIBUTES,FileAttributeTagInfo,
+        &tag,sizeof(tag))) return r2_root_leave_v1();
+    memcpy(r2_root_v1.attribute_tag_opaque,&tag,sizeof(tag));
+    r->file_attributes=tag.FileAttributes; r->attributes_valid=1;
+    if (!(tag.FileAttributes&FILE_ATTRIBUTE_DIRECTORY) ||
+        (tag.FileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)) {
+        r->reparse_rejected=!!(tag.FileAttributes&FILE_ATTRIBUTE_REPARSE_POINT);
+        r2_root_bad_v1(R2_ROOT_OP_PARSE,R2_ROOT_REASON_FORMAT,r->call_count);
+        return r2_root_leave_v1();
+    }
+    if (!r2_root_info_v1(R2_ROOT_OP_STANDARD,FileStandardInfo,&std,sizeof(std)))
+        return r2_root_leave_v1();
+    memcpy(r2_root_v1.standard_opaque,&std,sizeof(std));
+    r->allocation_size=std.AllocationSize.QuadPart;
+    r->end_of_file=std.EndOfFile.QuadPart;
+    r->number_of_links=std.NumberOfLinks;
+    r->delete_pending=(uint32_t)std.DeletePending;
+    r->directory=(uint32_t)std.Directory; r->standard_valid=1;
+    if (!std.Directory || std.DeletePending) {
+        r2_root_bad_v1(R2_ROOT_OP_PARSE,R2_ROOT_REASON_FORMAT,r->call_count);
+        return r2_root_leave_v1();
+    }
+    r->directory_confirmed=1;
+    if (!r2_root_ntfs_v1()) return r2_root_leave_v1();
+    if (!r->fault_count && !r2_own_stopped_v1() &&
+        r->file_id_valid && r->attributes_valid && r->standard_valid &&
+        r->directory_confirmed && r->ntfs_valid) r->capture_complete=1;
+    return r2_root_leave_v1();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_root_finish_once_v1(void)
+{
+    struct r2_win_storage_root_report_v1 *r=&r2_root_report_v1;
+    struct r2_win_storage_root_call_v1 *c;
+    BOOL result; DWORD error=0;
+    InterlockedExchange(&r2_own_stop_v1,1);
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_root_v1.finish_race,1); return R2_ROOT_BUSY;
+    }
+    r2_root_refresh_v1();
+    if (r->finish_consumed) return r2_root_leave_v1();
+    r->finish_consumed=1;
+    if (!r->acquisition_consumed) {
+        r2_root_bad_v1(R2_ROOT_OP_STATE,R2_ROOT_REASON_STATE,0);
+        return r2_root_leave_v1();
+    }
+    if (r2_root_v1.usable) {
+        c=r2_root_call_v1(R2_ROOT_OP_CLOSE,0,1);
+        if (!c) {
+            r2_storage_stop_v1(R2_OWN_RESIDUAL_CLOSE);
+            return r2_root_leave_v1();
+        }
+        r2_root_v1.usable=0; r->root_close_consumed=1;
+        r2_root_enter_native_v1(c);
+        result=CloseHandle(r2_root_v1.root);
+        if (!result) error=GetLastError();
+        c->raw_bool=(uint32_t)result; c->bool_observed=1;
+        if (!result) {
+            c->immediate_error=error; c->error_valid=1;
+            r2_root_fault_v1(R2_ROOT_OP_CLOSE,R2_ROOT_FAULT_WIN32,
+                0,c->ordinal,error,1);
+        } else r->root_close_succeeded=1;
+        if (!r2_root_after_v1(c,1))
+            r2_storage_stop_v1(R2_OWN_RESIDUAL_CLOSE);
+    }
+    if (r->root_adopted && !r->root_close_succeeded)
+        r2_storage_stop_v1(R2_OWN_RESIDUAL_CLOSE);
+    return r2_root_leave_v1();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_root_copy_report_v1(
+    struct r2_win_storage_root_report_v1 *out,size_t out_size)
+{
+    if (out_size!=sizeof(*out) ||
+        !r2_own_range_v1(out,out_size,_Alignof(struct r2_win_storage_root_report_v1)) ||
+        !r2_root_disjoint_v1(out,out_size)) return R2_ROOT_BAD_ARGUMENT;
+    if (!r2_own_enter_v1()) return R2_ROOT_BUSY;
+    r2_root_refresh_v1(); memcpy(out,&r2_root_report_v1,sizeof(*out));
+    InterlockedExchange(&r2_own_guard_v1,0); return R2_ROOT_COPY_OK;
+}
+#endif
+#endif

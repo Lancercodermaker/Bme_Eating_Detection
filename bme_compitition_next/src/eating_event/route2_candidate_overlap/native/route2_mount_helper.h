@@ -1778,3 +1778,124 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_dependency_copy_re
     struct r2_win_storage_dependency_report_v1 *out, size_t out_size);
 #endif
 #endif
+
+/* C00 held original-root and same original-volume NTFS facts, SOURCE ONLY.
+ * Requires the base original storage collector; no loader or invocation.
+ * Actual Windows.h, fileapi.h, winbase.h, winioctl.h and Kernel32.lib;
+ * existing C11, Win10 and native x64 requirements remain in force.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_STORAGE_ROOT_RAW_V1)
+#if !defined(R2_ENABLE_WIN_STORAGE_RAW_V1)
+#error R2_ENABLE_WIN_STORAGE_ROOT_RAW_V1 requires R2_ENABLE_WIN_STORAGE_RAW_V1
+#endif
+#ifndef R2_WIN_STORAGE_ROOT_RAW_V1_DECLARED
+#define R2_WIN_STORAGE_ROOT_RAW_V1_DECLARED
+#define R2_WIN_STORAGE_ROOT_RAW_ABI 1u
+#define R2_WIN_STORAGE_ROOT_CALL_CAP 6u
+#define R2_WIN_STORAGE_ROOT_FAULT_CAP 8u
+enum r2_win_storage_root_status_v1 {
+    R2_ROOT_UNUSED = 0, R2_ROOT_PENDING = 0xC501u,
+    R2_ROOT_RAW_COMPLETE = 0xC502u, R2_ROOT_RAW_PARTIAL = 0xC503u,
+    R2_ROOT_RETAINED = 0xC504u, R2_ROOT_BAD_ARGUMENT = 0xC505u,
+    R2_ROOT_BUSY = 0xC506u, R2_ROOT_COPY_OK = 0xC507u
+};
+enum r2_win_storage_root_operation_v1 {
+    R2_ROOT_OP_STATE = 1, R2_ROOT_OP_OPEN, R2_ROOT_OP_FILE_ID,
+    R2_ROOT_OP_ATTRIBUTES, R2_ROOT_OP_STANDARD, R2_ROOT_OP_NTFS,
+    R2_ROOT_OP_CLOSE, R2_ROOT_OP_CLOCK, R2_ROOT_OP_OWNER,
+    R2_ROOT_OP_PARSE, R2_ROOT_OP_RACE
+};
+enum r2_win_storage_root_fault_kind_v1 {
+    R2_ROOT_FAULT_WIN32 = 1, R2_ROOT_FAULT_OWNER,
+    R2_ROOT_FAULT_CLOCK, R2_ROOT_FAULT_INVARIANT
+};
+enum r2_win_storage_root_reason_v1 {
+    R2_ROOT_REASON_STATE = 1, R2_ROOT_REASON_CONTEXT,
+    R2_ROOT_REASON_IDENTITY, R2_ROOT_REASON_CLOCK,
+    R2_ROOT_REASON_DEADLINE, R2_ROOT_REASON_BOUND,
+    R2_ROOT_REASON_FORMAT, R2_ROOT_REASON_HANDLE,
+    R2_ROOT_REASON_COUNTER, R2_ROOT_REASON_RACE
+};
+struct r2_win_storage_root_clock_v1 {
+    int64_t raw_qpc;
+    uint32_t attempted, raw_bool, immediate_error, error_valid;
+    uint32_t sample_valid, reserved;
+};
+struct r2_win_storage_root_call_v1 {
+    uint32_t ordinal, operation, attempted, in_flight;
+    uint32_t raw_bool, bool_observed, handle_outcome, immediate_error;
+    uint32_t error_valid, capacity, returned_bytes, returned_bytes_valid;
+    uint32_t output_valid, boundary_valid;
+    struct r2_win_storage_root_clock_v1 clocks[4];
+};
+struct r2_win_storage_root_fault_v1 {
+    uint32_t operation, kind, reason, call_ordinal;
+    uint32_t immediate_error, error_valid;
+};
+struct r2_win_storage_root_ntfs_v1 {
+    int64_t volume_serial_number, number_sectors, total_clusters;
+    int64_t free_clusters, total_reserved;
+    uint32_t bytes_per_sector, bytes_per_cluster;
+    uint32_t bytes_per_file_record_segment, clusters_per_file_record_segment;
+    int64_t mft_valid_data_length, mft_start_lcn, mft2_start_lcn;
+    int64_t mft_zone_start, mft_zone_end;
+};
+struct r2_win_storage_root_report_v1 {
+    uint32_t abi, size, status, stop_new;
+    uint32_t acquisition_consumed, capture_complete, finish_consumed, raw_complete;
+    uint32_t root_adopted, root_close_consumed, root_close_succeeded;
+    uint32_t root_known_once_closed, base_finish_observed, base_known_once_closed;
+    uint32_t pending_liability, ambiguous_ownership, in_flight, in_flight_ordinal;
+    uint32_t native_work_count, call_count, qpc_work_count, identity_check_count;
+    uint32_t fault_count, omitted_fault_count, remaining_unproven, owner_lifecycle;
+    uint32_t creator_pid, creator_tid, canonical_guid_valid, file_id_valid;
+    uint32_t attributes_valid, standard_valid, ntfs_valid, directory_confirmed;
+    uint32_t reparse_rejected, reserved;
+    uint64_t intent_serial, creator_creation_100ns;
+    int64_t lease_epoch_qpc, qpc_frequency, stop_deadline_qpc, cleanup_deadline_qpc;
+    uint16_t original_volume_guid[49];
+    uint16_t path_padding;
+    uint64_t file_id_volume_serial;
+    unsigned char file_id_128[16];
+    uint32_t file_attributes;
+    int64_t allocation_size, end_of_file;
+    uint32_t number_of_links, delete_pending, directory;
+    struct r2_win_storage_root_ntfs_v1 ntfs;
+    struct r2_win_storage_root_fault_v1 primary, secondary;
+    struct r2_win_storage_root_fault_v1 faults[R2_WIN_STORAGE_ROOT_FAULT_CAP];
+    struct r2_win_storage_root_call_v1 calls[R2_WIN_STORAGE_ROOT_CALL_CAP];
+};
+/* No caller path or HANDLE. Accept only the base collector's privately copied
+ * canonical 49-WCHAR volume GUID device name, then append '\\' into the sole
+ * private 50-WCHAR root path. DOS aliases are rejected. Acquire after complete
+ * original storage capture and before child birth/base finish; borrow its
+ * original volume HANDLE for the synchronous NTFS request. Open one root
+ * directory HANDLE with GENERIC_READ, share READ|WRITE|DELETE, OPEN_EXISTING,
+ * BACKUP_SEMANTICS|OPEN_REPARSE_POINT. Once query FileIdInfo,
+ * FileAttributeTagInfo and FileStandardInfo on that held root. Require
+ * directory and no reparse attribute or delete pending. File info APIs define
+ * BOOL, not a returned length; FALSE output is opaque with immediate GLE.
+ * The root handle is adopted before post-call checks and is closed only by
+ * root finish_once, before base storage finish and C02 finish. A failed close
+ * leaves its numeric original private, unusable and pending, with no retry.
+ * No other handle is opened or closed. At most six main calls, 24 QPC and 12
+ * original creator checks. Synchronous calls may stall without cancellation.
+ * Each call has four raw clock endpoints and bounded immutable fault history.
+ * NTFS FreeClusters includes reserved clusters; no quota-aware availability,
+ * floor, capacity PASS or arithmetic fee inference follows. Root file ID and
+ * serial, NTFS serial and GUID path are raw associations only. All four SDK
+ * byte images, including failed outputs and ReparseTag, remain private; only
+ * defined parsed facts and their validity cross the public report.
+ * RAW_COMPLETE requires all raw capture, own successful once-close and base
+ * successful once-closes with no faults/pending. COPY_OK is byte copy only.
+ * Full backing, VHDX identity, all writers, admission and C04-C12 remain
+ * unproven; all fees UNKNOWN_NOT_ZERO. Output memory must be accessible,
+ * stable, exclusive, exact-sized, aligned and disjoint from component statics;
+ * pointer checks cannot prove caller memory safety. Source is UNCOMPILED_UNRUN.
+ */
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_root_acquire_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_root_finish_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_root_copy_report_v1(
+    struct r2_win_storage_root_report_v1 *out, size_t out_size);
+#endif
+#endif
