@@ -6817,3 +6817,405 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_root_copy_report_v
 }
 #endif
 #endif
+
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_BIRTH_OBSERVER_RAW_V1)
+#ifndef R2_WIN_BIRTH_OBSERVER_RAW_V1_BODY
+#define R2_WIN_BIRTH_OBSERVER_RAW_V1_BODY
+/* Paired C00 raw client. Existing root -> catalog -> owned-observation ->
+ * core include graph stays unchanged. Driver is a separate WDM translation
+ * unit. No optional storage/GPU dependencies or installed-provider claims.
+ * C02 previously binds a numeric creator TID, not original thread birth.
+ * The kernel begins retaining actual PETHREAD identity only at REGISTER;
+ * this cannot prove earlier TID continuity or before-all-loading closure. */
+struct r2_birth_native_private_v1 {
+    HANDLE creator, device;
+    uint64_t owner_start_key;
+    uint32_t usable, key_valid;
+    volatile LONG acquire_race, observe_race, finish_race;
+    uint32_t acquire_race_recorded, observe_race_recorded, finish_race_recorded;
+    struct r2_birth_report_v1 receive; /* all failed/partial output stays private */
+};
+static struct r2_birth_native_private_v1 r2_bn;
+static struct r2_win_birth_report_v1 r2_bn_report = {
+    .abi=R2_BIRTH_ABI, .size=sizeof(struct r2_win_birth_report_v1),
+    .remaining_unproven=R2_BIRTH_UNPROVEN_ALL
+};
+_Static_assert(sizeof(struct r2_win_birth_clock_v1)==32 &&
+    sizeof(struct r2_win_birth_call_v1)==176 &&
+    sizeof(struct r2_win_birth_fault_v1)==16 &&
+    offsetof(struct r2_win_birth_report_v1,calls)==192 &&
+    offsetof(struct r2_win_birth_report_v1,kernel)==1072 &&
+    sizeof(struct r2_win_birth_report_v1)==13616 &&
+    _Alignof(struct r2_win_birth_report_v1)==8 &&
+    offsetof(struct r2_birth_native_private_v1,receive)==56 &&
+    sizeof(r2_bn)==12600 && sizeof(r2_bn)+sizeof(r2_bn_report)==26216 &&
+    sizeof(r2_bn)+sizeof(r2_bn_report)<=49152,
+    "birth native ABI/state cap; actual ABI is UNCOMPILED_UNRUN");
+static void r2_bn_fault(uint32_t op,uint32_t kind,DWORD error,uint32_t valid)
+{
+    struct r2_win_birth_fault_v1 f={op,kind,(uint32_t)error,valid};
+    if (!r2_bn_report.fault_count) r2_bn_report.primary=f;
+    else if (r2_bn_report.fault_count==1) r2_bn_report.secondary=f;
+    if (r2_bn_report.fault_count!=UINT32_MAX) ++r2_bn_report.fault_count;
+    r2_bn_report.residual=1;
+    r2_own_report_v1.residual_bits|=op==R2_WIN_BIRTH_OP_CLOSE ?
+        R2_OWN_RESIDUAL_CLOSE : R2_OWN_RESIDUAL_SAMPLE;
+    InterlockedExchange(&r2_own_stop_v1,1);
+}
+static void r2_bn_refresh(void)
+{
+#define R2_BN_RACE(field,consumed,op) \
+    if (InterlockedCompareExchange(&r2_bn.field##_race,0,0) && !r2_bn.field##_race_recorded) { \
+        r2_bn.field##_race_recorded=1; r2_bn_report.consumed=1; \
+        r2_bn_fault(op,R2_WIN_BIRTH_FAULT_RACE,0,0); }
+    R2_BN_RACE(acquire,acquire_consumed,R2_WIN_BIRTH_OP_OPEN)
+    R2_BN_RACE(observe,observe_consumed,R2_WIN_BIRTH_OP_QUERY)
+    R2_BN_RACE(finish,finish_consumed,R2_WIN_BIRTH_OP_REVOKE)
+#undef R2_BN_RACE
+    r2_bn_report.stop_new=(uint32_t)r2_own_stopped_v1();
+    r2_bn_report.owner_lifecycle=r2_own_report_v1.lifecycle;
+    r2_bn_report.pending_liability=r2_bn_report.residual || r2_bn_report.in_flight ||
+        (r2_bn_report.adopted && !r2_bn_report.close_succeeded) ||
+        (r2_bn_report.register_attempted && !r2_bn_report.kernel_disposed);
+    r2_bn_report.status=r2_bn_report.pending_liability ? R2_WIN_BIRTH_PENDING :
+        (r2_bn_report.finish_consumed && r2_bn_report.close_succeeded &&
+         r2_bn_report.kernel_disposed ? R2_WIN_BIRTH_DISPOSED :
+         (r2_bn_report.fault_count ? R2_WIN_BIRTH_PARTIAL :
+          (r2_bn_report.acquire_consumed ? R2_WIN_BIRTH_PENDING : R2_WIN_BIRTH_UNUSED)));
+}
+static uint32_t r2_bn_leave(void)
+{
+    uint32_t status;
+    r2_bn_refresh(); status=r2_bn_report.status;
+    InterlockedExchange(&r2_own_guard_v1,0); return status;
+}
+static int r2_bn_context(uint32_t op)
+{
+    struct r2_win_owned_report_v1 *o=&r2_own_report_v1;
+    struct r2_win_birth_report_v1 *r=&r2_bn_report;
+    if (!r2_own_v1.creator || r2_own_v1.creator!=r2_bn.creator ||
+        !r2_own_v1.deadline_bound || !o->attempt_consumed || o->finish_started ||
+        o->creator_creation_100ns.state!=R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle<R2_OWN_INTENT_HELD || o->lifecycle==R2_OWN_CLOSING ||
+        o->lifecycle==R2_OWN_DONE || o->lifecycle>R2_OWN_RETAINED ||
+        o->creator_pid!=r->creator_pid || o->creator_tid!=r->creator_tid ||
+        o->creator_creation_100ns.value!=r->creator_creation_100ns ||
+        o->intent_serial!=r->intent_serial || o->lease_epoch_qpc!=r->lease_epoch_qpc ||
+        o->qpc_frequency!=r->qpc_frequency || o->stop_deadline_qpc!=r->stop_deadline_qpc ||
+        o->cleanup_deadline_qpc!=r->cleanup_deadline_qpc ||
+        ((op==R2_WIN_BIRTH_OP_OPEN || op==R2_WIN_BIRTH_OP_REGISTER) &&
+         (o->birth_attempted || o->lifecycle!=R2_OWN_INTENT_HELD))) {
+        r2_bn_fault(op,R2_WIN_BIRTH_FAULT_OWNER,0,0); return 0;
+    }
+    if (r->identity_check_count>=10) {
+        r2_bn_fault(op,R2_WIN_BIRTH_FAULT_STATE,0,0); return 0;
+    }
+    ++r->identity_check_count;
+    if (GetCurrentProcessId()!=r->creator_pid || GetCurrentThreadId()!=r->creator_tid ||
+        !r2_own_creator_identity_v1()) {
+        r2_bn_fault(op,R2_WIN_BIRTH_FAULT_OWNER,0,0); return 0;
+    }
+    return 1;
+}
+static int r2_bn_clock(struct r2_win_birth_call_v1 *c,uint32_t index,int cleanup)
+{
+    struct r2_win_birth_clock_v1 *q=&c->clocks[index];
+    struct r2_win_owned_report_v1 *o=&r2_own_report_v1;
+    LARGE_INTEGER value={0}; BOOL ok; DWORD error;
+    int64_t deadline=cleanup ? r2_bn_report.cleanup_deadline_qpc : r2_bn_report.stop_deadline_qpc;
+    if (r2_bn_report.qpc_work_count>=20) {
+        r2_bn_fault(c->operation,R2_WIN_BIRTH_FAULT_STATE,0,0); return 0;
+    }
+    ++r2_bn_report.qpc_work_count; q->attempted=1;
+    ok=QueryPerformanceCounter(&value);
+    if (!ok) {
+        error=GetLastError(); q->raw_bool=(uint32_t)ok;
+        q->immediate_error=error; q->error_valid=1;
+        o->clock_valid=0; o->residual_bits|=R2_OWN_RESIDUAL_CLOCK;
+        r2_bn_fault(c->operation,R2_WIN_BIRTH_FAULT_CLOCK,error,1); return 0;
+    }
+    q->raw_bool=(uint32_t)ok; q->raw_qpc=value.QuadPart;
+    if (!o->clock_valid || (o->residual_bits&R2_OWN_RESIDUAL_CLOCK) ||
+        value.QuadPart<=0 || value.QuadPart<o->last_qpc) {
+        o->clock_valid=0; o->residual_bits|=R2_OWN_RESIDUAL_CLOCK;
+        r2_bn_fault(c->operation,R2_WIN_BIRTH_FAULT_CLOCK,0,0); return 0;
+    }
+    o->last_qpc=value.QuadPart;
+    if (deadline<=0 || value.QuadPart>=deadline) {
+        o->residual_bits|=R2_OWN_RESIDUAL_DEADLINE;
+        r2_bn_fault(c->operation,R2_WIN_BIRTH_FAULT_CLOCK,0,0); return 0;
+    }
+    q->valid=1; return 1;
+}
+static struct r2_win_birth_call_v1 *r2_bn_before(uint32_t op,int cleanup)
+{
+    struct r2_win_birth_call_v1 *c; int identity,clock;
+    if (r2_bn_report.call_count>=5 || r2_bn_report.native_work_count>=5) {
+        r2_bn_fault(op,R2_WIN_BIRTH_FAULT_STATE,0,0); return NULL;
+    }
+    c=&r2_bn_report.calls[r2_bn_report.call_count++]; c->operation=op;
+    if (!cleanup && r2_own_stopped_v1()) {
+        r2_bn_fault(op,R2_WIN_BIRTH_FAULT_STATE,0,0); return NULL;
+    }
+    if (!r2_bn_clock(c,0,cleanup)) return NULL;
+    identity=r2_bn_context(op); clock=r2_bn_clock(c,1,cleanup);
+    if (!identity || !clock) return NULL;
+    if (!cleanup && r2_own_stopped_v1()) {
+        r2_bn_fault(op,R2_WIN_BIRTH_FAULT_RACE,0,0); return NULL;
+    }
+    c->attempted=1; c->in_flight=1; ++r2_bn_report.native_work_count;
+    r2_bn_report.in_flight=1; r2_bn_report.pending_liability=1;
+    return c;
+}
+static int r2_bn_after(struct r2_win_birth_call_v1 *c,int cleanup)
+{
+    int first,identity,last;
+    c->in_flight=0; r2_bn_report.in_flight=0;
+    first=r2_bn_clock(c,2,cleanup); identity=r2_bn_context(c->operation);
+    last=r2_bn_clock(c,3,cleanup);
+    c->boundary_valid=first && identity && last;
+    if (!cleanup && r2_own_stopped_v1()) {
+        c->boundary_valid=0;
+        if (!r2_bn_report.fault_count) r2_bn_fault(c->operation,R2_WIN_BIRTH_FAULT_RACE,0,0);
+    }
+    return c->boundary_valid!=0;
+}
+static int r2_bn_zero(const void *bytes,size_t n)
+{
+    const unsigned char *p=(const unsigned char *)bytes; size_t i;
+    for (i=0;i<n;++i) if (p[i]) return 0;
+    return 1;
+}
+static int r2_bn_parse(uint32_t code)
+{
+    const struct r2_birth_report_v1 *v=&r2_bn.receive;
+    const struct r2_birth_header_v1 *h=&v->h; uint32_t i;
+    if (h->abi!=R2_BIRTH_ABI || h->size!=sizeof(*v) || h->operation!=code ||
+        h->details_valid>1 || h->register_consumed!=1 || h->register_valid!=1 ||
+        h->registered>1 || h->remove_consumed>1 || h->remove_valid>1 || h->removed>1 ||
+        h->stop_new>1 || h->incomplete>1 || h->pending>1 || h->disposed>1 ||
+        h->owner_exit>1 || h->owner_thread_retained>1 || h->device_pin>1 || h->final>1 ||
+        h->operation_status_valid!=1 || h->remaining_unproven!=R2_BIRTH_UNPROVEN_ALL ||
+        h->slots>R2_BIRTH_PROCESS_CAP || h->events>R2_BIRTH_EVENT_CAP ||
+        h->sequence!=h->events || (h->stop_reasons&~63u) ||
+        h->stop_new!=!!h->stop_reasons ||
+        h->incomplete!=!!(h->stop_reasons&(R2_BIRTH_STOP_CONTENTION|
+            R2_BIRTH_STOP_CAPACITY|R2_BIRTH_STOP_REGISTRATION|R2_BIRTH_STOP_INVARIANT)) ||
+        h->disposed!=(!h->registered || h->removed) ||
+        h->pending!=!h->disposed || h->device_pin!=!h->disposed ||
+        h->owner_thread_retained!=!h->disposed ||
+        (h->removed && !h->registered) ||
+        !r2_bn_zero(h->reserved,sizeof(h->reserved)) ||
+        !r2_bn_zero(h->reserved64,sizeof(h->reserved64)) ||
+        h->registered!=((int32_t)h->register_status>=0) ||
+        (!h->remove_valid && h->remove_status) ||
+        (h->remove_valid && !h->remove_consumed) ||
+        h->removed!=(h->remove_valid && (int32_t)h->remove_status>=0) ||
+        (h->disposed && (h->pending || h->device_pin || h->owner_thread_retained)) ||
+        (h->disposed && h->registered && !h->removed) ||
+        h->final!=(h->details_valid && h->removed && h->disposed && !h->pending)) return 0;
+    if (!h->details_valid) {
+        return !h->slots && !h->events && !h->sequence && !h->owner_exit &&
+            !h->owner_pid && !h->owner_tid && !h->owner_start_key &&
+            r2_bn_zero(v->processes,sizeof(v->processes)) &&
+            r2_bn_zero(v->events,sizeof(v->events)) && h->incomplete && h->stop_new;
+    }
+    if (!h->slots || h->owner_pid!=r2_bn_report.creator_pid ||
+        h->owner_tid!=r2_bn_report.creator_tid ||
+        (r2_bn.key_valid && r2_bn.owner_start_key!=h->owner_start_key)) return 0;
+    for (i=0;i<R2_BIRTH_PROCESS_CAP;++i) {
+        const struct r2_birth_process_v1 *p=&v->processes[i];
+        if (i>=h->slots) { if (!r2_bn_zero(p,sizeof(*p))) return 0; continue; }
+        if (!p->pid || (p->flags&~15u) || !r2_bn_zero(p->reserved,sizeof(p->reserved)) ||
+            (p->flags&(R2_BIRTH_OWNER_SEED|R2_BIRTH_CALLBACK_BIRTH))!=
+                (i ? R2_BIRTH_CALLBACK_BIRTH : R2_BIRTH_OWNER_SEED) ||
+            (!!(p->flags&R2_BIRTH_REFERENCE_DISPOSED)!=h->disposed) ||
+            (!!(p->flags&R2_BIRTH_EXIT_OBSERVED)!=!!p->exit_sequence) ||
+            p->exit_sequence>h->sequence || p->create_sequence>h->sequence ||
+            (i && !p->create_sequence) ||
+            (!i && (p->pid!=h->owner_pid || p->start_key!=h->owner_start_key ||
+                p->creator_pid || p->creator_tid || p->create_sequence || p->creation_status))) return 0;
+        if (i && (v->events[p->create_sequence-1].slot!=i ||
+            v->events[p->create_sequence-1].kind!=R2_BIRTH_EVENT_CREATE)) return 0;
+        if (p->exit_sequence && (v->events[p->exit_sequence-1].slot!=i ||
+            v->events[p->exit_sequence-1].kind!=R2_BIRTH_EVENT_EXIT ||
+            (i && p->exit_sequence<=p->create_sequence))) return 0;
+    }
+    if (h->owner_exit!=!!(v->processes[0].flags&R2_BIRTH_EXIT_OBSERVED)) return 0;
+    for (i=0;i<R2_BIRTH_EVENT_CAP;++i) {
+        const struct r2_birth_event_v1 *e=&v->events[i];
+        if (i>=h->events) { if (!r2_bn_zero(e,sizeof(*e))) return 0; continue; }
+        if (e->sequence!=(uint64_t)i+1 || e->slot>=h->slots || e->flags || e->reserved ||
+            e->pid!=v->processes[e->slot].pid ||
+            (e->kind!=R2_BIRTH_EVENT_CREATE && e->kind!=R2_BIRTH_EVENT_EXIT) ||
+            (e->kind==R2_BIRTH_EVENT_CREATE && (!e->slot ||
+             e->sequence!=v->processes[e->slot].create_sequence)) ||
+            (e->kind==R2_BIRTH_EVENT_EXIT &&
+             e->sequence!=v->processes[e->slot].exit_sequence)) return 0;
+    }
+    r2_bn.owner_start_key=h->owner_start_key; r2_bn.key_valid=1; return 1;
+}
+static int r2_bn_ioctl(uint32_t op,DWORD code,int cleanup)
+{
+    struct r2_win_birth_call_v1 *c;
+    DWORD returned=0,error=0; BOOL ok; int boundary;
+    if (!r2_bn.usable) { r2_bn_fault(op,R2_WIN_BIRTH_FAULT_STATE,0,0); return 0; }
+    c=r2_bn_before(op,cleanup); if (!c) return 0;
+    memset(&r2_bn.receive,0,sizeof(r2_bn.receive));
+    if (op==R2_WIN_BIRTH_OP_REGISTER) r2_bn_report.register_attempted=1;
+    if (op==R2_WIN_BIRTH_OP_REVOKE) r2_bn_report.revoke_attempted=1;
+    ok=DeviceIoControl(r2_bn.device,code,NULL,0,&r2_bn.receive,
+        sizeof(r2_bn.receive),&returned,NULL);
+    if (!ok) error=GetLastError();
+    c->raw_bool=(uint32_t)ok; c->result_valid=1;
+    if (!ok) {
+        c->immediate_error=error; c->error_valid=1;
+        r2_bn_fault(op,R2_WIN_BIRTH_FAULT_API,error,1);
+    } else { c->returned_bytes=returned; c->returned_valid=1; }
+    boundary=r2_bn_after(c,cleanup);
+    if (!ok) return 0;
+    if (returned!=sizeof(r2_bn.receive) || !r2_bn_parse(code)) {
+        r2_bn_fault(op,R2_WIN_BIRTH_FAULT_FORMAT,0,0); return 0;
+    }
+    c->output_valid=1;
+    memcpy(&r2_bn_report.kernel,&r2_bn.receive,sizeof(r2_bn.receive));
+    r2_bn_report.kernel_report_valid=1;
+    if (r2_bn.receive.h.registered) r2_bn_report.capture_started=1;
+    if (r2_bn.receive.h.disposed && !r2_bn.receive.h.pending &&
+        (!r2_bn.receive.h.registered || r2_bn.receive.h.removed)) r2_bn_report.kernel_disposed=1;
+    if (!r2_bn.receive.h.details_valid || r2_bn.receive.h.incomplete ||
+        (int32_t)r2_bn.receive.h.operation_status<0) {
+        r2_bn_fault(op,R2_WIN_BIRTH_FAULT_PROVIDER,0,0); return 0;
+    }
+    if (r2_bn.receive.h.stop_new) InterlockedExchange(&r2_own_stop_v1,1);
+    return boundary;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_acquire_once_v1(void)
+{
+    struct r2_win_owned_report_v1 *o=&r2_own_report_v1;
+    struct r2_win_birth_report_v1 *r=&r2_bn_report;
+    struct r2_win_birth_call_v1 *c; HANDLE device; DWORD error=0; int boundary;
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_bn.acquire_race,1);
+        InterlockedExchange(&r2_own_stop_v1,1); return R2_WIN_BIRTH_BUSY;
+    }
+    r2_bn_refresh();
+    if (r->acquire_consumed || r->finish_consumed) {
+        r2_bn_fault(R2_WIN_BIRTH_OP_OPEN,R2_WIN_BIRTH_FAULT_STATE,0,0); return r2_bn_leave();
+    }
+    r->acquire_consumed=1; r2_bn.creator=r2_own_v1.creator;
+    r->creator_pid=o->creator_pid; r->creator_tid=o->creator_tid;
+    r->creator_creation_100ns=o->creator_creation_100ns.value;
+    r->intent_serial=o->intent_serial; r->lease_epoch_qpc=o->lease_epoch_qpc;
+    r->qpc_frequency=o->qpc_frequency; r->stop_deadline_qpc=o->stop_deadline_qpc;
+    r->cleanup_deadline_qpc=o->cleanup_deadline_qpc;
+    if (!r->creator_pid || !r->creator_tid || !r->intent_serial ||
+        r->lease_epoch_qpc<=0 || r->qpc_frequency<=0 ||
+        r->stop_deadline_qpc<=r->lease_epoch_qpc || r->cleanup_deadline_qpc<=r->stop_deadline_qpc) {
+        r2_bn_fault(R2_WIN_BIRTH_OP_OPEN,R2_WIN_BIRTH_FAULT_STATE,0,0); return r2_bn_leave();
+    }
+    c=r2_bn_before(R2_WIN_BIRTH_OP_OPEN,0); if (!c) return r2_bn_leave();
+    device=CreateFileW(R2_BIRTH_USER_NAME,GENERIC_READ|GENERIC_WRITE,0,NULL,
+        OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+    if (device==INVALID_HANDLE_VALUE) error=GetLastError();
+    c->raw_bool=(device!=INVALID_HANDLE_VALUE); c->result_valid=1;
+    if (device!=INVALID_HANDLE_VALUE) {
+        /* Adopt BEFORE ANY post-call validation so failed checks cannot lose it. */
+        r2_bn.device=device; r2_bn.usable=1; r->adopted=1;
+    } else {
+        c->immediate_error=error; c->error_valid=1;
+        r2_bn_fault(c->operation,R2_WIN_BIRTH_FAULT_API,error,1);
+    }
+    boundary=r2_bn_after(c,0);
+    if (!r->adopted || !boundary) return r2_bn_leave();
+    (void)r2_bn_ioctl(R2_WIN_BIRTH_OP_REGISTER,R2_BIRTH_IOCTL_REGISTER,0);
+    return r2_bn_leave();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_observe_once_v1(void)
+{
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_bn.observe_race,1);
+        InterlockedExchange(&r2_own_stop_v1,1); return R2_WIN_BIRTH_BUSY;
+    }
+    r2_bn_refresh();
+    if (r2_bn_report.observe_consumed) {
+        r2_bn_fault(R2_WIN_BIRTH_OP_QUERY,R2_WIN_BIRTH_FAULT_STATE,0,0); return r2_bn_leave();
+    }
+    r2_bn_report.observe_consumed=1;
+    if (r2_bn_report.finish_consumed || !r2_bn_report.capture_started) {
+        r2_bn_fault(R2_WIN_BIRTH_OP_QUERY,R2_WIN_BIRTH_FAULT_STATE,0,0); return r2_bn_leave();
+    }
+    (void)r2_bn_ioctl(R2_WIN_BIRTH_OP_QUERY,R2_BIRTH_IOCTL_QUERY,1);
+    return r2_bn_leave();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_finish_once_v1(void)
+{
+    struct r2_win_birth_call_v1 *c; BOOL ok; DWORD error=0;
+    InterlockedExchange(&r2_own_stop_v1,1);
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_bn.finish_race,1); return R2_WIN_BIRTH_BUSY;
+    }
+    r2_bn_refresh();
+    if (r2_bn_report.finish_consumed) return r2_bn_leave();
+    r2_bn_report.finish_consumed=1;
+    if (!r2_bn_report.acquire_consumed) {
+        r2_bn_fault(R2_WIN_BIRTH_OP_REVOKE,R2_WIN_BIRTH_FAULT_STATE,0,0); return r2_bn_leave();
+    }
+    if (r2_bn.usable && r2_bn_report.register_attempted && !r2_bn_report.kernel_disposed)
+        (void)r2_bn_ioctl(R2_WIN_BIRTH_OP_REVOKE,R2_BIRTH_IOCTL_REVOKE,1);
+    if (r2_bn.usable) {
+        c=r2_bn_before(R2_WIN_BIRTH_OP_CLOSE,1); if (!c) return r2_bn_leave();
+        r2_bn.usable=0; r2_bn_report.close_consumed=1;
+        ok=CloseHandle(r2_bn.device);
+        if (!ok) error=GetLastError();
+        c->raw_bool=(uint32_t)ok; c->result_valid=1;
+        if (!ok) {
+            c->immediate_error=error; c->error_valid=1;
+            r2_bn_fault(c->operation,R2_WIN_BIRTH_FAULT_API,error,1);
+        } else r2_bn_report.close_succeeded=1;
+        (void)r2_bn_after(c,1);
+    }
+    return r2_bn_leave();
+}
+static int r2_bn_disjoint(const void *out,size_t n)
+{
+#define R2_BN_DISJOINT(x) if (!r2_mm_disjoint_v1(out,n,(const void *)&(x),sizeof(x))) return 0
+    R2_BN_DISJOINT(r2_job_guard); R2_BN_DISJOINT(r2_job_original);
+    R2_BN_DISJOINT(r2_job_duplicate); R2_BN_DISJOINT(r2_job_report);
+    R2_BN_DISJOINT(r2_own_v1); R2_BN_DISJOINT(r2_own_report_v1);
+    R2_BN_DISJOINT(r2_own_guard_v1); R2_BN_DISJOINT(r2_own_stop_v1);
+    R2_BN_DISJOINT(r2_mm_report_v1);
+#if defined(R2_ENABLE_WIN_GPU_RAW_V1)
+    R2_BN_DISJOINT(r2_gpu_v1); R2_BN_DISJOINT(r2_gpu_report_v1);
+#endif
+#if defined(R2_ENABLE_WIN_STORAGE_RAW_V1)
+    R2_BN_DISJOINT(r2_storage_v1); R2_BN_DISJOINT(r2_storage_report_v1);
+#endif
+#if defined(R2_ENABLE_WIN_STORAGE_IDENTITY_RAW_V1)
+    R2_BN_DISJOINT(r2_storage_identity_v1); R2_BN_DISJOINT(r2_storage_identity_report_v1);
+#endif
+#if defined(R2_ENABLE_WIN_OWNER_TOKEN_RAW_V1)
+    R2_BN_DISJOINT(r2_owner_token_v1); R2_BN_DISJOINT(r2_owner_token_report_v1);
+#endif
+#if defined(R2_ENABLE_WIN_STORAGE_DEPENDENCY_RAW_V1)
+    R2_BN_DISJOINT(r2_dependency_v1); R2_BN_DISJOINT(r2_dependency_report_v1);
+#endif
+#if defined(R2_ENABLE_WIN_STORAGE_ROOT_RAW_V1)
+    R2_BN_DISJOINT(r2_root_v1); R2_BN_DISJOINT(r2_root_report_v1);
+#endif
+    R2_BN_DISJOINT(r2_bn); R2_BN_DISJOINT(r2_bn_report);
+#undef R2_BN_DISJOINT
+    return 1;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_copy_report_v1(
+    struct r2_win_birth_report_v1 *out,size_t out_size)
+{
+    if (out_size!=sizeof(*out) ||
+        !r2_own_range_v1(out,out_size,_Alignof(struct r2_win_birth_report_v1)) ||
+        !r2_bn_disjoint(out,out_size)) return R2_WIN_BIRTH_BAD_ARGUMENT;
+    if (!r2_own_enter_v1()) return R2_WIN_BIRTH_BUSY;
+    r2_bn_refresh(); memcpy(out,&r2_bn_report,sizeof(*out));
+    InterlockedExchange(&r2_own_guard_v1,0); return R2_WIN_BIRTH_COPY_OK;
+}
+#endif
+#endif

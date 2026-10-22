@@ -1899,3 +1899,79 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_storage_root_copy_report_v
     struct r2_win_storage_root_report_v1 *out, size_t out_size);
 #endif
 #endif
+
+/* C00 paired original process-object producer, SOURCE ONLY. Native C11 x64,
+ * Windows10 1703+ protocol provider; Windows.h/Kernel32.lib. Optional module
+ * needs only the existing Windows seed/C02 owner, no storage or GPU opt-in.
+ */
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_BIRTH_OBSERVER_RAW_V1)
+#ifndef R2_WIN_BIRTH_OBSERVER_RAW_V1_DECLARED
+#define R2_WIN_BIRTH_OBSERVER_RAW_V1_DECLARED
+#include "route2_birth_observer_protocol.h"
+#define R2_WIN_BIRTH_CALL_CAP 5u
+#define R2_WIN_BIRTH_UNUSED 0u
+#define R2_WIN_BIRTH_PENDING 0xC601u
+#define R2_WIN_BIRTH_PARTIAL 0xC602u
+#define R2_WIN_BIRTH_DISPOSED 0xC603u
+#define R2_WIN_BIRTH_BUSY 0xC604u
+#define R2_WIN_BIRTH_BAD_ARGUMENT 0xC605u
+#define R2_WIN_BIRTH_COPY_OK 0xC606u
+#define R2_WIN_BIRTH_OP_OPEN 1u
+#define R2_WIN_BIRTH_OP_REGISTER 2u
+#define R2_WIN_BIRTH_OP_QUERY 3u
+#define R2_WIN_BIRTH_OP_REVOKE 4u
+#define R2_WIN_BIRTH_OP_CLOSE 5u
+#define R2_WIN_BIRTH_FAULT_STATE 1u
+#define R2_WIN_BIRTH_FAULT_OWNER 2u
+#define R2_WIN_BIRTH_FAULT_CLOCK 3u
+#define R2_WIN_BIRTH_FAULT_API 4u
+#define R2_WIN_BIRTH_FAULT_FORMAT 5u
+#define R2_WIN_BIRTH_FAULT_PROVIDER 6u
+#define R2_WIN_BIRTH_FAULT_RACE 7u
+struct r2_win_birth_clock_v1 {
+    int64_t raw_qpc;
+    uint32_t attempted, raw_bool, immediate_error, error_valid, valid, reserved;
+};
+struct r2_win_birth_call_v1 {
+    uint32_t operation, attempted, in_flight, raw_bool;
+    uint32_t result_valid, immediate_error, error_valid, returned_bytes;
+    uint32_t returned_valid, output_valid, boundary_valid, reserved;
+    struct r2_win_birth_clock_v1 clocks[4];
+};
+struct r2_win_birth_fault_v1 {
+    uint32_t operation, kind, immediate_error, error_valid;
+};
+struct r2_win_birth_report_v1 {
+    uint32_t abi, size, status, stop_new;
+    uint32_t acquire_consumed, observe_consumed, finish_consumed, adopted;
+    uint32_t register_attempted, revoke_attempted, close_consumed, close_succeeded;
+    uint32_t native_work_count, qpc_work_count, identity_check_count, call_count;
+    uint32_t in_flight, pending_liability, residual, fault_count;
+    uint32_t creator_pid, creator_tid, owner_lifecycle, kernel_report_valid;
+    uint32_t capture_started, kernel_disposed, remaining_unproven, reserved;
+    uint64_t creator_creation_100ns, intent_serial;
+    int64_t lease_epoch_qpc, qpc_frequency, stop_deadline_qpc, cleanup_deadline_qpc;
+    struct r2_win_birth_fault_v1 primary, secondary;
+    struct r2_win_birth_call_v1 calls[R2_WIN_BIRTH_CALL_CAP];
+    struct r2_birth_report_v1 kernel;
+};
+/* acquire_once before C02 child birth; observe_once optional; finish_once
+ * REVOKE then sole original CloseHandle before C02 creator finish. No caller
+ * PID/HANDLE/path/report supplies authority. <=5 native/20 QPC/10 original
+ * creator helper calls; helpers themselves perform existing identity APIs.
+ * QPC brackets and synchronous calls are not cancellation or stall bounds.
+ * All raw failures/unknown provider work retain liability. DISPOSED means
+ * known local references/handle disposed, never process/service/kernel exit.
+ * copy_report has no native calls; exact output must be accessible, stable,
+ * exclusive, aligned and disjoint from every old/new component static.
+ * System-wide birth capture gives no SCM/HCS membership/primary-thread/hard
+ * resource proof. Actual ABI/signing/closure UNCOMPILED_UNRUN; all fees
+ * UNKNOWN_NOT_ZERO. Full admission and C04-C12 remain unproved.
+ */
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_acquire_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_observe_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_finish_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_copy_report_v1(
+    struct r2_win_birth_report_v1 *out,size_t out_size);
+#endif
+#endif
