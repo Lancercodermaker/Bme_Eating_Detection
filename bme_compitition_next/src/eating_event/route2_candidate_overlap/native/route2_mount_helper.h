@@ -2001,6 +2001,7 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_copy_report
 #define R2_WIN_BP_OP_MEMORY 3u
 #define R2_WIN_BP_OP_TIMES 4u
 #define R2_WIN_BP_OP_CLOSE 5u
+#define R2_WIN_BP_OP_EXIT_CODE 6u
 #define R2_WIN_BP_FAULT_STATE 1u
 #define R2_WIN_BP_FAULT_OWNER 2u
 #define R2_WIN_BP_FAULT_CLOCK 3u
@@ -2032,10 +2033,12 @@ struct r2_win_bp_object_v1 {
     uint64_t original_pid,original_start_key;
     uint32_t original_slot,ordinal,adopted,close_consumed;
     uint32_t close_succeeded,wait_valid,wait_result,signaled;
+    /* Raw DWORD, including 259, is valid only after this owned process signals. */
+    uint32_t exit_attempt_consumed,exit_code_valid,exit_code_raw,signal_bound;
     int64_t wait_qpc;
     struct r2_win_bp_memory_v1 memory;
     struct r2_win_bp_times_v1 times;
-    struct r2_win_bp_call_v1 last_wait,last_memory,last_times,last_close;
+    struct r2_win_bp_call_v1 last_wait,last_memory,last_times,last_close,exit_call;
 };
 /* Sanitized last authenticated kernel offer, including STOPPED failures.
  * No transferred numeric user handle or kernel address crosses this ABI. */

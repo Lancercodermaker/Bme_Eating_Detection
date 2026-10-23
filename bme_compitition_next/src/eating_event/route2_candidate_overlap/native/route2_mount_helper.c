@@ -7571,6 +7571,40 @@ static void r2_bp_wait(uint32_t i)
         o->wait_qpc=c->clocks[1].raw_qpc; c->output_valid=1;
     }
 }
+static void r2_bp_exit_code(uint32_t i)
+{
+    struct r2_win_bp_object_v1 *o=&r2_bp_report.objects[i];
+    struct r2_win_bp_call_v1 *c=&o->exit_call;
+    DWORD value=0,error=0; BOOL ok; int boundary;
+    /* The immediately preceding wait in this step used this same owned slot. */
+    if (o->exit_attempt_consumed || !r2_bp_native.usable[i] ||
+        !o->last_wait.boundary_valid || !o->last_wait.output_valid ||
+        !o->last_wait.result_valid || !o->wait_valid || !o->signaled ||
+        o->last_wait.raw_result!=WAIT_OBJECT_0 ||
+        o->wait_result!=WAIT_OBJECT_0 ||
+        !o->last_wait.clocks[1].valid ||
+        o->last_wait.clocks[1].raw_qpc<=0) {
+        r2_bp_fault(R2_WIN_BP_OP_EXIT_CODE,R2_WIN_BP_FAULT_PROVIDER,0,0);
+        return;
+    }
+    o->exit_attempt_consumed=1;
+    if (!r2_bp_before(c,R2_WIN_BP_OP_EXIT_CODE,0)) return;
+    ok=GetExitCodeProcess(r2_bp_native.handles[i],&value);
+    if (!ok) error=GetLastError();
+    c->raw_result=(uint32_t)ok; c->result_valid=1;
+    if (!ok) {
+        c->immediate_error=error; c->error_valid=1;
+        r2_bp_fault(R2_WIN_BP_OP_EXIT_CODE,R2_WIN_BP_FAULT_API,error,1);
+    }
+    boundary=r2_bp_after(c,0);
+    if (ok && boundary && r2_bp_native.usable[i] &&
+        r2_bp_age(o->last_wait.clocks[1].raw_qpc,c->clocks[3].raw_qpc,
+            R2_WIN_BP_OP_EXIT_CODE)) {
+        o->exit_code_raw=(uint32_t)value;
+        o->exit_code_valid=1; o->signal_bound=1; c->output_valid=1;
+    } else if (ok && boundary && !r2_own_stopped_v1())
+        r2_bp_fault(R2_WIN_BP_OP_EXIT_CODE,R2_WIN_BP_FAULT_PROVIDER,0,0);
+}
 static void r2_bp_memory(uint32_t i)
 {
     struct r2_win_bp_object_v1 *o=&r2_bp_report.objects[i];
@@ -7634,6 +7668,15 @@ static void r2_bp_times(uint32_t i)
      * observed WAIT_OBJECT_0. This public ABI intentionally omits exit time. */
     (void)exit_time;
 }
+static int r2_bp_query_ticket(uint32_t operation)
+{
+    if (r2_bp_report.query_count>=R2_WIN_BP_QUERY_CAP) {
+        r2_bp_fault(operation,R2_WIN_BP_FAULT_STATE,0,0);
+        return 0;
+    }
+    ++r2_bp_report.query_count;
+    return 1;
+}
 R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_process_begin_once_v1(void)
 {
     const struct r2_win_owned_report_v1 *o=&r2_own_report_v1;
@@ -7688,14 +7731,21 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_process_observe_step
     }
     for (i=0;i<r2_bp_report.offer_count && !r2_own_stopped_v1();++i) {
         if (!r2_bp_native.usable[i]) continue;
-        if (r2_bp_report.query_count>R2_WIN_BP_QUERY_CAP-3) {
-            r2_bp_fault(0,R2_WIN_BP_FAULT_STATE,0,0); break;
+        if (!r2_bp_query_ticket(R2_WIN_BP_OP_WAIT)) break;
+        r2_bp_wait(i);
+        if (r2_own_stopped_v1()) break;
+        if (r2_bp_report.objects[i].last_wait.output_valid &&
+            r2_bp_report.objects[i].last_wait.raw_result==WAIT_OBJECT_0 &&
+            !r2_bp_report.objects[i].exit_attempt_consumed) {
+            if (!r2_bp_query_ticket(R2_WIN_BP_OP_EXIT_CODE)) break;
+            r2_bp_exit_code(i);
+            if (r2_own_stopped_v1()) break;
         }
-        ++r2_bp_report.query_count; r2_bp_wait(i);
+        if (!r2_bp_query_ticket(R2_WIN_BP_OP_MEMORY)) break;
+        r2_bp_memory(i);
         if (r2_own_stopped_v1()) break;
-        ++r2_bp_report.query_count; r2_bp_memory(i);
-        if (r2_own_stopped_v1()) break;
-        ++r2_bp_report.query_count; r2_bp_times(i);
+        if (!r2_bp_query_ticket(R2_WIN_BP_OP_TIMES)) break;
+        r2_bp_times(i);
     }
     return r2_bp_leave();
 }
