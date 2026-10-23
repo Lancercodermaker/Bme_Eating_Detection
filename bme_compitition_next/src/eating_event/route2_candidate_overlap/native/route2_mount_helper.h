@@ -1975,3 +1975,99 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_copy_report
     struct r2_win_birth_report_v1 *out,size_t out_size);
 #endif
 #endif
+
+/* Opt-in original-process capability consumer. All handles remain private. */
+#if defined(R2_ENABLE_WIN_BIRTH_PROCESS_RAW_V1)
+#if !defined(R2_TARGET_WINDOWS_SEED) || !defined(R2_ENABLE_WIN_BIRTH_OBSERVER_RAW_V1)
+#error "original-process consumer requires Windows seed and paired birth observer"
+#endif
+#ifndef R2_WIN_BIRTH_PROCESS_RAW_V1_DECLARED
+#define R2_WIN_BIRTH_PROCESS_RAW_V1_DECLARED
+#define R2_WIN_BP_STEP_CAP 60001u
+#define R2_WIN_BP_OFFER_CAP 63u
+#define R2_WIN_BP_QUERY_CAP 11340189u
+#define R2_WIN_BP_PRIMARY_CAP 11400316u
+#define R2_WIN_BP_QPC_CAP 45601272u
+#define R2_WIN_BP_IDENTITY_CAP 22800636u
+#define R2_WIN_BP_UNUSED 0u
+#define R2_WIN_BP_PENDING 0xC701u
+#define R2_WIN_BP_PARTIAL 0xC702u
+#define R2_WIN_BP_FINISHED 0xC703u
+#define R2_WIN_BP_BUSY 0xC704u
+#define R2_WIN_BP_BAD_ARGUMENT 0xC705u
+#define R2_WIN_BP_COPY_OK 0xC706u
+#define R2_WIN_BP_OP_OFFER 1u
+#define R2_WIN_BP_OP_WAIT 2u
+#define R2_WIN_BP_OP_MEMORY 3u
+#define R2_WIN_BP_OP_TIMES 4u
+#define R2_WIN_BP_OP_CLOSE 5u
+#define R2_WIN_BP_FAULT_STATE 1u
+#define R2_WIN_BP_FAULT_OWNER 2u
+#define R2_WIN_BP_FAULT_CLOCK 3u
+#define R2_WIN_BP_FAULT_API 4u
+#define R2_WIN_BP_FAULT_WIRE 5u
+#define R2_WIN_BP_FAULT_PROVIDER 6u
+#define R2_WIN_BP_FAULT_RACE 7u
+#define R2_WIN_BP_FAULT_STALE_OVER_100MS 8u
+struct r2_win_bp_fault_v1 { uint32_t operation,kind,error,error_valid; };
+struct r2_win_bp_call_v1 {
+    struct r2_win_birth_clock_v1 clocks[4];
+    uint32_t operation,executed,in_flight,consumed;
+    uint32_t raw_result,result_valid,immediate_error,error_valid;
+    uint32_t returned_bytes,returned_valid,output_valid,boundary_valid;
+};
+struct r2_win_bp_memory_v1 {
+    uint64_t working_set,peak_working_set,paged_pool,peak_paged_pool;
+    uint64_t nonpaged_pool,peak_nonpaged_pool,pagefile_usage,peak_pagefile_usage;
+    uint64_t private_usage,page_faults;
+    int64_t sampled_qpc;
+    uint32_t valid,cb;
+};
+struct r2_win_bp_times_v1 {
+    uint64_t creation_100ns,kernel_100ns,user_100ns;
+    int64_t sampled_qpc;
+    uint32_t valid,reserved;
+};
+struct r2_win_bp_object_v1 {
+    uint64_t original_pid,original_start_key;
+    uint32_t original_slot,ordinal,adopted,close_consumed;
+    uint32_t close_succeeded,wait_valid,wait_result,signaled;
+    int64_t wait_qpc;
+    struct r2_win_bp_memory_v1 memory;
+    struct r2_win_bp_times_v1 times;
+    struct r2_win_bp_call_v1 last_wait,last_memory,last_times,last_close;
+};
+/* Sanitized last authenticated kernel offer, including STOPPED failures.
+ * No transferred numeric user handle or kernel address crosses this ABI. */
+struct r2_win_bp_kernel_offer_v1 {
+    uint32_t valid,disposition,publication,ordinal;
+    uint32_t cursor,original_slot,stop_new,extra_device_pin;
+    uint32_t pending_temporaries,reserved[3];
+    uint64_t original_pid,original_start_key;
+    uint32_t ddi_executed[7],ddi_status_valid[7],ddi_status[7];
+};
+struct r2_win_bp_report_v1 {
+    uint32_t abi,size,status,stop_new;
+    uint32_t begin_consumed,finish_consumed,step_count,offer_count;
+    uint32_t empty_count,query_count,close_count,primary_count;
+    uint32_t qpc_count,identity_count,in_flight,fault_count;
+    uint32_t adopted_count,pending_known,pending_unknown,residual;
+    uint32_t cursor,owner_lifecycle,remaining_unproven,close_failed_count;
+    uint32_t creator_pid,creator_tid,kernel_pending_temporaries,extra_device_pin;
+    uint64_t creator_creation_100ns,intent_serial,owner_start_key;
+    int64_t lease_epoch_qpc,qpc_frequency,stop_deadline_qpc,cleanup_deadline_qpc;
+    struct r2_win_bp_fault_v1 primary,secondary;
+    struct r2_win_bp_call_v1 last_offer;
+    struct r2_win_bp_kernel_offer_v1 last_kernel_offer;
+    struct r2_win_bp_object_v1 objects[R2_WIN_BP_OFFER_CAP];
+};
+/* Raw object observations only: no numeric capabilities/pointers in this
+ * report, no cohort membership or complete physical/VM budget assertion. */
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_process_begin_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_process_observe_step_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_process_finish_once_v1(void);
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_process_copy_report_v1(
+    struct r2_win_bp_report_v1 *out,size_t out_size);
+#endif
+#endif
+

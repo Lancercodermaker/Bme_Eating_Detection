@@ -74,3 +74,28 @@ _Static_assert(sizeof(struct r2_birth_header_v1)==256 &&
  * complete global capture claim; all unknown fees remain UNKNOWN_NOT_ZERO.
  */
 #endif
+
+/* Private numeric capability wire. Enabled only by the native consumer and
+ * the explicitly selected kernel source; never part of the public C00 ABI. */
+#if defined(R2_BIRTH_PROCESS_PRIVATE_WIRE_V1) && !defined(R2_BIRTH_PROCESS_PRIVATE_WIRE_DECLARED)
+#define R2_BIRTH_PROCESS_PRIVATE_WIRE_DECLARED
+#define R2_BIRTH_PROCESS_IOCTL_OFFER 0x8000E00Cu
+#define R2_BIRTH_PROCESS_WIRE_ABI 1u
+#define R2_BIRTH_PROCESS_EMPTY_NOW 1u
+#define R2_BIRTH_PROCESS_OFFERED 2u
+#define R2_BIRTH_PROCESS_STOPPED 3u
+#define R2_BIRTH_PROCESS_PUBLICATION_UNKNOWN 0u
+#define R2_BIRTH_PROCESS_PUBLICATION_KNOWN 1u
+struct r2_birth_process_private_wire_v1 {
+    uint32_t abi, size, operation, disposition;
+    uint32_t ordinal, cursor, original_slot, publication;
+    uint32_t stop_new, extra_device_pin, pending_temporaries, reserved0;
+    uint64_t original_pid, original_start_key, owner_pid, owner_tid, owner_start_key;
+    uint64_t user_handle; /* private same-client transfer only */
+    uint32_t ddi_executed[7], ddi_status_valid[7], ddi_status[7];
+    uint32_t reserved[5];
+};
+_Static_assert(sizeof(struct r2_birth_process_private_wire_v1)<=512 &&
+    _Alignof(struct r2_birth_process_private_wire_v1)==8,
+    "private offer wire bounded and naturally aligned");
+#endif

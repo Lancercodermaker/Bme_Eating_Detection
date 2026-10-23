@@ -7219,3 +7219,533 @@ R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_observer_copy_report
 }
 #endif
 #endif
+#if defined(R2_TARGET_WINDOWS_SEED) && defined(R2_ENABLE_WIN_BIRTH_PROCESS_RAW_V1)
+#if !defined(R2_ENABLE_WIN_BIRTH_OBSERVER_RAW_V1)
+#error "original-process consumer requires the paired observer"
+#endif
+#ifndef R2_WIN_BIRTH_PROCESS_RAW_V1_BODY
+#define R2_WIN_BIRTH_PROCESS_RAW_V1_BODY
+#if defined(PSAPI_VERSION) && PSAPI_VERSION < 2
+#error "K32GetProcessMemoryInfo requires PSAPI_VERSION 2"
+#endif
+#ifndef PSAPI_VERSION
+#define PSAPI_VERSION 2
+#endif
+#include <psapi.h>
+#define R2_BIRTH_PROCESS_PRIVATE_WIRE_V1
+#include "route2_birth_observer_protocol.h"
+/* SOURCE ONLY / UNCOMPILED_UNRUN. Caller owns an accessible, stable and
+ * exclusive copy destination. These objects are original process handles,
+ * never PID reopened handles or process payload readers. */
+struct r2_win_bp_private_v1 {
+    HANDLE creator,device,handles[R2_WIN_BP_OFFER_CAP];
+    uint32_t usable[R2_WIN_BP_OFFER_CAP],race_recorded;
+    volatile LONG race;
+    struct r2_birth_process_private_wire_v1 receive;
+};
+static struct r2_win_bp_private_v1 r2_bp_native;
+static struct r2_win_bp_report_v1 r2_bp_report={
+    .abi=1,.size=sizeof(struct r2_win_bp_report_v1),
+    .remaining_unproven=R2_BIRTH_UNPROVEN_ALL,.cursor=1
+};
+_Static_assert(sizeof(PROCESS_MEMORY_COUNTERS_EX)==80 &&
+    offsetof(PROCESS_MEMORY_COUNTERS_EX,PrivateUsage)==72 &&
+    offsetof(PROCESS_MEMORY_COUNTERS_EX,WorkingSetSize)==16 &&
+    sizeof(FILETIME)==8 && sizeof(HANDLE)==8,
+    "native x64 SDK process memory/time layout required");
+_Static_assert(sizeof(r2_bp_native)+sizeof(r2_bp_report)<=131072 &&
+    26216+sizeof(r2_bp_native)+sizeof(r2_bp_report)<=157288,
+    "paired native state and public report fixed storage cap");
+static void r2_bp_fault(uint32_t op,uint32_t kind,DWORD error,uint32_t valid)
+{
+    struct r2_win_bp_fault_v1 f={op,kind,(uint32_t)error,valid};
+    if (!r2_bp_report.fault_count) r2_bp_report.primary=f;
+    else if (r2_bp_report.fault_count==1) r2_bp_report.secondary=f;
+    if (r2_bp_report.fault_count!=UINT32_MAX) ++r2_bp_report.fault_count;
+    r2_bp_report.residual=1;
+    r2_own_report_v1.residual_bits|=op==R2_WIN_BP_OP_CLOSE ?
+        R2_OWN_RESIDUAL_CLOSE:R2_OWN_RESIDUAL_SAMPLE;
+    InterlockedExchange(&r2_own_stop_v1,1);
+}
+static void r2_bp_refresh(void)
+{
+    uint32_t i,pending=0;
+    if (InterlockedCompareExchange(&r2_bp_native.race,0,0) &&
+        !r2_bp_native.race_recorded) {
+        r2_bp_native.race_recorded=1;
+        r2_bp_fault(0,R2_WIN_BP_FAULT_RACE,0,0);
+    }
+    for (i=0;i<R2_WIN_BP_OFFER_CAP;++i)
+        if (r2_bp_native.usable[i]) ++pending;
+    r2_bp_report.pending_known=pending;
+    r2_bp_report.owner_lifecycle=r2_own_report_v1.lifecycle;
+    r2_bp_report.stop_new=(uint32_t)r2_own_stopped_v1();
+    r2_bp_report.status=pending || r2_bp_report.pending_unknown ||
+        r2_bp_report.kernel_pending_temporaries || r2_bp_report.extra_device_pin ||
+        r2_bp_report.in_flight ? R2_WIN_BP_PENDING :
+        r2_bp_report.fault_count ? R2_WIN_BP_PARTIAL :
+        r2_bp_report.finish_consumed ? R2_WIN_BP_FINISHED :
+        r2_bp_report.begin_consumed ? R2_WIN_BP_PENDING:R2_WIN_BP_UNUSED;
+}
+static uint32_t r2_bp_leave(void)
+{
+    uint32_t value; r2_bp_refresh(); value=r2_bp_report.status;
+    InterlockedExchange(&r2_own_guard_v1,0); return value;
+}
+static int r2_bp_context(uint32_t op,int cleanup)
+{
+    const struct r2_win_owned_report_v1 *o=&r2_own_report_v1;
+    const struct r2_win_bp_report_v1 *r=&r2_bp_report;
+    if (!r2_bp_native.creator || r2_bp_native.creator!=r2_own_v1.creator ||
+        !r2_bp_native.device || r2_bp_native.device!=r2_bn.device ||
+        !r2_bn.usable || r2_bn_report.finish_consumed ||
+        !r2_bn_report.capture_started || !r2_bn_report.kernel_report_valid ||
+        !r2_own_v1.deadline_bound || !o->attempt_consumed || o->finish_started ||
+        o->creator_creation_100ns.state!=R2_WIN_JOB_FIELD_VALID ||
+        o->lifecycle<R2_OWN_INTENT_HELD ||
+        o->lifecycle==R2_OWN_CLOSING || o->lifecycle==R2_OWN_DONE ||
+        o->lifecycle>R2_OWN_RETAINED ||
+        o->creator_pid!=r->creator_pid || o->creator_tid!=r->creator_tid ||
+        o->creator_creation_100ns.value!=r->creator_creation_100ns ||
+        o->intent_serial!=r->intent_serial ||
+        o->lease_epoch_qpc!=r->lease_epoch_qpc ||
+        o->qpc_frequency!=r->qpc_frequency ||
+        o->stop_deadline_qpc!=r->stop_deadline_qpc ||
+        o->cleanup_deadline_qpc!=r->cleanup_deadline_qpc ||
+        r2_bn_report.creator_pid!=r->creator_pid ||
+        r2_bn_report.creator_tid!=r->creator_tid ||
+        r2_bn_report.creator_creation_100ns!=r->creator_creation_100ns ||
+        r2_bn_report.intent_serial!=r->intent_serial ||
+        r2_bn_report.lease_epoch_qpc!=r->lease_epoch_qpc ||
+        r2_bn_report.qpc_frequency!=r->qpc_frequency ||
+        r2_bn_report.stop_deadline_qpc!=r->stop_deadline_qpc ||
+        r2_bn_report.cleanup_deadline_qpc!=r->cleanup_deadline_qpc ||
+        !r2_bn.key_valid || r2_bn.owner_start_key!=r->owner_start_key) {
+        r2_bp_fault(op,R2_WIN_BP_FAULT_OWNER,0,0); return 0;
+    }
+    if (r2_bp_report.identity_count>=R2_WIN_BP_IDENTITY_CAP) {
+        r2_bp_fault(op,R2_WIN_BP_FAULT_STATE,0,0); return 0;
+    }
+    ++r2_bp_report.identity_count;
+    if (GetCurrentProcessId()!=r->creator_pid ||
+        GetCurrentThreadId()!=r->creator_tid || !r2_own_creator_identity_v1()) {
+        r2_bp_fault(op,R2_WIN_BP_FAULT_OWNER,0,0); return 0;
+    }
+    return 1;
+}
+static int r2_bp_clock(struct r2_win_bp_call_v1 *c,uint32_t index,int cleanup)
+{
+    LARGE_INTEGER q={0}; DWORD error; BOOL ok;
+    struct r2_win_birth_clock_v1 *raw=&c->clocks[index];
+    int64_t deadline=cleanup ?
+        r2_bp_report.cleanup_deadline_qpc:r2_bp_report.stop_deadline_qpc;
+    if (r2_bp_report.qpc_count>=R2_WIN_BP_QPC_CAP) {
+        r2_bp_fault(c->operation,R2_WIN_BP_FAULT_STATE,0,0); return 0;
+    }
+    ++r2_bp_report.qpc_count; raw->attempted=1;
+    ok=QueryPerformanceCounter(&q); raw->raw_bool=(uint32_t)ok;
+    if (!ok) {
+        error=GetLastError();
+        raw->immediate_error=error; raw->error_valid=1;
+        r2_own_report_v1.clock_valid=0;
+        r2_own_report_v1.residual_bits|=R2_OWN_RESIDUAL_CLOCK;
+        r2_bp_fault(c->operation,R2_WIN_BP_FAULT_CLOCK,error,1); return 0;
+    }
+    raw->raw_qpc=q.QuadPart;
+    if (!r2_own_report_v1.clock_valid ||
+        (r2_own_report_v1.residual_bits&R2_OWN_RESIDUAL_CLOCK) ||
+        q.QuadPart<=0 || q.QuadPart<r2_own_report_v1.last_qpc) {
+        r2_own_report_v1.clock_valid=0;
+        r2_own_report_v1.residual_bits|=R2_OWN_RESIDUAL_CLOCK;
+        r2_bp_fault(c->operation,R2_WIN_BP_FAULT_CLOCK,0,0); return 0;
+    }
+    r2_own_report_v1.last_qpc=q.QuadPart;
+    if (deadline<=0 || q.QuadPart>=deadline) {
+        r2_own_report_v1.residual_bits|=R2_OWN_RESIDUAL_DEADLINE;
+        r2_bp_fault(c->operation,R2_WIN_BP_FAULT_CLOCK,0,0); return 0;
+    }
+    raw->valid=1; return 1;
+}
+static struct r2_win_bp_call_v1 *r2_bp_before(
+    struct r2_win_bp_call_v1 *c,uint32_t op,int cleanup)
+{
+    int identity,clock;
+    memset(c,0,sizeof(*c)); c->operation=op;
+    if (r2_bp_report.primary_count>=R2_WIN_BP_PRIMARY_CAP ||
+        (!cleanup && r2_own_stopped_v1())) {
+        r2_bp_fault(op,R2_WIN_BP_FAULT_STATE,0,0); return NULL;
+    }
+    if (!r2_bp_clock(c,0,cleanup)) return NULL;
+    identity=r2_bp_context(op,cleanup); clock=r2_bp_clock(c,1,cleanup);
+    if (!identity || !clock || (!cleanup && r2_own_stopped_v1())) {
+        if (!cleanup && r2_own_stopped_v1())
+            r2_bp_fault(op,R2_WIN_BP_FAULT_RACE,0,0);
+        return NULL;
+    }
+    ++r2_bp_report.primary_count;
+    c->consumed=1; c->executed=1; c->in_flight=1;
+    r2_bp_report.in_flight=1; return c;
+}
+static int r2_bp_after(struct r2_win_bp_call_v1 *c,int cleanup)
+{
+    int first,identity,last; int64_t elapsed;
+    c->in_flight=0; r2_bp_report.in_flight=0;
+    first=r2_bp_clock(c,2,cleanup);
+    identity=r2_bp_context(c->operation,cleanup);
+    last=r2_bp_clock(c,3,cleanup);
+    c->boundary_valid=first && identity && last;
+    if (c->boundary_valid) {
+        elapsed=c->clocks[3].raw_qpc-c->clocks[0].raw_qpc;
+        if (elapsed<0 || elapsed>r2_bp_report.qpc_frequency/10) {
+            c->boundary_valid=0;
+            r2_bp_fault(c->operation,R2_WIN_BP_FAULT_STALE_OVER_100MS,0,0);
+        }
+    }
+    if (!cleanup && r2_own_stopped_v1()) c->boundary_valid=0;
+    return c->boundary_valid!=0;
+}
+static int r2_bp_age(int64_t prior,int64_t current,uint32_t op)
+{
+    if (!prior) return 1; /* first unseen interval remains unknown */
+    if (current<prior || current-prior>r2_bp_report.qpc_frequency/10) {
+        r2_bp_fault(op,R2_WIN_BP_FAULT_STALE_OVER_100MS,0,0);
+        return 0;
+    }
+    return 1;
+}
+static int r2_bp_zero(const void *p,size_t n)
+{
+    const unsigned char *b=(const unsigned char *)p; size_t i;
+    for (i=0;i<n;++i) if (b[i]) return 0;
+    return 1;
+}
+static int r2_bp_wire_envelope(const struct r2_birth_process_private_wire_v1 *w)
+{
+    uint32_t i,close_fail=0;
+    if (w->abi!=R2_BIRTH_PROCESS_WIRE_ABI || w->size!=sizeof(*w) ||
+        w->operation!=R2_BIRTH_PROCESS_IOCTL_OFFER ||
+        w->cursor<1 || w->cursor>64 || w->original_slot>63 ||
+        w->owner_pid!=r2_bp_report.creator_pid ||
+        w->owner_tid!=r2_bp_report.creator_tid ||
+        w->owner_start_key!=r2_bp_report.owner_start_key ||
+        w->extra_device_pin>1 || w->pending_temporaries>3 ||
+        w->stop_new>1 || w->reserved0 ||
+        !r2_bp_zero(w->reserved,sizeof(w->reserved))) return 0;
+    for (i=0;i<7;++i)
+        if (w->ddi_executed[i]>1 ||
+            w->ddi_status_valid[i]!=w->ddi_executed[i] ||
+            (!w->ddi_status_valid[i] && w->ddi_status[i])) return 0;
+    if (w->disposition==R2_BIRTH_PROCESS_EMPTY_NOW)
+        return !w->original_slot && !w->original_pid &&
+            !w->original_start_key && !w->user_handle &&
+            w->ordinal==r2_bp_report.offer_count &&
+            w->cursor==r2_bp_report.offer_count+1 &&
+            !w->extra_device_pin && !w->pending_temporaries &&
+            w->publication==R2_BIRTH_PROCESS_PUBLICATION_UNKNOWN &&
+            r2_bp_zero(w->ddi_executed,sizeof(w->ddi_executed));
+    if (w->disposition==R2_BIRTH_PROCESS_OFFERED) {
+        for (i=0;i<4;++i)
+            if (!w->ddi_executed[i] || (int32_t)w->ddi_status[i]<0) return 0;
+        for (i=4;i<7;++i) {
+            if (!w->ddi_executed[i]) return 0;
+            if ((int32_t)w->ddi_status[i]<0) ++close_fail;
+        }
+        return w->pending_temporaries==close_fail &&
+            w->extra_device_pin==!!close_fail &&
+            (!close_fail || w->stop_new) &&
+            w->publication==R2_BIRTH_PROCESS_PUBLICATION_KNOWN &&
+            w->user_handle && w->user_handle!=UINTPTR_MAX &&
+            w->original_slot==r2_bp_report.offer_count+1 &&
+            w->ordinal==r2_bp_report.offer_count+1 &&
+            w->cursor==w->original_slot+1 && w->original_pid &&
+            w->ddi_executed[3] && (int32_t)w->ddi_status[3]>=0;
+    }
+    if (w->disposition==R2_BIRTH_PROCESS_STOPPED) {
+        if (!w->stop_new ||
+            w->publication!=R2_BIRTH_PROCESS_PUBLICATION_UNKNOWN ||
+            w->user_handle || w->cursor!=w->ordinal+1 ||
+            w->extra_device_pin!=!!w->pending_temporaries) return 0;
+        if (!w->original_slot)
+            return w->ordinal==r2_bp_report.offer_count &&
+                !w->original_pid && !w->original_start_key &&
+                r2_bp_zero(w->ddi_executed,sizeof(w->ddi_executed));
+        return w->ordinal==r2_bp_report.offer_count+1 &&
+            w->original_slot==w->ordinal &&
+            (!w->ddi_executed[1] ||
+                (w->ddi_executed[0] && (int32_t)w->ddi_status[0]>=0)) &&
+            (!w->ddi_executed[2] ||
+                (w->ddi_executed[1] && (int32_t)w->ddi_status[1]>=0)) &&
+            (!w->ddi_executed[3] ||
+                (w->ddi_executed[2] && (int32_t)w->ddi_status[2]>=0));
+    }
+    return 0;
+}
+static void r2_bp_copy_kernel_offer(const struct r2_birth_process_private_wire_v1 *w)
+{
+    struct r2_win_bp_kernel_offer_v1 *out=&r2_bp_report.last_kernel_offer;
+    out->valid=1; out->disposition=w->disposition;
+    out->publication=w->publication; out->ordinal=w->ordinal;
+    out->cursor=w->cursor; out->original_slot=w->original_slot;
+    out->stop_new=w->stop_new; out->extra_device_pin=w->extra_device_pin;
+    out->pending_temporaries=w->pending_temporaries;
+    out->original_pid=w->original_pid;
+    out->original_start_key=w->original_start_key;
+    memcpy(out->ddi_executed,w->ddi_executed,sizeof(out->ddi_executed));
+    memcpy(out->ddi_status_valid,w->ddi_status_valid,sizeof(out->ddi_status_valid));
+    memcpy(out->ddi_status,w->ddi_status,sizeof(out->ddi_status));
+}
+static int r2_bp_offer(void)
+{
+    struct r2_win_bp_call_v1 *c=&r2_bp_report.last_offer;
+    const struct r2_birth_process_private_wire_v1 *w=&r2_bp_native.receive;
+    struct r2_win_bp_object_v1 *object;
+    DWORD returned=0,error=0; BOOL ok; int boundary,known=0;
+    if (!r2_bn.usable || r2_bn.device!=r2_bp_native.device) {
+        r2_bp_fault(R2_WIN_BP_OP_OFFER,R2_WIN_BP_FAULT_OWNER,0,0); return 0;
+    }
+    if (!r2_bp_before(c,R2_WIN_BP_OP_OFFER,0)) return 0;
+    memset(&r2_bp_native.receive,0,sizeof(r2_bp_native.receive));
+    ok=DeviceIoControl(r2_bp_native.device,R2_BIRTH_PROCESS_IOCTL_OFFER,NULL,0,
+        &r2_bp_native.receive,sizeof(r2_bp_native.receive),&returned,NULL);
+    if (!ok) error=GetLastError();
+    c->raw_result=(uint32_t)ok; c->result_valid=1;
+    c->returned_bytes=returned; c->returned_valid=1;
+    if (!ok) { c->immediate_error=error; c->error_valid=1; }
+    /* A full known-publication envelope is adopted before post-call checks,
+     * even if the kernel reports a separate close failure or STOP. */
+    if (ok && returned==sizeof(*w) && r2_bp_wire_envelope(w)) {
+        c->output_valid=1;
+        r2_bp_copy_kernel_offer(w);
+        r2_bp_report.cursor=w->cursor;
+        r2_bp_report.kernel_pending_temporaries=w->pending_temporaries;
+        r2_bp_report.extra_device_pin=w->extra_device_pin;
+        if (w->disposition==R2_BIRTH_PROCESS_OFFERED) {
+            object=&r2_bp_report.objects[r2_bp_report.offer_count];
+            r2_bp_native.handles[r2_bp_report.offer_count]=(HANDLE)(uintptr_t)w->user_handle;
+            r2_bp_native.usable[r2_bp_report.offer_count]=1;
+            object->original_pid=w->original_pid;
+            object->original_start_key=w->original_start_key;
+            object->original_slot=w->original_slot;
+            object->ordinal=w->ordinal; object->adopted=1;
+            ++r2_bp_report.offer_count; ++r2_bp_report.adopted_count;
+            known=1;
+        } else if (w->disposition==R2_BIRTH_PROCESS_EMPTY_NOW)
+            ++r2_bp_report.empty_count;
+        else r2_bp_report.pending_unknown=1; /* STOPPED transfer is not no-publication proof */
+    } else {
+        r2_bp_report.pending_unknown=1;
+        r2_bp_fault(R2_WIN_BP_OP_OFFER,ok ? R2_WIN_BP_FAULT_WIRE:
+            R2_WIN_BP_FAULT_API,error,!ok); /* possible ambiguous delivery */
+    }
+    boundary=r2_bp_after(c,0);
+    if (!c->output_valid) return 0;
+    if (w->disposition==R2_BIRTH_PROCESS_STOPPED || w->stop_new ||
+        w->extra_device_pin || w->pending_temporaries) {
+        if (w->disposition==R2_BIRTH_PROCESS_STOPPED)
+            r2_bp_report.pending_unknown=1;
+        r2_bp_fault(R2_WIN_BP_OP_OFFER,R2_WIN_BP_FAULT_PROVIDER,0,0);
+    }
+    if (known && !boundary) return 0;
+    return boundary && !r2_own_stopped_v1();
+}
+static void r2_bp_wait(uint32_t i)
+{
+    struct r2_win_bp_object_v1 *o=&r2_bp_report.objects[i];
+    struct r2_win_bp_call_v1 *c=&o->last_wait;
+    DWORD value,error=0; int boundary;
+    if (!r2_bp_before(c,R2_WIN_BP_OP_WAIT,0)) return;
+    value=WaitForSingleObject(r2_bp_native.handles[i],0);
+    if (value==WAIT_FAILED) error=GetLastError();
+    c->raw_result=value; c->result_valid=1;
+    if (value==WAIT_FAILED) {
+        c->immediate_error=error; c->error_valid=1;
+        r2_bp_fault(R2_WIN_BP_OP_WAIT,R2_WIN_BP_FAULT_API,error,1);
+    } else if (value!=WAIT_TIMEOUT && value!=WAIT_OBJECT_0)
+        r2_bp_fault(R2_WIN_BP_OP_WAIT,R2_WIN_BP_FAULT_PROVIDER,0,0);
+    else if (o->signaled && value==WAIT_TIMEOUT)
+        r2_bp_fault(R2_WIN_BP_OP_WAIT,R2_WIN_BP_FAULT_PROVIDER,0,0);
+    boundary=r2_bp_after(c,0);
+    if (boundary && (value==WAIT_TIMEOUT || value==WAIT_OBJECT_0) &&
+        r2_bp_age(o->wait_qpc,c->clocks[3].raw_qpc,R2_WIN_BP_OP_WAIT)) {
+        o->wait_valid=1; o->wait_result=value; o->signaled=value==WAIT_OBJECT_0;
+        o->wait_qpc=c->clocks[1].raw_qpc; c->output_valid=1;
+    }
+}
+static void r2_bp_memory(uint32_t i)
+{
+    struct r2_win_bp_object_v1 *o=&r2_bp_report.objects[i];
+    struct r2_win_bp_call_v1 *c=&o->last_memory;
+    PROCESS_MEMORY_COUNTERS_EX m={0}; BOOL ok; DWORD error=0; int boundary;
+    m.cb=sizeof(m);
+    if (!r2_bp_before(c,R2_WIN_BP_OP_MEMORY,0)) return;
+    ok=K32GetProcessMemoryInfo(r2_bp_native.handles[i],
+        (PROCESS_MEMORY_COUNTERS *)&m,sizeof(m));
+    if (!ok) error=GetLastError();
+    c->raw_result=(uint32_t)ok; c->result_valid=1;
+    if (!ok) {
+        c->immediate_error=error; c->error_valid=1;
+        r2_bp_fault(R2_WIN_BP_OP_MEMORY,R2_WIN_BP_FAULT_API,error,1);
+    }
+    boundary=r2_bp_after(c,0);
+    if (ok && boundary && m.cb==sizeof(m) &&
+        r2_bp_age(o->memory.sampled_qpc,c->clocks[3].raw_qpc,R2_WIN_BP_OP_MEMORY)) {
+        o->memory.working_set=m.WorkingSetSize;
+        o->memory.peak_working_set=m.PeakWorkingSetSize;
+        o->memory.paged_pool=m.QuotaPagedPoolUsage;
+        o->memory.peak_paged_pool=m.QuotaPeakPagedPoolUsage;
+        o->memory.nonpaged_pool=m.QuotaNonPagedPoolUsage;
+        o->memory.peak_nonpaged_pool=m.QuotaPeakNonPagedPoolUsage;
+        o->memory.pagefile_usage=m.PagefileUsage;
+        o->memory.peak_pagefile_usage=m.PeakPagefileUsage;
+        o->memory.private_usage=m.PrivateUsage;
+        o->memory.page_faults=m.PageFaultCount;
+        o->memory.cb=m.cb; o->memory.sampled_qpc=c->clocks[1].raw_qpc;
+        o->memory.valid=1; c->output_valid=1;
+    } else if (ok && m.cb!=sizeof(m))
+        r2_bp_fault(R2_WIN_BP_OP_MEMORY,R2_WIN_BP_FAULT_PROVIDER,0,0);
+}
+static void r2_bp_times(uint32_t i)
+{
+    struct r2_win_bp_object_v1 *o=&r2_bp_report.objects[i];
+    struct r2_win_bp_call_v1 *c=&o->last_times;
+    FILETIME creation={0},exit_time={0},kernel={0},user={0};
+    BOOL ok; DWORD error=0; int boundary;
+    if (!r2_bp_before(c,R2_WIN_BP_OP_TIMES,0)) return;
+    ok=GetProcessTimes(r2_bp_native.handles[i],&creation,&exit_time,&kernel,&user);
+    if (!ok) error=GetLastError();
+    c->raw_result=(uint32_t)ok; c->result_valid=1;
+    if (!ok) {
+        c->immediate_error=error; c->error_valid=1;
+        r2_bp_fault(R2_WIN_BP_OP_TIMES,R2_WIN_BP_FAULT_API,error,1);
+    }
+    boundary=r2_bp_after(c,0);
+    if (ok && boundary && o->times.valid &&
+        o->times.creation_100ns!=r2_own_filetime_v1(creation))
+        r2_bp_fault(R2_WIN_BP_OP_TIMES,R2_WIN_BP_FAULT_PROVIDER,0,0);
+    if (ok && boundary && !r2_own_stopped_v1() &&
+        r2_bp_age(o->times.sampled_qpc,c->clocks[3].raw_qpc,R2_WIN_BP_OP_TIMES)) {
+        o->times.creation_100ns=r2_own_filetime_v1(creation);
+        o->times.kernel_100ns=r2_own_filetime_v1(kernel);
+        o->times.user_100ns=r2_own_filetime_v1(user);
+        o->times.sampled_qpc=c->clocks[1].raw_qpc; o->times.valid=1;
+        c->output_valid=1;
+    }
+    /* exit_time is private unless a prior wait on this exact held handle
+     * observed WAIT_OBJECT_0. This public ABI intentionally omits exit time. */
+    (void)exit_time;
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_process_begin_once_v1(void)
+{
+    const struct r2_win_owned_report_v1 *o=&r2_own_report_v1;
+    struct r2_win_bp_call_v1 entry={0};
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_bp_native.race,1);
+        InterlockedExchange(&r2_own_stop_v1,1); return R2_WIN_BP_BUSY;
+    }
+    if (r2_bp_report.begin_consumed || r2_bp_report.finish_consumed) {
+        r2_bp_fault(0,R2_WIN_BP_FAULT_STATE,0,0); return r2_bp_leave();
+    }
+    r2_bp_report.begin_consumed=1;
+    r2_bp_native.creator=r2_own_v1.creator;
+    r2_bp_native.device=r2_bn.device;
+    r2_bp_report.creator_pid=o->creator_pid;
+    r2_bp_report.creator_tid=o->creator_tid;
+    r2_bp_report.creator_creation_100ns=o->creator_creation_100ns.value;
+    r2_bp_report.intent_serial=o->intent_serial;
+    r2_bp_report.lease_epoch_qpc=o->lease_epoch_qpc;
+    r2_bp_report.qpc_frequency=o->qpc_frequency;
+    r2_bp_report.stop_deadline_qpc=o->stop_deadline_qpc;
+    r2_bp_report.cleanup_deadline_qpc=o->cleanup_deadline_qpc;
+    r2_bp_report.owner_start_key=r2_bn.owner_start_key;
+    if (!r2_bn.usable || !r2_bn_report.capture_started ||
+        r2_bn_report.finish_consumed || !r2_bn.key_valid ||
+        o->lifecycle!=R2_OWN_INTENT_HELD || o->birth_attempted ||
+        !r2_bp_report.creator_pid || !r2_bp_report.creator_tid ||
+        !r2_bp_report.intent_serial || r2_bp_report.lease_epoch_qpc<=0 ||
+        r2_bp_report.qpc_frequency<=0 ||
+        r2_bp_report.stop_deadline_qpc<=r2_bp_report.lease_epoch_qpc ||
+        r2_bp_report.cleanup_deadline_qpc<=r2_bp_report.stop_deadline_qpc ||
+        r2_own_stopped_v1() || !r2_bp_clock(&entry,0,0) ||
+        !r2_bp_context(0,0))
+        r2_bp_fault(0,R2_WIN_BP_FAULT_OWNER,0,0);
+    return r2_bp_leave();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_process_observe_step_v1(void)
+{
+    uint32_t i;
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_bp_native.race,1);
+        InterlockedExchange(&r2_own_stop_v1,1); return R2_WIN_BP_BUSY;
+    }
+    if (!r2_bp_report.begin_consumed || r2_bp_report.finish_consumed ||
+        r2_bp_report.step_count>=R2_WIN_BP_STEP_CAP || r2_own_stopped_v1()) {
+        r2_bp_fault(0,R2_WIN_BP_FAULT_STATE,0,0); return r2_bp_leave();
+    }
+    ++r2_bp_report.step_count;
+    while (r2_bp_report.offer_count<R2_WIN_BP_OFFER_CAP && !r2_own_stopped_v1()) {
+        uint32_t previous=r2_bp_report.empty_count;
+        if (!r2_bp_offer() || r2_bp_report.empty_count!=previous) break;
+    }
+    for (i=0;i<r2_bp_report.offer_count && !r2_own_stopped_v1();++i) {
+        if (!r2_bp_native.usable[i]) continue;
+        if (r2_bp_report.query_count>R2_WIN_BP_QUERY_CAP-3) {
+            r2_bp_fault(0,R2_WIN_BP_FAULT_STATE,0,0); break;
+        }
+        ++r2_bp_report.query_count; r2_bp_wait(i);
+        if (r2_own_stopped_v1()) break;
+        ++r2_bp_report.query_count; r2_bp_memory(i);
+        if (r2_own_stopped_v1()) break;
+        ++r2_bp_report.query_count; r2_bp_times(i);
+    }
+    return r2_bp_leave();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_process_finish_once_v1(void)
+{
+    uint32_t i;
+    InterlockedExchange(&r2_own_stop_v1,1);
+    if (!r2_own_enter_v1()) {
+        InterlockedExchange(&r2_bp_native.race,1); return R2_WIN_BP_BUSY;
+    }
+    if (r2_bp_report.finish_consumed) return r2_bp_leave();
+    r2_bp_report.finish_consumed=1;
+    if (!r2_bp_report.begin_consumed) {
+        r2_bp_fault(0,R2_WIN_BP_FAULT_STATE,0,0); return r2_bp_leave();
+    }
+    for (i=r2_bp_report.offer_count;i>0;--i) {
+        struct r2_win_bp_object_v1 *o=&r2_bp_report.objects[i-1];
+        struct r2_win_bp_call_v1 *c=&o->last_close;
+        HANDLE h; BOOL ok; DWORD error=0;
+        if (!r2_bp_native.usable[i-1]) continue;
+        if (r2_bp_report.close_count>=R2_WIN_BP_OFFER_CAP ||
+            !r2_bp_before(c,R2_WIN_BP_OP_CLOSE,1)) break;
+        h=r2_bp_native.handles[i-1];
+        r2_bp_native.usable[i-1]=0; r2_bp_native.handles[i-1]=NULL;
+        o->close_consumed=1; ++r2_bp_report.close_count;
+        ok=CloseHandle(h);
+        if (!ok) error=GetLastError();
+        c->raw_result=(uint32_t)ok; c->result_valid=1;
+        if (!ok) {
+            c->immediate_error=error; c->error_valid=1;
+            r2_bp_report.pending_unknown=1;
+            ++r2_bp_report.close_failed_count;
+            r2_bp_fault(R2_WIN_BP_OP_CLOSE,R2_WIN_BP_FAULT_API,error,1);
+        } else o->close_succeeded=1;
+        (void)r2_bp_after(c,1);
+    }
+    return r2_bp_leave();
+}
+R2_WIN_OWNED_EXPORT uint32_t __cdecl route2_win_owned_birth_process_copy_report_v1(
+    struct r2_win_bp_report_v1 *out,size_t out_size)
+{
+    if (out_size!=sizeof(*out) ||
+        !r2_own_range_v1(out,out_size,_Alignof(struct r2_win_bp_report_v1)) ||
+        !r2_bn_disjoint(out,out_size) ||
+        !r2_mm_disjoint_v1(out,out_size,&r2_bp_native,sizeof(r2_bp_native)) ||
+        !r2_mm_disjoint_v1(out,out_size,&r2_bp_report,sizeof(r2_bp_report)))
+        return R2_WIN_BP_BAD_ARGUMENT;
+    if (!r2_own_enter_v1()) return R2_WIN_BP_BUSY;
+    r2_bp_refresh(); memcpy(out,&r2_bp_report,sizeof(*out));
+    InterlockedExchange(&r2_own_guard_v1,0); return R2_WIN_BP_COPY_OK;
+}
+#endif
+#endif

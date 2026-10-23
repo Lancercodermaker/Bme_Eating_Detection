@@ -14,6 +14,9 @@
 #endif
 #include <ntifs.h>
 #include <wdmsec.h>
+#if defined(R2_ENABLE_WIN_BIRTH_PROCESS_RAW_V1) && defined(R2_ENABLE_WIN_BIRTH_OBSERVER_RAW_V1)
+#define R2_BIRTH_PROCESS_PRIVATE_WIRE_V1
+#endif
 #include "route2_birth_observer_protocol.h"
 #ifndef R2_BIRTH_OBSERVER_DRIVER_V1_BODY
 #define R2_BIRTH_OBSERVER_DRIVER_V1_BODY
@@ -207,6 +210,10 @@ static NTSTATUS r2_bd_complete(PIRP irp,NTSTATUS status,ULONG_PTR bytes)
     irp->IoStatus.Status=status; irp->IoStatus.Information=bytes;
     IoCompleteRequest(irp,IO_NO_INCREMENT); return status;
 }
+#if defined(R2_ENABLE_WIN_BIRTH_PROCESS_RAW_V1) && defined(R2_ENABLE_WIN_BIRTH_OBSERVER_RAW_V1)
+#define R2_BIRTH_PROCESS_DRIVER_INTERNAL_INCLUDE_V1
+#include "route2_birth_process_driver.c"
+#endif
 static NTSTATUS r2_bd_dispatch(PDEVICE_OBJECT device,PIRP irp)
 {
     PIO_STACK_LOCATION sp=IoGetCurrentIrpStackLocation(irp);
@@ -238,6 +245,21 @@ static NTSTATUS r2_bd_dispatch(PDEVICE_OBJECT device,PIRP irp)
         status=STATUS_SUCCESS; break;
     case IRP_MJ_DEVICE_CONTROL:
         code=sp->Parameters.DeviceIoControl.IoControlCode;
+#if defined(R2_ENABLE_WIN_BIRTH_PROCESS_RAW_V1) && defined(R2_ENABLE_WIN_BIRTH_OBSERVER_RAW_V1)
+        if (code==R2_BIRTH_PROCESS_IOCTL_OFFER) {
+            if (sp->Parameters.DeviceIoControl.InputBufferLength ||
+                sp->Parameters.DeviceIoControl.OutputBufferLength!=
+                    sizeof(struct r2_birth_process_private_wire_v1) ||
+                !irp->AssociatedIrp.SystemBuffer) {
+                status=STATUS_INVALID_PARAMETER; break;
+            }
+            if (!r2_bd_owner(irp,sp->FileObject)) { status=STATUS_ACCESS_DENIED; break; }
+            status=r2_bp_offer(irp,(struct r2_birth_process_private_wire_v1 *)
+                irp->AssociatedIrp.SystemBuffer);
+            if (status==STATUS_SUCCESS) bytes=sizeof(struct r2_birth_process_private_wire_v1);
+            break;
+        }
+#endif
         if ((code!=R2_BIRTH_IOCTL_REGISTER && code!=R2_BIRTH_IOCTL_QUERY &&
              code!=R2_BIRTH_IOCTL_REVOKE) ||
             sp->Parameters.DeviceIoControl.InputBufferLength!=0 ||
