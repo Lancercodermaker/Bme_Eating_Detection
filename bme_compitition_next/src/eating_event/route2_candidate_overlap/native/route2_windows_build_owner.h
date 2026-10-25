@@ -2,7 +2,7 @@
 #define ROUTE2_WINDOWS_BUILD_OWNER_H
 /* Raw native owner for at most two sequential Windows build processes.
  * SOURCE ONLY: no installed entry, H1 grant, complete resource meter, writer
- * boundary, independent watchdog, provider drain, or admission claim.
+ * boundary, complete H1 watchdog, provider drain, or admission claim.
  * Caller memory must remain accessible, stable and exclusive during each call.
  * No caller-supplied handle, PID, epoch, or assertion is accepted as authority.
  */
@@ -20,6 +20,11 @@
 #define R2_WBO_PRIMARY_STEPS 40000u
 #define R2_WBO_CLEANUP_STEPS 2000u
 #define R2_WBO_CALLS_PER_STEP 48u
+#define R2_WBO_CPU_PRIMARY_STEPS 90000u
+#define R2_WBO_CPU_CLEANUP_STEPS 3200u
+#define R2_WBO_CPU_CALLS_PER_STEP 12u
+#define R2_WBO_CPU_PRIMARY_CALLS (R2_WBO_CPU_PRIMARY_STEPS * R2_WBO_CPU_CALLS_PER_STEP + 64u)
+#define R2_WBO_CPU_CLEANUP_CALLS (R2_WBO_CPU_CLEANUP_STEPS * R2_WBO_CPU_CALLS_PER_STEP + 64u)
 #define R2_WBO_PRIMARY_CALLS (R2_WBO_PRIMARY_STEPS * R2_WBO_CALLS_PER_STEP + 256u)
 #define R2_WBO_CLEANUP_CALLS (R2_WBO_CLEANUP_STEPS * R2_WBO_CALLS_PER_STEP)
 #define R2_WBO_JOB_COMMIT_BYTES UINT64_C(4294967296)
@@ -59,7 +64,10 @@ enum r2_wbo_operation_v1 {
     R2_WBO_OP_CLOSE_PROCESS, R2_WBO_OP_CLOSE_JOB,
     R2_WBO_OP_CLOSE_CREATOR, R2_WBO_OP_STATE,
     R2_WBO_OP_WORK_LIMIT, R2_WBO_OP_FRESHNESS,
-    R2_WBO_OP_DEADLINE
+    R2_WBO_OP_DEADLINE, R2_WBO_OP_SYSTEM_CPU,
+    R2_WBO_OP_CPU_TOPOLOGY, R2_WBO_OP_CPU_THREAD,
+    R2_WBO_OP_CPU_EVENT, R2_WBO_OP_CPU_JOIN,
+    R2_WBO_OP_CPU_CLOSE
 };
 enum r2_wbo_residual_v1 {
     R2_WBO_RESIDUAL_CLOCK = 1u, R2_WBO_RESIDUAL_DEADLINE = 2u,
@@ -96,6 +104,20 @@ struct r2_wbo_sample_v1 {
     uint64_t process_working_set, process_private_commit;
     uint64_t process_user_100ns, process_kernel_100ns;
 };
+/* GetSystemTimes busy-time fraction across a verified single active group.
+ * Kernel time includes idle. This is not Task Manager frequency utility.
+ * The private observer's reserved stack/TEB/kernel costs are outside the
+ * static 64 KiB state cap and must be charged by an eventual outer owner. */
+struct r2_wbo_system_cpu_v1 {
+    int64_t start_qpc, end_qpc;
+    uint64_t idle_100ns, kernel_100ns, user_100ns;
+    uint64_t total_delta_100ns, busy_delta_100ns;
+    uint32_t groups, processors, pair_valid, high;
+};
+static inline int r2_wbo_system_busy_ge90_v1(uint64_t busy, uint64_t total)
+{
+    return total != 0 && busy <= total && busy >= total - total / 10u;
+}
 struct r2_wbo_stage_report_v1 {
     uint32_t attempted, created, resumed, process_signaled;
     uint32_t thread_signaled, exit_code_valid, exit_code, complete;
@@ -118,6 +140,15 @@ struct r2_wbo_report_v1 {
      * failed workload/faults/STOP_NEW. HISTORY returns RESIDUAL and leaves it
      * zero; neither value certifies whole history, provider drain or H1. */
     uint32_t final_sample_valid, final_complete, fault_overflow, clock_quarantined;
+    uint32_t cpu_observer_started, cpu_observer_signaled, cpu_observer_exit_valid;
+    uint32_t cpu_observer_exit_code, cpu_observer_id, cpu_pair_count;
+    uint32_t cpu_primary_steps, cpu_cleanup_steps, cpu_primary_calls, cpu_cleanup_calls;
+    uint32_t cpu_stop_reason, cpu_stop_error, cpu_event_signal_attempted;
+    uint32_t cpu_event_signal_succeeded;
+    uint64_t cpu_observer_creation_100ns, cpu_observer_final_user_100ns;
+    uint64_t cpu_observer_final_kernel_100ns;
+    struct r2_wbo_handle_v1 cpu_observer_thread, cpu_observer_event;
+    struct r2_wbo_system_cpu_v1 system_cpu;
     int64_t epoch_qpc, frequency_qpc, active_deadline_qpc;
     int64_t cleanup_deadline_qpc, last_qpc, last_sample_qpc;
     uint64_t creator_creation_100ns;
@@ -132,6 +163,9 @@ struct r2_wbo_abi_v1 {
     uint32_t stage_size, sample_size, fault_size, handle_size;
     uint32_t stages, faults, private_bytes, primary_steps;
     uint32_t cleanup_steps, primary_calls, cleanup_calls, reserved;
+    /* Separate observer work; neither reserve is H1 time or resource credit. */
+    uint32_t cpu_primary_steps, cpu_cleanup_steps;
+    uint32_t cpu_primary_calls, cpu_cleanup_calls;
 };
 
 R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_describe_v1(

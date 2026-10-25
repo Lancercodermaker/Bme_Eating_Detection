@@ -44,6 +44,19 @@ struct r2_wbo_private_v1 {
     union { max_align_t align; unsigned char bytes[R2_WBO_ATTRIBUTE_BYTES]; } attributes;
     uint32_t attribute_live, step_calls, cleanup_mode;
     uint32_t final_attempted[R2_WBO_STAGES], final_verified[R2_WBO_STAGES];
+    HANDLE cpu_event, cpu_thread;
+    DWORD cpu_thread_id, cpu_expected_count;
+    FILETIME cpu_idle, cpu_kernel, cpu_user;
+    int64_t cpu_last_qpc;
+    uint32_t cpu_has_baseline, cpu_thread_final_attempted, cpu_thread_final_verified;
+    struct r2_wbo_system_cpu_v1 cpu_published;
+    volatile LONG cpu_failure, cpu_error, cpu_reported, cpu_failure_phase;
+    volatile LONG cpu_pairs, cpu_joined, cpu_cleanup_mode;
+    volatile LONG cpu_job_claim, cpu_job_result, cpu_job_error;
+    volatile LONG cpu_birth_generation, cpu_job_covered_birth;
+    volatile LONG cpu_job_phase, cpu_job_reported;
+    volatile LONG cpu_primary_steps, cpu_cleanup_steps;
+    volatile LONG cpu_primary_calls, cpu_cleanup_calls;
 };
 
 _Static_assert(sizeof(void *) == 8 && sizeof(WCHAR) == 2 && sizeof(LONG) == 4,
@@ -56,7 +69,7 @@ _Static_assert(sizeof(struct r2_wbo_fault_v1) == 24 &&
     sizeof(struct r2_wbo_sample_v1) <= 160, "build owner raw ABI");
 _Static_assert(sizeof(struct r2_wbo_private_v1) +
     sizeof(struct r2_wbo_report_v1) <= 65536, "private input plus report cap");
-_Static_assert(R2_WBO_OP_DEADLINE < R2_WBO_FAULTS &&
+_Static_assert(R2_WBO_OP_CPU_CLOSE < R2_WBO_FAULTS &&
     R2_WBO_STAGES == 2 && R2_WBO_PRIMARY_STEPS == 40000,
     "fixed fault/stage/step capacities");
 _Static_assert(sizeof(struct r2_wbo_report_v1) <= UINT32_MAX,
@@ -64,6 +77,8 @@ _Static_assert(sizeof(struct r2_wbo_report_v1) <= UINT32_MAX,
 
 static volatile LONG r2_wbo_guard_v1;
 static volatile LONG r2_wbo_stop_v1;
+static SRWLOCK r2_wbo_cpu_lock_v1 = SRWLOCK_INIT;
+static void r2_wbo_cpu_sync_v1(void);
 static struct r2_wbo_private_v1 r2_wbo_private_v1;
 static struct r2_wbo_report_v1 r2_wbo_report_v1 = {
     .abi = R2_WBO_ABI, .size = sizeof(struct r2_wbo_report_v1),
@@ -80,6 +95,7 @@ static int r2_wbo_stopped_v1(void)
 }
 static uint32_t r2_wbo_leave_v1(uint32_t result)
 {
+    r2_wbo_cpu_sync_v1();
     r2_wbo_report_v1.status = result;
     r2_wbo_report_v1.stop_new = (uint32_t)r2_wbo_stopped_v1();
     InterlockedExchange(&r2_wbo_guard_v1, 0);
@@ -99,7 +115,7 @@ static uint64_t r2_wbo_filetime_v1(FILETIME value)
 {
     return ((uint64_t)value.dwHighDateTime << 32) | value.dwLowDateTime;
 }
-static void r2_wbo_fault_v1(uint32_t operation, uint32_t kind,
+static void r2_wbo_fault_raw_v1(uint32_t operation, uint32_t kind,
     uint32_t code, DWORD win32_error)
 {
     struct r2_wbo_report_v1 *r = &r2_wbo_report_v1;
@@ -129,6 +145,12 @@ static void r2_wbo_fault_v1(uint32_t operation, uint32_t kind,
     f->win32_error = error; f->phase = phase; f->occurrences = 1;
     if (!r->fault_count) r->primary = *f;
     ++r->fault_count;
+}
+static void r2_wbo_fault_v1(uint32_t operation, uint32_t kind,
+    uint32_t code, DWORD win32_error)
+{
+    r2_wbo_cpu_sync_v1();
+    r2_wbo_fault_raw_v1(operation, kind, code, win32_error);
 }
 static void r2_wbo_error_v1(uint32_t operation, DWORD error)
 {
@@ -218,6 +240,274 @@ static int r2_wbo_fresh_v1(int64_t started)
         return 0;
     }
     return 1;
+}
+/* The observer alone writes its counters and sample. Its only shared OS handle
+ * is the Job, which the public finisher cannot close until the thread joins. */
+static int r2_wbo_cpu_charge_v1(uint32_t cleanup, uint32_t *step_calls, int emergency)
+{
+    volatile LONG *total = cleanup ? &r2_wbo_private_v1.cpu_cleanup_calls :
+        &r2_wbo_private_v1.cpu_primary_calls;
+    LONG limit = cleanup ? R2_WBO_CPU_CLEANUP_CALLS : R2_WBO_CPU_PRIMARY_CALLS;
+    LONG used = InterlockedCompareExchange(total, 0, 0);
+    if (used >= limit || (!emergency && *step_calls >= R2_WBO_CPU_CALLS_PER_STEP)) return 0;
+    InterlockedIncrement(total);
+    if (!emergency) ++*step_calls;
+    return 1;
+}
+static int r2_wbo_cpu_step_v1(uint32_t cleanup)
+{
+    volatile LONG *steps = cleanup ? &r2_wbo_private_v1.cpu_cleanup_steps :
+        &r2_wbo_private_v1.cpu_primary_steps;
+    LONG limit = cleanup ? R2_WBO_CPU_CLEANUP_STEPS : R2_WBO_CPU_PRIMARY_STEPS;
+    if (InterlockedCompareExchange(steps, 0, 0) >= limit) return 0;
+    InterlockedIncrement(steps);
+    return 1;
+}
+static void r2_wbo_cpu_terminate_v1(uint32_t worker, uint32_t cleanup,
+    uint32_t *step_calls)
+{
+    BOOL success;
+    DWORD error = 0;
+    if (!r2_wbo_private_v1.job ||
+        InterlockedCompareExchange(&r2_wbo_private_v1.cpu_job_claim, 1, 0)) return;
+    InterlockedExchange(&r2_wbo_private_v1.cpu_job_phase, cleanup ? 2 : 1);
+    if (worker ? !r2_wbo_cpu_charge_v1(cleanup, step_calls, 1) : !r2_wbo_call_v1()) {
+        InterlockedExchange(&r2_wbo_private_v1.cpu_job_result, -1);
+        return;
+    }
+    /* Only births published before the request are covered by its success. */
+    InterlockedExchange(&r2_wbo_private_v1.cpu_job_covered_birth,
+        InterlockedCompareExchange(&r2_wbo_private_v1.cpu_birth_generation, 0, 0));
+    success = TerminateJobObject(r2_wbo_private_v1.job, R2_WBO_STOP_EXIT);
+    if (!success) error = GetLastError();
+    InterlockedExchange(&r2_wbo_private_v1.cpu_job_error, (LONG)error);
+    InterlockedExchange(&r2_wbo_private_v1.cpu_job_result, success ? 1 : -1);
+}
+static void r2_wbo_cpu_fail_v1(LONG reason, DWORD error, uint32_t cleanup,
+    uint32_t *step_calls)
+{
+    struct r2_wbo_private_v1 *p = &r2_wbo_private_v1;
+    if (!InterlockedCompareExchange(&p->cpu_failure, 0, 0)) {
+        InterlockedExchange(&p->cpu_error, (LONG)error);
+        InterlockedExchange(&p->cpu_failure_phase, cleanup ? 2 : 1);
+        InterlockedExchange(&p->cpu_failure, reason);
+    }
+    /* The cause is complete before another thread can observe this STOP. */
+    InterlockedExchange(&r2_wbo_stop_v1, 1);
+    r2_wbo_cpu_terminate_v1(1, cleanup, step_calls);
+}
+/* No CRT calls, allocations, mutable child handles, or report writes here. */
+static DWORD WINAPI r2_wbo_cpu_thread_v1(LPVOID ignored)
+{
+    struct r2_wbo_private_v1 *p = &r2_wbo_private_v1;
+    struct r2_wbo_system_cpu_v1 sample;
+    FILETIME idle, kernel, user;
+    LARGE_INTEGER before, after, wake;
+    uint64_t di, dk, du, total, busy;
+    WORD groups;
+    DWORD count, result, error;
+    uint32_t calls, cleanup;
+    (void)ignored;
+    for (;;) {
+        cleanup = (uint32_t)InterlockedCompareExchange(&p->cpu_cleanup_mode, 0, 0);
+        calls = 0;
+        if (!r2_wbo_cpu_step_v1(cleanup)) {
+            r2_wbo_cpu_fail_v1(8, 0, cleanup, &calls); break;
+        }
+        if (!r2_wbo_cpu_charge_v1(cleanup, &calls, 0)) {
+            r2_wbo_cpu_fail_v1(8, 0, cleanup, &calls); break;
+        }
+        if (!QueryPerformanceCounter(&before)) {
+            error = GetLastError(); r2_wbo_cpu_fail_v1(1, error, cleanup, &calls); break;
+        }
+        if (before.QuadPart <= 0 || before.QuadPart < p->cpu_last_qpc) {
+            r2_wbo_cpu_fail_v1(10, 0, cleanup, &calls); break;
+        }
+        if (before.QuadPart - p->cpu_last_qpc > r2_wbo_report_v1.frequency_qpc / 10) {
+            r2_wbo_cpu_fail_v1(6, 0, cleanup, &calls); break;
+        }
+        if (before.QuadPart >= (cleanup ? r2_wbo_report_v1.cleanup_deadline_qpc :
+            r2_wbo_report_v1.active_deadline_qpc)) {
+            r2_wbo_cpu_fail_v1(7, 0, cleanup, &calls); break;
+        }
+        if (!r2_wbo_cpu_charge_v1(cleanup, &calls, 0)) {
+            r2_wbo_cpu_fail_v1(8, 0, cleanup, &calls); break;
+        }
+        groups = GetActiveProcessorGroupCount();
+        if (!r2_wbo_cpu_charge_v1(cleanup, &calls, 0)) {
+            r2_wbo_cpu_fail_v1(8, 0, cleanup, &calls); break;
+        }
+        count = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+        if (groups != 1 || count != p->cpu_expected_count || !count || count > 64) {
+            r2_wbo_cpu_fail_v1(2, 0, cleanup, &calls); break;
+        }
+        if (!r2_wbo_cpu_charge_v1(cleanup, &calls, 0)) {
+            r2_wbo_cpu_fail_v1(8, 0, cleanup, &calls); break;
+        }
+        if (!GetSystemTimes(&idle, &kernel, &user)) {
+            error = GetLastError(); r2_wbo_cpu_fail_v1(3, error, cleanup, &calls); break;
+        }
+        if (!r2_wbo_cpu_charge_v1(cleanup, &calls, 0)) {
+            r2_wbo_cpu_fail_v1(8, 0, cleanup, &calls); break;
+        }
+        if (!QueryPerformanceCounter(&after)) {
+            error = GetLastError(); r2_wbo_cpu_fail_v1(1, error, cleanup, &calls); break;
+        }
+        if (after.QuadPart < before.QuadPart) {
+            r2_wbo_cpu_fail_v1(10, 0, cleanup, &calls); break;
+        }
+        if (after.QuadPart - before.QuadPart > r2_wbo_report_v1.frequency_qpc / 10) {
+            r2_wbo_cpu_fail_v1(6, 0, cleanup, &calls); break;
+        }
+        if (after.QuadPart - p->cpu_last_qpc > r2_wbo_report_v1.frequency_qpc / 10) {
+            r2_wbo_cpu_fail_v1(6, 0, cleanup, &calls); break;
+        }
+        if (after.QuadPart >= (cleanup ? r2_wbo_report_v1.cleanup_deadline_qpc :
+            r2_wbo_report_v1.active_deadline_qpc)) {
+            r2_wbo_cpu_fail_v1(7, 0, cleanup, &calls); break;
+        }
+        sample.start_qpc = before.QuadPart; sample.end_qpc = after.QuadPart;
+        sample.idle_100ns = r2_wbo_filetime_v1(idle);
+        sample.kernel_100ns = r2_wbo_filetime_v1(kernel);
+        sample.user_100ns = r2_wbo_filetime_v1(user);
+        sample.groups = groups; sample.processors = count;
+        sample.total_delta_100ns = sample.busy_delta_100ns = 0;
+        sample.pair_valid = sample.high = 0;
+        if (sample.idle_100ns > sample.kernel_100ns ||
+            (p->cpu_has_baseline &&
+             (sample.idle_100ns < r2_wbo_filetime_v1(p->cpu_idle) ||
+              sample.kernel_100ns < r2_wbo_filetime_v1(p->cpu_kernel) ||
+              sample.user_100ns < r2_wbo_filetime_v1(p->cpu_user)))) {
+            r2_wbo_cpu_fail_v1(4, 0, cleanup, &calls); break;
+        }
+        if (p->cpu_has_baseline) {
+            di = sample.idle_100ns - r2_wbo_filetime_v1(p->cpu_idle);
+            dk = sample.kernel_100ns - r2_wbo_filetime_v1(p->cpu_kernel);
+            du = sample.user_100ns - r2_wbo_filetime_v1(p->cpu_user);
+            if (di > dk || dk > UINT64_MAX - du) {
+                r2_wbo_cpu_fail_v1(4, 0, cleanup, &calls); break;
+            }
+            total = dk + du;
+            if (total) {
+                busy = total - di;
+                sample.total_delta_100ns = total;
+                sample.busy_delta_100ns = busy;
+                sample.pair_valid = 1;
+                sample.high = r2_wbo_system_busy_ge90_v1(busy, total);
+            } else if (InterlockedCompareExchange(&p->cpu_pairs, 0, 0)) {
+                r2_wbo_cpu_fail_v1(4, 0, cleanup, &calls); break;
+            }
+        }
+        p->cpu_idle = idle; p->cpu_kernel = kernel; p->cpu_user = user;
+        p->cpu_has_baseline = 1; p->cpu_last_qpc = after.QuadPart;
+        if (!TryAcquireSRWLockExclusive(&r2_wbo_cpu_lock_v1)) {
+            r2_wbo_cpu_fail_v1(9, 0, cleanup, &calls); break;
+        }
+        p->cpu_published = sample;
+        if (sample.pair_valid) InterlockedIncrement(&p->cpu_pairs);
+        ReleaseSRWLockExclusive(&r2_wbo_cpu_lock_v1);
+        if (sample.high) {
+            r2_wbo_cpu_fail_v1(5, 0, cleanup, &calls); break;
+        }
+        if (!r2_wbo_cpu_charge_v1(cleanup, &calls, 0)) {
+            r2_wbo_cpu_fail_v1(8, 0, cleanup, &calls); break;
+        }
+        result = WaitForSingleObject(p->cpu_event, 20);
+        if (result == WAIT_OBJECT_0) {
+            cleanup = (uint32_t)InterlockedCompareExchange(&p->cpu_cleanup_mode, 0, 0);
+            if (!r2_wbo_cpu_charge_v1(cleanup, &calls, 0)) {
+                r2_wbo_cpu_fail_v1(8, 0, cleanup, &calls); break;
+            }
+            if (!QueryPerformanceCounter(&wake)) {
+                error = GetLastError(); r2_wbo_cpu_fail_v1(1, error, cleanup, &calls); break;
+            }
+            if (wake.QuadPart <= 0 || wake.QuadPart < p->cpu_last_qpc) {
+                r2_wbo_cpu_fail_v1(10, 0, cleanup, &calls); break;
+            }
+            if (wake.QuadPart - p->cpu_last_qpc > r2_wbo_report_v1.frequency_qpc / 10) {
+                r2_wbo_cpu_fail_v1(6, 0, cleanup, &calls); break;
+            }
+            if (wake.QuadPart >= (cleanup ? r2_wbo_report_v1.cleanup_deadline_qpc :
+                r2_wbo_report_v1.active_deadline_qpc)) {
+                r2_wbo_cpu_fail_v1(7, 0, cleanup, &calls); break;
+            }
+            break;
+        }
+        if (result != WAIT_TIMEOUT) {
+            error = result == WAIT_FAILED ? GetLastError() : 0;
+            r2_wbo_cpu_fail_v1(9, error, cleanup, &calls); break;
+        }
+    }
+    return 0;
+}
+static void r2_wbo_cpu_sync_v1(void)
+{
+    struct r2_wbo_private_v1 *p = &r2_wbo_private_v1;
+    struct r2_wbo_report_v1 *r = &r2_wbo_report_v1;
+    LONG job = InterlockedCompareExchange(&p->cpu_job_result, 0, 0);
+    LONG reason = InterlockedCompareExchange(&p->cpu_failure, 0, 0);
+    uint32_t prior = p->cleanup_mode;
+    r->cpu_primary_steps = (uint32_t)InterlockedCompareExchange(&p->cpu_primary_steps, 0, 0);
+    r->cpu_cleanup_steps = (uint32_t)InterlockedCompareExchange(&p->cpu_cleanup_steps, 0, 0);
+    r->cpu_primary_calls = (uint32_t)InterlockedCompareExchange(&p->cpu_primary_calls, 0, 0);
+    r->cpu_cleanup_calls = (uint32_t)InterlockedCompareExchange(&p->cpu_cleanup_calls, 0, 0);
+    r->cpu_pair_count = (uint32_t)InterlockedCompareExchange(&p->cpu_pairs, 0, 0);
+    if (reason && !p->cpu_reported) {
+        uint32_t op = reason == 1 || reason == 10 ? R2_WBO_OP_CLOCK :
+            reason == 2 ? R2_WBO_OP_CPU_TOPOLOGY :
+            reason == 7 ? R2_WBO_OP_DEADLINE :
+            reason == 8 ? R2_WBO_OP_WORK_LIMIT : R2_WBO_OP_SYSTEM_CPU;
+        DWORD error = (DWORD)InterlockedCompareExchange(&p->cpu_error, 0, 0);
+        p->cpu_reported = 1;
+        r->cpu_stop_reason = (uint32_t)reason; r->cpu_stop_error = error;
+        if (reason == 1 || reason == 10) {
+            r->clock_trusted = 0;
+            r->clock_quarantined = 1;
+            r->residual_bits |= R2_WBO_RESIDUAL_CLOCK;
+        }
+        p->cleanup_mode = InterlockedCompareExchange(&p->cpu_failure_phase, 0, 0) == 2;
+        r2_wbo_fault_raw_v1(op, error ? R2_WBO_WIN32 : R2_WBO_INVARIANT,
+            (uint32_t)reason, error);
+        p->cleanup_mode = prior;
+    }
+    if (InterlockedCompareExchange(&p->cpu_job_claim, 0, 0)) r->terminate_job_attempted = 1;
+    if (job == 1) r->terminate_job_succeeded = 1;
+    if (job == -1 && !p->cpu_job_reported) {
+        DWORD error = (DWORD)InterlockedCompareExchange(&p->cpu_job_error, 0, 0);
+        p->cpu_job_reported = 1;
+        p->cleanup_mode = InterlockedCompareExchange(&p->cpu_job_phase, 0, 0) == 2;
+        r2_wbo_fault_raw_v1(R2_WBO_OP_TERMINATE_JOB,
+            error ? R2_WBO_WIN32 : R2_WBO_INVARIANT, 1, error);
+        r->residual_bits |= R2_WBO_RESIDUAL_JOIN;
+        p->cleanup_mode = prior;
+    }
+}
+static int r2_wbo_cpu_gate_v1(int require_pair)
+{
+    struct r2_wbo_system_cpu_v1 sample;
+    struct r2_wbo_private_v1 *p = &r2_wbo_private_v1;
+    struct r2_wbo_report_v1 *r = &r2_wbo_report_v1;
+    r2_wbo_cpu_sync_v1();
+    if (r2_wbo_stopped_v1()) return 0;
+    if (!TryAcquireSRWLockShared(&r2_wbo_cpu_lock_v1)) {
+        r2_wbo_bad_v1(R2_WBO_OP_SYSTEM_CPU, 9);
+        r2_wbo_cpu_terminate_v1(0, p->cleanup_mode, NULL); return 0;
+    }
+    sample = p->cpu_published;
+    ReleaseSRWLockShared(&r2_wbo_cpu_lock_v1);
+    if (!r2_wbo_clock_v1(1, 0)) return 0;
+    r->system_cpu = sample;
+    if (!sample.pair_valid) {
+        if (!require_pair) return 2;
+        r2_wbo_bad_v1(R2_WBO_OP_SYSTEM_CPU, 10);
+        r2_wbo_cpu_terminate_v1(0, p->cleanup_mode, NULL); return 0;
+    }
+    if (sample.high || sample.end_qpc <= 0 || sample.end_qpc > r->last_qpc ||
+        r->last_qpc - sample.end_qpc > r->frequency_qpc / 10) {
+        r2_wbo_bad_v1(R2_WBO_OP_SYSTEM_CPU, sample.high ? 5 : 6);
+        r2_wbo_cpu_terminate_v1(0, p->cleanup_mode, NULL); return 0;
+    }
+    return !r2_wbo_stopped_v1();
 }
 static int r2_wbo_absolute_v1(const WCHAR *p, uint32_t length)
 {
@@ -532,7 +822,9 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_describe_v1(
         sizeof(struct r2_wbo_handle_v1), R2_WBO_STAGES, R2_WBO_FAULTS,
         sizeof(struct r2_wbo_private_v1) + sizeof(struct r2_wbo_report_v1),
         R2_WBO_PRIMARY_STEPS, R2_WBO_CLEANUP_STEPS,
-        R2_WBO_PRIMARY_CALLS, R2_WBO_CLEANUP_CALLS, 0
+        R2_WBO_PRIMARY_CALLS, R2_WBO_CLEANUP_CALLS, 0,
+        R2_WBO_CPU_PRIMARY_STEPS, R2_WBO_CPU_CLEANUP_STEPS,
+        R2_WBO_CPU_PRIMARY_CALLS, R2_WBO_CPU_CLEANUP_CALLS
     };
     if (size != sizeof(value) || !r2_wbo_range_v1(out, size, _Alignof(struct r2_wbo_abi_v1)) ||
         r2_wbo_overlap_v1(out, size, &r2_wbo_private_v1, sizeof(r2_wbo_private_v1)) ||
@@ -549,7 +841,9 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_begin_once_v1(
     DWORD_PTR allowed, system, first, remaining;
     WORD groups;
     DWORD count;
+    DWORD thread_id;
     HANDLE self;
+    FILETIME creation, exit_time, kernel_time, user_time;
     uint32_t i;
     uint64_t active_ticks, cleanup_ticks;
     struct r2_wbo_report_v1 *r = &r2_wbo_report_v1;
@@ -673,6 +967,43 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_begin_once_v1(
     if (!r2_wbo_sample_v1(&r->initial_sample, R2_WBO_NO_STAGE, 0) ||
         !r2_wbo_counts_v1(&r->initial_sample, 0, 0) || !r2_wbo_clock_v1(1, 1))
         return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    r2_wbo_private_v1.cpu_expected_count = count;
+    r2_wbo_private_v1.cpu_last_qpc = r->last_qpc;
+    if (!r2_wbo_call_v1()) return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    r2_wbo_private_v1.cpu_event = CreateEventW(NULL, TRUE, FALSE, NULL);
+    if (!r2_wbo_private_v1.cpu_event) {
+        DWORD e = GetLastError(); r2_wbo_error_v1(R2_WBO_OP_CPU_EVENT, e);
+        return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    }
+    r->cpu_observer_event.acquired = 1;
+    if (!r2_wbo_clock_v1(1, 0) || !r2_wbo_call_v1())
+        return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    r2_wbo_private_v1.cpu_thread = CreateThread(NULL, 65536u,
+        r2_wbo_cpu_thread_v1, NULL, STACK_SIZE_PARAM_IS_A_RESERVATION, &thread_id);
+    if (!r2_wbo_private_v1.cpu_thread) {
+        DWORD e = GetLastError(); r2_wbo_error_v1(R2_WBO_OP_CPU_THREAD, e);
+        return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    }
+    r->cpu_observer_thread.acquired = r->cpu_observer_started = 1;
+    r->cpu_observer_id = thread_id;
+    r2_wbo_private_v1.cpu_thread_id = thread_id;
+    if (!r2_wbo_clock_v1(1, 0) || !r2_wbo_call_v1())
+        return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    if (GetThreadId(r2_wbo_private_v1.cpu_thread) != thread_id || !thread_id) {
+        r2_wbo_bad_v1(R2_WBO_OP_CPU_THREAD, 1);
+        return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    }
+    if (!r2_wbo_call_v1()) return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    if (!GetThreadTimes(r2_wbo_private_v1.cpu_thread,
+        &creation, &exit_time, &kernel_time, &user_time)) {
+        DWORD e = GetLastError(); r2_wbo_error_v1(R2_WBO_OP_CPU_THREAD, e);
+        return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    }
+    r->cpu_observer_creation_100ns = r2_wbo_filetime_v1(creation);
+    if (!r->cpu_observer_creation_100ns || !r2_wbo_clock_v1(1, 0))
+        return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    r2_wbo_cpu_sync_v1();
+    if (r2_wbo_stopped_v1()) return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
     r->lifecycle = R2_WBO_READY;
     return r2_wbo_leave_v1(R2_WBO_OK);
 }
@@ -683,6 +1014,7 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_start_stage_once_v1(uint32
     BOOL result;
     DWORD error;
     int64_t operation_start;
+    uint32_t warmup;
     struct r2_wbo_report_v1 *r = &r2_wbo_report_v1;
     struct r2_wbo_stage_private_v1 *p;
     struct r2_wbo_stage_report_v1 *s;
@@ -696,6 +1028,21 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_start_stage_once_v1(uint32
     if (!r2_wbo_step_v1(0) || !r2_wbo_clock_v1(1, 1) || !r2_wbo_creator_v1())
         return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
     operation_start = r->last_qpc;
+    for (warmup = 0; warmup < 4u; ++warmup) {
+        int cpu = r2_wbo_cpu_gate_v1(0);
+        if (cpu == 1) break;
+        if (cpu == 0) return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+        if (!r2_wbo_call_v1()) return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+        Sleep(20);
+        if (!r2_wbo_clock_v1(1, 0) || !r2_wbo_fresh_v1(operation_start))
+            return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    }
+    if (warmup == 4u) {
+        r2_wbo_bad_v1(R2_WBO_OP_SYSTEM_CPU, 10);
+        r2_wbo_cpu_terminate_v1(0, 0, NULL);
+        return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
+    }
+    if (!r2_wbo_cpu_gate_v1(1)) return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
     p = &r2_wbo_private_v1.stages[index];
     s = &r->stages[index];
     if (s->attempted || (index &&
@@ -737,7 +1084,8 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_start_stage_once_v1(uint32
         sizeof(r2_wbo_private_v1.jobs), NULL, NULL)) {
         DWORD e = GetLastError(); r2_wbo_error_v1(R2_WBO_OP_ATTRIBUTE_UPDATE, e); goto failed;
     }
-    if (!r2_wbo_clock_v1(1, 1) || r2_wbo_stopped_v1() || !r2_wbo_call_v1()) goto failed;
+    if (!r2_wbo_clock_v1(1, 1) || !r2_wbo_cpu_gate_v1(1) ||
+        r2_wbo_stopped_v1() || !r2_wbo_call_v1()) goto failed;
     result = CreateProcessW(p->application, p->command, NULL, NULL, FALSE,
         R2_WBO_CREATE_FLAGS, p->environment, p->directory,
         &r2_wbo_private_v1.startup.StartupInfo, &r2_wbo_private_v1.pi);
@@ -748,6 +1096,7 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_start_stage_once_v1(uint32
     p->process = r2_wbo_private_v1.pi.hProcess;
     p->thread = r2_wbo_private_v1.pi.hThread;
     s->process.acquired = s->thread.acquired = 1;
+    InterlockedIncrement(&r2_wbo_private_v1.cpu_birth_generation);
     s->process_id = r2_wbo_private_v1.pi.dwProcessId;
     s->thread_id = r2_wbo_private_v1.pi.dwThreadId;
     s->created = 1;
@@ -756,10 +1105,12 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_start_stage_once_v1(uint32
     r2_wbo_private_v1.attribute_live = 0;
     DeleteProcThreadAttributeList(r2_wbo_private_v1.startup.lpAttributeList);
     if (!r2_wbo_clock_v1(1, 0) || !r2_wbo_fresh_v1(operation_start) ||
+        !r2_wbo_cpu_gate_v1(1) ||
         !r2_wbo_child_identity_v1(index) ||
         !r2_wbo_sample_v1(&s->birth_sample, index, 1) ||
         !r2_wbo_counts_v1(&s->birth_sample, index + 1u, 1u) ||
-        r2_wbo_stopped_v1() || !r2_wbo_clock_v1(1, 1) || !r2_wbo_call_v1()) goto failed;
+        r2_wbo_stopped_v1() || !r2_wbo_clock_v1(1, 1) ||
+        !r2_wbo_cpu_gate_v1(1) || !r2_wbo_call_v1()) goto failed;
     {
         DWORD previous = ResumeThread(p->thread);
         if (previous == (DWORD)-1) {
@@ -769,7 +1120,7 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_start_stage_once_v1(uint32
     }
     s->resumed = 1;
     r->lifecycle = R2_WBO_RUNNING;
-    if (!r2_wbo_clock_v1(1, 1)) goto failed;
+    if (!r2_wbo_clock_v1(1, 1) || !r2_wbo_cpu_gate_v1(1)) goto failed;
     return r2_wbo_leave_v1(R2_WBO_OK);
 failed:
     if (r2_wbo_private_v1.attribute_live) {
@@ -821,11 +1172,13 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_observe_step_v1(void)
         if (r->attempt_consumed && !r2_wbo_stopped_v1()) r2_wbo_bad_v1(R2_WBO_OP_STATE, 3);
         return r2_wbo_leave_v1(R2_WBO_BAD_STATE);
     }
-    if (!r2_wbo_step_v1(0) || !r2_wbo_clock_v1(1, 1) || !r2_wbo_creator_v1())
+    if (!r2_wbo_step_v1(0) || !r2_wbo_clock_v1(1, 1) ||
+        !r2_wbo_cpu_gate_v1(1) || !r2_wbo_creator_v1())
         return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
     s = &r->stages[index];
     if (!r2_wbo_child_identity_v1(index) || !r2_wbo_wait_originals_v1(index, 0) ||
-        !r2_wbo_sample_v1(&s->latest_sample, index, !s->process_signaled))
+        !r2_wbo_sample_v1(&s->latest_sample, index, !s->process_signaled) ||
+        !r2_wbo_cpu_gate_v1(1))
         return r2_wbo_leave_v1(R2_WBO_NEEDS_CLEANUP);
     if (!s->process_signaled) {
         if (!r2_wbo_counts_v1(&s->latest_sample, index + 1u, 1u))
@@ -852,6 +1205,62 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_stop_new_v1(void)
     return r2_wbo_leave_v1(R2_WBO_OK);
 }
 
+/* Only the public owner waits/queries/closes these two original handles.
+ * A live observer keeps its Job borrowed until its thread really signals. */
+static int r2_wbo_cpu_join_v1(void)
+{
+    struct r2_wbo_private_v1 *p = &r2_wbo_private_v1;
+    struct r2_wbo_report_v1 *r = &r2_wbo_report_v1;
+    FILETIME creation, exit_time, kernel, user;
+    DWORD wait, code, id;
+    if (p->cpu_thread && !r->cpu_observer_signaled) {
+        if (!r2_wbo_clock_v1(1, 0) || !r2_wbo_call_v1()) return 0;
+        wait = WaitForSingleObject(p->cpu_thread, r2_wbo_wait_slice_v1());
+        if (wait == WAIT_TIMEOUT) return 2;
+        if (wait != WAIT_OBJECT_0) {
+            DWORD e = wait == WAIT_FAILED ? GetLastError() : 0;
+            if (e) r2_wbo_error_v1(R2_WBO_OP_CPU_JOIN, e);
+            else r2_wbo_bad_v1(R2_WBO_OP_CPU_JOIN, wait);
+            return 0;
+        }
+        r->cpu_observer_signaled = 1;
+        InterlockedExchange(&p->cpu_joined, 1);
+    }
+    r2_wbo_cpu_sync_v1();
+    if (p->cpu_thread && !p->cpu_thread_final_attempted) {
+        p->cpu_thread_final_attempted = 1;
+        if (!r->cpu_observer_creation_100ns || !r2_wbo_call_v1()) return 0;
+        id = GetThreadId(p->cpu_thread);
+        if (!id || id != p->cpu_thread_id) {
+            r2_wbo_bad_v1(R2_WBO_OP_CPU_THREAD, 2); return 0;
+        }
+        if (!r2_wbo_call_v1()) return 0;
+        if (!GetExitCodeThread(p->cpu_thread, &code)) {
+            DWORD e = GetLastError(); r2_wbo_error_v1(R2_WBO_OP_CPU_THREAD, e); return 0;
+        }
+        r->cpu_observer_exit_valid = 1; r->cpu_observer_exit_code = code;
+        if (code || !r2_wbo_call_v1()) {
+            if (code) r2_wbo_bad_v1(R2_WBO_OP_CPU_THREAD, 3);
+            return 0;
+        }
+        if (!GetThreadTimes(p->cpu_thread, &creation, &exit_time, &kernel, &user)) {
+            DWORD e = GetLastError(); r2_wbo_error_v1(R2_WBO_OP_CPU_THREAD, e); return 0;
+        }
+        if (r2_wbo_filetime_v1(creation) != r->cpu_observer_creation_100ns) {
+            r2_wbo_bad_v1(R2_WBO_OP_CPU_THREAD, 4); return 0;
+        }
+        r->cpu_observer_final_kernel_100ns = r2_wbo_filetime_v1(kernel);
+        r->cpu_observer_final_user_100ns = r2_wbo_filetime_v1(user);
+        p->cpu_thread_final_verified = 1;
+    }
+    if (p->cpu_thread && !p->cpu_thread_final_verified) return 0;
+    if (p->cpu_thread && !r2_wbo_close_v1(&p->cpu_thread,
+        &r->cpu_observer_thread, R2_WBO_OP_CPU_CLOSE)) return 0;
+    if (p->cpu_event && !r2_wbo_close_v1(&p->cpu_event,
+        &r->cpu_observer_event, R2_WBO_OP_CPU_CLOSE)) return 0;
+    return 1;
+}
+
 R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_finish_step_v1(void)
 {
     uint32_t index, expected_total = 0;
@@ -864,20 +1273,30 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_finish_step_v1(void)
     if (r->lifecycle == R2_WBO_RETAINED) return r2_wbo_leave_v1(R2_WBO_RESIDUAL);
     if (!r2_wbo_step_v1(1)) goto residual;
     r->finish_started = 1; r->lifecycle = R2_WBO_STOPPING;
+    InterlockedExchange(&r2_wbo_private_v1.cpu_cleanup_mode, 1);
+    r2_wbo_cpu_sync_v1();
+    if (r2_wbo_private_v1.cpu_event && !r->cpu_event_signal_attempted) {
+        r->cpu_event_signal_attempted = 1;
+        if (!r2_wbo_call_v1()) goto residual;
+        if (!SetEvent(r2_wbo_private_v1.cpu_event)) {
+            DWORD e = GetLastError(); r2_wbo_error_v1(R2_WBO_OP_CPU_EVENT, e);
+            /* The observer may remain live, but child termination and known
+             * original cleanup still proceed within their existing window. */
+        } else {
+            r->cpu_event_signal_succeeded = 1;
+        }
+    }
     /* A termination request is attempted once even if the clock has already
      * failed. It does not imply exit, a join, or any renewed time allowance. */
     index = r->stage_running;
-    if (index < R2_WBO_STAGES && !r->terminate_job_attempted && r2_wbo_private_v1.job) {
-        r->terminate_job_attempted = 1;
-        if (!r2_wbo_call_v1()) goto residual;
-        if (TerminateJobObject(r2_wbo_private_v1.job, R2_WBO_STOP_EXIT))
-            r->terminate_job_succeeded = 1;
-        else {
-            DWORD e = GetLastError(); r2_wbo_error_v1(R2_WBO_OP_TERMINATE_JOB, e);
-        }
-    }
+    if (index < R2_WBO_STAGES && r2_wbo_private_v1.job)
+        r2_wbo_cpu_terminate_v1(0, 1, NULL);
+    r2_wbo_cpu_sync_v1();
     if (index < R2_WBO_STAGES && !r->stages[index].process_signaled &&
-        !r->terminate_job_succeeded && !r->stages[index].terminate_attempted &&
+        (!r->terminate_job_succeeded ||
+         InterlockedCompareExchange(&r2_wbo_private_v1.cpu_job_covered_birth, 0, 0) <
+         InterlockedCompareExchange(&r2_wbo_private_v1.cpu_birth_generation, 0, 0)) &&
+        !r->stages[index].terminate_attempted &&
         r2_wbo_private_v1.stages[index].process) {
         r->stages[index].terminate_attempted = 1;
         if (!r2_wbo_call_v1()) goto residual;
@@ -917,6 +1336,11 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_finish_step_v1(void)
             !r2_wbo_cleanup_empty_v1(&r->final_sample, expected_total)) goto residual;
         r->final_sample_valid = 1;
     }
+    {
+        int joined = r2_wbo_cpu_join_v1();
+        if (joined == 2) return r2_wbo_leave_v1(R2_WBO_PENDING);
+        if (!joined) goto residual;
+    }
     if ((r2_wbo_private_v1.creator && !r2_wbo_creator_v1()) ||
         !r2_wbo_clock_v1(1, 0)) goto residual;
     r->lifecycle = R2_WBO_CLOSING;
@@ -932,6 +1356,7 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_finish_step_v1(void)
     return r2_wbo_leave_v1(R2_WBO_FINISHED);
 residual:
     if (r2_wbo_private_v1.job || r2_wbo_private_v1.creator ||
+        r2_wbo_private_v1.cpu_thread || r2_wbo_private_v1.cpu_event ||
         r2_wbo_private_v1.stages[0].process || r2_wbo_private_v1.stages[0].thread ||
         r2_wbo_private_v1.stages[1].process || r2_wbo_private_v1.stages[1].thread)
         r->residual_bits |= R2_WBO_RESIDUAL_ORIGINAL;
@@ -947,7 +1372,14 @@ R2_WBO_EXPORT uint32_t __cdecl route2_win_build_owner_copy_report_v1(
         r2_wbo_overlap_v1(out, size, &r2_wbo_report_v1, sizeof(r2_wbo_report_v1)))
         return R2_WBO_BAD_ARGUMENT;
     if (!r2_wbo_enter_v1()) return R2_WBO_BUSY;
+    r2_wbo_cpu_sync_v1();
     r2_wbo_report_v1.stop_new = (uint32_t)r2_wbo_stopped_v1();
+    if (!TryAcquireSRWLockShared(&r2_wbo_cpu_lock_v1)) {
+        InterlockedExchange(&r2_wbo_guard_v1, 0);
+        return R2_WBO_BUSY;
+    }
+    r2_wbo_report_v1.system_cpu = r2_wbo_private_v1.cpu_published;
+    ReleaseSRWLockShared(&r2_wbo_cpu_lock_v1);
     memcpy(out, &r2_wbo_report_v1, sizeof(*out));
     InterlockedExchange(&r2_wbo_guard_v1, 0);
     return R2_WBO_OK;
