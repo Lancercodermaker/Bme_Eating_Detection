@@ -7724,3 +7724,401 @@ This factual administrative receipt changes ONLY original3, to be committed with
 Manual adaptive gate_result/run_end records SOURCE implementation+sequential independent SPEC/QUALITY repairs complete within this continuation's13:45:20 cooperative checkpoint as of this append, with actual missing timing explicitly UNKNOWN. No installed telemetry hook, enforced SOURCE runtime or token/money saving is claimed. Complete project/admission INCOMPLETE. The full14 table above, precise absent first-operation causal resource/allwriterphysical/independentcutoff-drain composition, TARGET_NOT_PREPARED and detailed packagednonGT text boundary remain. CPU90% approval and actual public notice facts are inherited; no material budget waiver or automatic H6. H1APPROVED_UNSTARTED/H3H4H5CONSUMED_FAILED_PARTIAL_NO_RETRY/FROZEN_ADMISSION=None/fullFAIL/Stage0/F1OPEN/Route3COMPLETEfourFAIL/V0->V7 and all UNKNOWN_NOT_ZERO fees remain. The next full-entry action stays WAIT_FOR_EVIDENCE at the concrete missing objects; this receipt is not permission to run unsupported dependentC04-C12 or to manufacture admission with a build/test.
 
 Actual administrative receipt append UTC: 2026-10-25T13:40:42.5629802Z
+
+
+<a id="h1-complete-measured-contract-source-draft-20261026"></a>
+
+### 2026-10-26 Measured-entry SOURCE draft
+
+Owner DESIGN draft only. Originalfourgap/UNKNOWN-not-impossibility retained; LOCAL_WINDOWS removes provenance recursion, not quantitative fees/storage/exit.
+
+Authority: originalH1R3448/3512,P1475; V0-V7R5438; SOURCEP2238-48/causalP2320-25; C+S+KcorrectionR7317; matrix7506/hardware7538/CPU90+official7568/caps7604/reviews7629/full14at7678/Git7712, inherited not newSOURCEreview.
+
+Adaptive preflight: Goal=whole firstbuild-H1; Success metrics=entry/resources/storage/exit+100ms/clocks/finiteV5; Constraints=3docs only/noSOURCE-native-Git; Prior art=C02C03/Windows/failedH2-CDB-CI-Job-C+S+K; Baseline=HEAD2aca0a2c46bfe049df6ec77c3d2794ac10235277/main dd05aa128f8d62a85c20a83f8af72fe13fcfa27b/uncompiled; Candidate approaches=originalcomposition or redesign; Critical assumptions=100ms/peers/wholeV5; Risks=stalls/nesting/incompletephysical-drain/earlyH1; Validation experiments=document then dualSOURCEreview/lawfulnoGT afterBEFORE; Kill criteria=missingmechanism/closure/100ms/manifest/target STOP; Recommendation=REDESIGN; Confidence=highdelta/runtimeunknown.
+
+RESEARCH/SUBAGENT/actualcollaboration entry_h1_contract_author_resume; standardfallback after capableauthor quota/noverdict/no paidchange. Tags=win32-resources,isolation,storage,ml-nongt; profiles=generic+MLdata/spec->pipeline; noEmbedded/training. FIRST2026-10-26T05:19:06Z/cooperative<=900s cutoff05:34:06Z, not native enforcement. Manual telemetry only/no recorder; old counters/unknown fees not reset.
+
+#### Original clauses and producers
+
+|Original|Existing production callpoint / narrow scope|Missing positive producer|
+|---|---|---|
+|Pre-firstbuild entry/clocks|_prepare_fixed_worker:802 refuses; _birth_suspended:502 laterPI; native begin_once:837 localQPC.|M1 compiler-free root/originalpeerhandles/outerdeadlines, NEW SOURCE.|
+|Causal4GiB512MiB/CPU200-100/whole16GiBVRAM8GiB|_create_job:458/_read_limits:479; native start_stage:1011/observe:1164 rawJobCPU; helper:378 VM_SERVICE_SCOPE refusal.|M2 disjointJobs/platformgauges/guestcontrols; explicitdenominatorchange.|
+|Ephysical/allwriters/nonE/control|windows_wall._require_host_control_boundary:125/_persist_owned:311; windows_non_e_monitor._owner_binding:303/_resource_drift:343; helper:383 E_PHYSICAL_CAP.|M3 reportedwrites/logicalledger/create-onlytarget; noStagephysicalclaim.|
+|Cutoff/fulljoin/providerdrain|native stop:1201/finish:1264/copy_report:1367 knownchildjoins; _persist_owned:379 owneralive; helper:388 OWNER_EXIT_JOIN.|M4 realwatchdog/coordinator/ownedflush/liveaccept/explicitsharedresidualscope.|
+
+SOURCE inherited/unopened; producersNOT_RUN.
+
+#### M1. Adopted loaded entry and strict100ms
+
+Adopt PINNED ALREADY-LOADED PowerShell/.NET controller root; its FIRST script operation q0=Stopwatch.GetTimestamp(), retaining Frequency and later native QPC/QPF agreement. External6000/prep1800 start no later than this q0, including bootstrap. Never restart at cl/LINK/harness/WSL/handoff. Other processes' startup is charged from original birth inside these deadlines. Native begin_once max1740active+60cleanup is only a LOCAL ceiling: min(local, original prep, original external remaining), including handoff.
+
+MATERIAL ENTRY/ORIGIN CHANGE: root host creation/loader/JIT/earlier lifetime are UNMEASURED_NOT_ZERO and excluded from new prospective q0, not recovered history/resource PASS. This new scope change is separate from H1 history exception. Failed/unapproved H2 history remains unchanged.
+
+Memory-only AppDomain.DefineDynamicAssembly(Run), filename-free module, TypeBuilder.DefinePInvokeMethod(name,absoluteDLL,entryPoint,Public|Static|PinvokeImpl,Standard,returnType,parameterTypes,Winapi,Unicode), PreserveSig/CreateType; exactlayouts once. No Add-Type/C#/compile/save. Bind BOOL QPC/QPF(LARGE_INTEGER*), GlobalMemoryStatusEx(MEMORYSTATUSEX*), GetSystemTimes(FILETIME*,FILETIME*,FILETIME*) and selected Job/CreateProcess/Wait/Terminate/Flush APIs. PDH_STATUS/nvmlReturn_t remain direct statuses, not BOOL/GetLastError.
+
+Firstbindings/observations actualq0elapsed<=100ms; everylateroperation/sample/interval<=100ms or STOP, no grace/pre-armwaiver/retry. Root creates watchdog/coordinator suspended via original CreateProcessW PI/external Job, verifies originals then resumes. Root CONTINUES its own bounded native observations during their cold startup; do not block waiting for peer load or demand entire cold host startup inside100ms. All peer startup costs remain charged. FIRST compiler/directory/install waits for independent peers READY and actual valid samples. Root crash after effective Job KILL_ON_CLOSE offers OS fallback, not prebirth independent watchdog proof.
+
+At most3 interpreted roots(controller/watchdog/coordinator)+1 bounded transport. Immutable scripts/engine/CLR/native closure/no-profile environment/nonce are pinned. One-peer/current-SID-ACL pipe transfers duplicated original SYNCHRONIZE/QUERY/TERMINATE process+Job handles/creation identity, not numeric assertions. Peers are real independent OS processes; no independence before birth.
+
+Managed/JIT/DLL/device/API maystall; timersignal nottermination/CancelIoEx notdrain. Actual first100ms interop and continuously fresh supervision/independent readiness are PRE-H1 SOURCE/RUNTIME EVIDENCE GAPS. No actual demonstration or safe-first-H1 guarantee exists; adoption permits SOURCE only, never consuming H1 to discover missing BEFORE.
+
+#### M2. Disjoint role Jobs and platform gauges
+
+Prep: Job committed virtual memory<=4GiB, separate reported working sets, CPU<=200% of ONE verified logical CPU, MONITORED4 actual Windows application TIDs including compiler/loader/observer/callbacks. Fifth prep TID is OUTER STOP. External: aggregate process commitment<=512MiB, separate working sets, CPU<=100% one LP, max4 PROCESSES for interpreted cohort; actual thread counts recorded uncapped. This external4TID->4process change is MATERIAL, never old thread PASS.
+
+Original causal-role kernel/cache/loader/shared-service/provider RAM/CPU is REPLACED by process commitment+platform gauges; exact causal fees UNKNOWN_NOT_ZERO, not measured/zero. Whole RAM=GlobalMemoryStatusEx(totalPhys-availPhys)<=16GiB; wholeCPU=accepted GetSystemTimes busy fraction, actual stable single group/LP1..64/two usable deltas, >=90% taskSTOP; wholeVRAM=sum NVMLmemory_v2.used ALL stableUUID devices<=8GiB. used includes reserved, no double add/perprocessWDDM. Other apps count. Environment24 not native proof. Every gauge/operation<=100ms or STOP; wrong version/status/topology/overflow/nonmonotone/missing/stale/high value rejects, no nvidia-smi fallback or invented0. Sampled metrics not instantaneous guarantees.
+
+Compiler inheriting external512/100 cannot escape by adding prep4/200 Job. External Job BREAKAWAY_OK; ONLY reviewed prep birth uses CREATE_BREAKAWAY_FROM_JOB|EXTENDED_STARTUPINFO_PRESENT|CREATE_SUSPENDED+PROC_THREAD_ATTRIBUTE_JOB_LIST(preconfigured prepJob). Prep has NO breakaway. Before ResumeThread: original PI/creation identity, membership, escape from external restriction, limits and all ancestor effective restrictions verified. Children inherit EVERY ancestor Job; nonpermitting ambient ancestor rejects, never assumed absent. Set/QueryInformationJobObject classes9/15 exact lengths. Without controlled ancestor ENABLE|HARD_CAP rates floor20000/N prep/floor10000/N external; reject invalid/zero. Controlled-parent rates are parent-relative: verify complete effective chain, never bare local equality. Conservative lower capacity allowed, not advertised as2CPU.
+
+Compiler-free guard owns OUTER prepJob throughout, containing all fixture children from birth; no invented privateJob export/native handoff. Inner C02 conservative cap can throttle further: report that, or change inner10000 under qualified known parent with NEW scoped review. Existing C02 closed review does not cover altered ancestry/birth/context; outer deadlines always authoritative.
+
+V5 explicit H1-only WSL extension: shared VM/kernel/WSLService/vmcompute charged by platform gauges, not falsely prepJob. Actual applied VM8GiB/2CPU/guiOff/swap0; firstM0; C=min(4GiB,floor3*M0/5), AS=floorC/2; cgroup memory/swap0/cpu200/pids2 INCLUDING controller, memory.current/events/peak supported/cpu.stat/max/pids.current/max and namespace/FD identity. Guest64MiB/host16MiB included guest20/external6. Exact config/readback before dependent guest work; sharedconfig/otherdistro shutdown not approved.
+
+#### M3. Reported write-exposure and logical target
+
+H1-only replacement of original all-writer physical allocation/denial: sum non-_Total PhysicalDisk raw Disk Write Bytes/sec FIRSTVALUE deltas since q0 on EVERY reported disk, including other apps/OS. PERF_COUNTER_BULK_COUNT272696576 is cumulative BYTES, not formatted rate. >=24GiB STOP_NEW, nominal6GiB tail/reported30GiB maximum;30 is violation. This NEW24+6 write split differs from logical E layout. Unknown inflight/postSTOP overshoot not zero/no hard physical bound.
+
+NonE=sum raw deltas EVERY reported LogicalDisk except boundE/_Total;384MiBSTOP,512maximum/128nominaltail/unknown overshoot. Replaces original task AllocationSize/history attribution; unrelated writes can stop task. E/C samephysical: count disk once toward30 and nonE logical once toward512, not all E as nonE.
+
+PdhOpenQueryW/AddEnglishCounterW/GetCounterInfoW/required ExpandWildCardPathW/CollectQueryDataWithTime/GetRawCounterArrayW or GetRawCounterValue/CloseQuery once. Freeze real identities max64physical+64logical; fixed256KiB array/name/pointer/length bounds. One size+one data call/collection; PDH_MORE_DATA/overflow stops, no resize loop. AddCounter success not instance proof. Require valid/new CStatus/correcttype/nonnegative monotone values/stable topology and actual provider timestamp advancement/age<=100ms with QPC brackets; collect timestamp alone cannot refresh old value. Wallclock jump rejects; elapsed QPC unchanged. Formatted>=1s rates cannot satisfy100ms. Actual raw refresh100ms UNPROVEN; missing/disabled/reset/wrap/stale/changed instance STOP. No diskperf/IOCTL_DISK_PERFORMANCE enablement/admin activation.
+
+Initial q0->firstcounter baseline initialization writes UNKNOWN_NOT_ZERO and expressly excluded from exposure delta, a further MATERIAL scope change, not0. No dependentfiles/compiler until actual baseline; q0elapsed/100ms checks continue.
+
+Coverage=ALL REPORTED instances, not directories/products. Excludes unreported hiddenvolumes/devices, below-counter/firmware/remapping writes and inaccurate attribution; deferred cached writes may appear later. MATERIAL weakening: reported sampled cumulative-write monitoring/unknown overshoot replaces all-alias/all-writer HARD physical containment. Directory/fixedVHD/free-space is not old proof.
+
+Logical ledger still E30=carrier24inclguest20+external6/baseline<=8/control64MiBguest16MiBhost INCLUDED; SAMEhostingFS free>=8GiB AND actualWindowsbacking free>=8GiB+separate reserve/no third8. Held FileId/VolumeGUID/AllocationSize/EOF/max/deleted-open/history without refunds. Firstbuild worktree/.route2_h1_firstbuild/bin,obj,tmp: absent CREATE_NEW, retained parent identity/no reparse/finalE verified.
+
+V5 new task-only carrier/import target must fix path/parent/max24GiB/guest20/baseline/free/reserve/exact supportedAPIorargv/privilege/sector/range/effects/quarantine BEFORE operation. Hold CREATE_NEW absentfile, reject existing/alias, create/import/register only verified newobject, format guest only its verified virtualrange. Actual target NOT SELECTED/TARGET_NOT_PREPARED/noEguess/noH3retry; SOURCE adoption not diskcommand approval. Original Stage physical gate unchanged/no automatic transfer.
+
+#### M4. Independent owned stop/exit and finite liability
+
+Real roots retain original q0/frequency/1800/6000 deadlines/Jobs/duplicated handles/nonce. Bounded pipes/events/monotoneQPC/sequence, no callerPASS. Watchdog requested20ms independent polling, actual<=100ms heartbeat/sample/operation checks, irrevocableSTOP/birth refusal/once TerminateJobObject/lawful originalProcess fallback. Peer/controllerdeath/transport/identity/resource/stale/deadline/tail failure triggersSTOP. OS blocking/scheduling is fault, never termination guarantee.
+
+Coordinator survives controller and owns original waits/exits/EOF/emptyJob/residual ledger. Cleanup by min(originalPrepDeadline-60s,originalExternalDeadline-60s), no new60; all waits/flush/closes charge remaining. Outer caps4externalprocesses/64operations/256births/1024handles/64faults/1MiBbuffers/128counterinstances/300000observations/4000000OScalls inclcleanup, separate primary/cleanup allocations fixed in reviewed SOURCE. Existing native48calls/step/observer12calls/step and tighter work ceilings remain additional; no credit transfer.
+
+Normal order: stopwork/join EVERY owned child+observer/taskguest cgroup/controller with exitEOF; flush held owneddata; q_exit_durable BEFOREreceiptflush; flush/close receipt; coordinator LIVEq_accept_live AFTERflushclose/freshgauges/originaldeadline; coordinator exits. Actual original toolrunner exitstatus is NEW final self-exit witness replacing original native lastowner/kernel/durabletail proof; storedpostflush line/chat not live witness. All normal/fault bytes within original E/elapsed budgets.
+
+Task-only distro/session/cgroup stop operations preselected; no globalwslshutdown/sharedservice/otherdistrokill. Owned distro unable exit remains owned residual.
+
+NEW liability ends ONLY after actualownedjoins/ownedflushclose/liveaccept/witnessedcoordinatorexit. Explicit postterminal exclusions: shared Windowskernel/cache/pagefile/eventlog/registry/NTFSjournal/storagecontroller deferredwork and sharedWSLService/vmcompute/hostVM work NOT owned taskprocesses. Residual causal fees/writes UNKNOWN_NOT_ZERO/excludedplatform, never drained0. This replaces original indefinite sharedprovider causal billing ONLY for listed shared residuals. Stuck ownedchild/distro/watchdog/coordinator NEVER excluded by STOPrequest/expiry: remains unjoined/billedunknown, blocksnormalacceptance, concrete object-specific cleanup decision if bounded lawful cleanup fails. Expiry recordsFAIL, not finitecleanup/release. Coordinator death permits watchdogstop/reap/fault, not fake normal receipt/q_accept. Bounded program with failure residuals, not OS neverhang promise.
+
+#### Whole first-build -> V5 in ONE H1
+
+ONE1800s prep/build/ABI/load/noGT/install incl60cleanup; external6000 inclobservation/transport/signverify/receipt/tails. Firstfailure/expiry/wholeattemptjoin-drain-accept/legalstop ENDS H1, unusedseconds not newinvocation. V3 UNDER V2/V4 SAMEowner/V5 SAMEdeadline. H3H4H5consumedfailednoretry/noH6. Cl/link-only H1 leaves no fresh H1 for missing WSL.
+
+Seal finite ordered manifest BEFORE firstcompiler:
+1. M1 q0/identities/peers/deadlines/initial M2M3 validgauges; only actualREADY permits dependentwork.
+2. CREATE_NEW absent firstbuild bin/obj/tmp/boundEparent/ledger.
+3. EXACT inherited firstrecipe: cl /c route2_windows_build_owner.c+tests/native/route2_windows_build_owner_harness.c; LINK exactly TWOobjects+Kernel32.Lib. cl.exe/link.exe=D:/C++/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64; SDK D:/Windows Kits/10/10.0.26100.0; /TC/std:c11/MT/_WIN32_WINNT=0x0A00/WINVER=0x0A00/PSAPI_VERSION=2; inherited explicitargv/INCLUDE/LIB/PATH/SystemRoot/TEMP/TMP/noambientCL,_CL_,LINK. Final changedsourcepins replace old only after reviews.
+4. FIVEproducts2obj+harness.exe+.lib+.exp; bound otherwrites throughM3/ledger. Readonly PE/transitiveCRT/APIset/SxS/native/providerclosure BEFOREload, ABI/layout. HARNESS EXE is NOT productionDLL/generalcontroller/LoadLibrarytarget.
+5. SAMEguard raw originalchild/ownedIO/memory/CPU/Job/deadline/cleanup and two/nonzero/cpu_idle/descendant/deadline modes, exact actualfields/exit/output. Expected protectedchildfault differs from realOUTERfailure; outerresource/stale/deadline/identity/cleanup failure ALWAYSendsH1.
+6. Inventedbyte PE/catalog/relocation/ELFmetadata positiveimports/ordinals/fullforwarders/aliases/data/zerofill/validmodulecycles; negativeRVA/names/ordinals/APIset/duplicates/forwardcycles/limits/work/ABI/partialrecords. Catalog->owned->core includechain ONCE/no duplicateTUs. WindowsELFparser not guestloadproof.
+7. NEWM1-M4 faultfixtures: bootstrap100ms, staleprovider/freshcollect, CPU90/RAM/VRAM, fifthprepTID/externalprocess, deniednestedescape, peer/controllerdeath/hungchild/partialbirth/flushfailure/EOF/coordinatordeath/deadline. Protected inventedfixtures only, realouterfailure terminal.
+8. V5 complete reviewed C01-C12 installation/nativeWindowsPython/task-onlyUbuntu22.04glibc2.35/immutablepreloadedpackages; appliedguestlimits/M0/dual8floors; inventednonGTbank/role/currentgeneration data.img/tree.img/sameFD/noaliases/atmost1generation/historyledger.
+9. V5 noGT namespace/cgroup/FD/mount/readonly/ledger/size/rollback/quarantine/STOP/crash/OOM/cleanup/taskguestexit/liveaccept. No fit/predict/decode/GT/science.
+10. Bounded cleanup ONCE; nothing after terminalfailure/expiry/acceptance.
+
+3-7 WindowsV2-V4;8-9 WSLV5 inside SAMEprepdeadline. No laterWSLattempt/externaltime->newprep. Expand<=64slots with exactimages/API/argv/env/CWD/deps/inputclass/expectedoutputs-errors/births/files/work/remainingtimepredicate/cleanup. Compiler-freePSguard remains authoritative THROUGHOUT H1. Native2stage/2birth owner is validationcomponent, not manifestexecutor; outerprepJob contains descendants. Laterlocalepochs inherit originalcontext/handles/minremaining deadlines, not newH1; changedbirth/ancestry/context reviewed. Future nativeCLI/DLL would require its explicitnewsource/build/output/argv/protocol withinSAME1800; none selected.
+
+Still missing ACTUALfrozen bootstrapprotocol/100msevidence/fullfixtureargv/buildinventory/V5package-create-import-targetcommands/ranges/privileges/fulltoolchain-managedclosure; group list is NOT executablemanifest. Old21files72015500B partial. Complete known dependentSOURCE/suites/target before uniqueclock as practicalreadiness, not blanketlaw for unrelatedfutureSOURCE.
+
+V6 detailed separately accessible authoritative NON-GT matcher/schema/time/sampling/I/O/evaluator/local41mapping required BEFOREaffectedscienceadapters/inputpins/freeze, not unrelatedfirstcompile. Actual id14/id17/nineway facts40train20test/finalindependentWindowsEXE+model+depsZIP retained. MixedZIP link/localbasename notbytes/permissionhash-header-list-read; noGT/H4H5retry. V7 directconditionallyapprovedStage after allBEFORE/fullfreeze, no genericnewapproval.
+
+#### Limited C00 predicate change / precise design decision
+
+CURRENT plan2238-2248/C00AUDITED_UNPROVEN: ONLY independentknownC01declarations/C02rawJob-originalidentity-observation/C03boundedpreloadparse; dependentC04-C12bootstrap/bank/generation/publisher/GT/fullcleanup/witness/assembly STOP. Labels/source-only do not bypass.
+
+Proposed ONE OWNER DESIGN adoption M1-M4 TOGETHER for this wholeH1 SOURCE-contract: explicitentry-history+initialbaselineexclusion, commitment/platformvsoriginalcausalroles, external4processvs4TID, reportedwritevsphysicalallwriterhardcap, listedsharedpostterminalresidual/finalexitwitness. Then freshC00selectedexactsignature/owner/OScallpoint/effectivescope/failure-stop review: SPEC then DIFFERENTfreshQUALITY, before correspondingdependentSOURCE inDAG. Publicsupportedmechanism can justifySOURCE; actualappliedfacts remainBEFORE. Missingprimitive keepsSTOP/noPASSfactory.
+
+Adoption's immediateeffect limitedSOURCE; existinguniqueH1authority appliesdirectly ONLYwhen complete actualconditions hold, no secondgenericstartup/finalscienceapproval. Notcurrentadoption/targetmutation/install/H1/freeze. Separateexacttargetapproval ifnecessary; noStageextension. Original engineeringgaps remain ifrejected.
+
+#### Full original fourteen-condition checkpoint, original order
+
+|Gate|Actual evidence|Remaining dependency|State|
+|---:|---|---|---|
+|1|ConditionaldirectStage/H1authority retained; M1-M4proposed.|Installednonbypassableowners/runner/wholeprep/consumableFrozenAdmission.|NOT_CLOSED|
+|2|Actualid14/id17/nineway/WindowsEXE+model+deps/40-20; noZIPGT.|DetailednonGTmatcher/schema/time/sampling/I/O/evaluator/deps/local41mapping; affectedpins/review;105reference BEFORE105treatment/discrete+symmetricatol1e-12,rtol1e-10.|NOT_CLOSED|
+|3|Bank/generation/history/sameFD SOURCEinherited.|Actualimmutablecreator/rolepublisher/fullhistory/noaliases/sameFDnestedadapters/installedidentities.|NOT_CLOSED|
+|4|Nested5x4x4/failedinclusive25fit25predict65decode20GT+21stGT-freepooled/GTreads0.|ActualStageAN/M/S/B/R/StageBprojection-expansion/same2->4GiBlifecycle/no2+4doublecharge/strictcapacityvspeak.|NOT_CLOSED|
+|5|Matchedorigin/fivefield/canonicalGT/phase/revoke/finalizedoubleexception/directoryv2/O_PATH110pins.|LegalA2-004matchedGTorigin/commit/grant/release/revoke/finalgainlossreport distinctcandidatecoverage.|NOT_CLOSED|
+|6|SID/GUID/UID/namespace/history4096/scan256/nlink1SOURCE.|ActualIPC/FD/mount/cgroup/TID/readonly/scratch/history/atmost1generation/rolesSHA256paths/data.img/tree.img/builderrole.|NOT_CLOSED|
+|7|TARGET_NOT_PREPARED/M3H1only/noEguess.|Exacttarget/range/commands/effects/privilege/layout/allocation/history; E30=24incl20+6/baseline8/dual8floors+reserve/control64-16included; Stagephysicalunchanged.|NOT_CLOSED|
+|8|RawJob/originalPI/QPC/joins/CPUobserverSOURCEuncompiled.|Prebirthowners/appliedWSL8GiB2CPUguiOffswap0/M0-C-AS/pids2cpu200/StageA1200study3600fit900incl60/charges.|NOT_CLOSED|
+|9|CPU90<=100msaccepted; original4GiB512MiB/200-100/MON4/1800-6000CURRENT.|Designadoption+selectedsourcedualreview ifpursued; actualentry100ms/gauges/disjointJobs/BEFORE/whole16GiBVRAM8GiB/clocks/fees.|NOT_CLOSED|
+|10|OriginalnonE512-384STOP-128tail/unknownovershootcurrent.|Originalallocationhistoryproducer ORadoptedreviewedfreshM3coverage/exclusions; nodeletionreset.|NOT_CLOSED|
+|11|ClosedPE/ELF/GTSOURCEunchanged/twoTUs5products/21toolchainfilespartial.|Completeimmutableloader/toolchain/native/interpreter/project/transitive/provider/APIset/SxS/ABI BEFOREloads; finalWindowsruntime-modelclosure/equivalence.|NOT_CLOSED|
+|12|KnownchildoncecleanupSOURCE/M4unimplemented/providerdrainabsent.|Independentwatchdog/coordinator/originaljoins/ownedflush/q_exitbefore-liveq_acceptafter/finalexit; ownedresidualneverwaived/originalshareddrainunlessM4adopted.|NOT_CLOSED|
+|13|Onlynewdoc; freshSPECthenfreshdifferentQUALITYpending/fullFAILretained.|WholeinstallednoGT/resource/fault/stop/crash/cleanup, NEWentireformalreview/fullsource-runtime-input-role-pathmap-protocol-budgetfreeze.|NOT_CLOSED|
+|14|Route2legalStage/results0,F1>=.66OPEN; Route3v1-003legalCOMPLETE/fourFAIL/norerun.|AllBEFORE/official/fullreview/freeze thenlegalA/B; predeclaredearlySTOPvsfull5fold/fourqualitygates/actualmatchedGT-F1.|NOT_CLOSED|
+
+26D/HGB/.10,.25,.50/600s/min180s/strictIoU>.25/strictnext.start<end/counts/tolerances unchanged. C00AUDITED_UNPROVEN/fullC01-C03incomplete/PREPARED_UNREVIEWED/APPLICATION_BLOCKED/NOT_APPROVAL_READY/FROZEN_ADMISSION=None/fullFAIL-001retained. H1APPROVED_UNSTARTED/H3H4H5CONSUMED_FAILED_PARTIAL_NO_RETRY/noH6. H5root34180/noncefe7f8c23d2c94d3db097d1105ff2706c primaryOBSERVED_RESOURCE_VIOLATION/RESOURCE_SAMPLE_STALE_OVER_100MS/cleanupstale/childstartedterminatedjoinedemptyEOF/no collection/ZIPprogressUNKNOWN. Excludedmissingtimestamp-updatecause not revived.
+
+#### Public capability, installed fact, runtime result
+
+|Public API|Installed file fact|Same invocation|
+|---|---|---|
+|.NET memory PInvoke/Win32 Job-QPC-globalgauges/PDH raw/NVML publiccontracts.|RootOct26T05:19:52.3439593Z->.4509119Z all5 pinned powershell/mscorlib/nvml/nvidia-smi/pdh file identities MATCHOct25.|No emission/load/device/provider/Job/handshake/cadence/100msresult: NOT_RUN/UNPROVEN.|
+|Oct25NVMLPE6exports/partialimports; Oct26pdhPEonly x64/119exports/10selectednames present05:28:29.907874Z->.908564Z.|Atrestexport/file evidence only, partialclosure.|No actualcounterpermission/type/instance/freshness/query or guestlimit/drain.|
+
+Context7 resolve FIRST .NET Framework Reflection.Emit -> /websites/learn_microsoft_en-us_dotnet_framework -> focused query, exact API primary fallback. RootAPI findings inherited. Primary [transientassembly](https://learn.microsoft.com/en-us/dotnet/framework/reflection-and-codedom/security-issues-in-reflection-emit), [DefinePInvokeMethod](https://learn.microsoft.com/en-us/dotnet/api/system.reflection.emit.typebuilder.definepinvokemethod?view=netframework-4.8.1), [rawPDH](https://learn.microsoft.com/en-us/windows/win32/api/pdh/nf-pdh-pdhgetrawcounterarrayw), [NVML](https://docs.nvidia.com/deploy/nvml-api/latest/api/group__nvmlDeviceQueries.html). No runtimeverdict.
+
+Inherited C65509/SHA2567da23ef62384b051437cdeeeb77a8efc0072333d4dcdae145bfdf2928690c41f; H8994/b7dc02231062b53dd566e8899bfd005f30aa58b1d29c2882c4d36964dd371cbe; harness21873/ba2238ffa639d15dd0e4d9d147ea9273d71a0473eab8e6f394a138a1da56c697. Closed wholecpu90 SOURCE review/finalSPEC+distinctQUALITY0P1/P2/P3/failedrepairs unchanged/uncompiled/unrun.
+
+Root05:17:40.596734Z actual438/206/original11 preserved vs durable88155B lineage(c23ce4d434/202)+HEAD11paths/4adds; no newbaseline/unrelatedoverwrite. PriorauthorOct25T15:35:20.0128369Z usage-limitNO_VERDICT/clocksUNKNOWN/docsunchangedOct26, not this author. Oldrootexpired/noH1; root05:45cooperativeonly.
+
+Only3docs. FreshSPEC then DIFFERENTQUALITY afterSTOP; actualclocks/pins follow. NoSOURCE/Git/native/WSL/ZIP/GT/Stage. M1-M4design distincttarget/BEFORE; no genericstartup. Entry100ms/peer/counter/closure/manifest/target gaps/noability-PASS-F1guarantee. FeesUNKNOWN_NOT_ZERO.
+
+
+<a id="h1-m1-m5-contract-spec-repair-20261026"></a>
+
+### 2026-10-26 SPEC repair: M1-M5 draft
+
+Preserve initial25,576B candidate. Independent SPEC NOT PASS: FIRST05:33:54/READ_STOP05:38:40/STOP05:39:22UTC,4P2+2P3/noP1; no QUALITY. Repair FIRSTOct26T05:42:05Z/<=600s cutoff05:52:05Z. Actual final clocks/pins follow.
+
+Only conflicting PROPOSED clauses superseded. CURRENT originalcontract/all14NOT_CLOSED/C00AUDITED_UNPROVEN/dependentSOURCE STOP/fullFAIL/H1unused/H3H4H5failednoretry/noH6/FrozenAdmissionNone/Stage0 remain. Unadopted.
+
+#### R1. Static and actual gates
+
+PRE-q0 prerequisites: supported/selected/IMPLEMENTED SOURCE mechanisms, scoped SPEC then distinct QUALITY, immutable scripts/root/native/dependency closure, finite reviewed operation/fixture manifest and exact target policy/commands/identity/stop ownership. Static facts are not runtime.
+
+Actual original handles/effective Jobs/first100ms bindings-gauges/independent peerREADY arise INSIDE ONE H1 fromq0, BEFORE compiler/dependent directory/write/install. This limited V1/BEFORE amendment is explicit in owner bundle; no circular requirement for actual bootstrap facts before H1.
+
+q0 CONSUMES H1. Real init failure/stale>100ms/identity/deadline failure ends attempt and starts cleanup. No preH1probe/grace/prearmwaiver/late-sample erasure/newepoch/retry. Constructor trust not resourcePASS. Root samples during child startup; peerREADY may span fresh intervals, no unchecked gap.
+
+#### R2. Final root
+
+ALREADY-LOADED ORIGINAL runner-launched process is FINAL COORDINATOR fromq0; controller/watchdog are its children. Root retains actual returned original PI handles/creation identities/Jobs/caps/deadlines throughout. Runner observes THAT root, not an invented separately observed child. Root startup/tail charge external512MiB/100%, only M1 loaded-history exclusion.
+
+At EXTERNAL terminal root joins all owned actors/controller/watchdog; prep cleanup alone is intermediate. q_exit_durable BEFORE receiptflush -> flush/close -> LIVEq_accept_live AFTER with freshgauges/originaldeadlines -> rootexit. Platform original-root exitstatus is explicit CHANGED witness replacing native last-owner/kernel/durabletail proof. Stdout/chat not witness. Rootdeath gives failed normalreceipt; watchdog may stop/reap, never fabricateaccept. Unjoined owned actor remains billedUNKNOWN_NOT_ZERO/blockssuccess.
+
+#### R3. M5 Stage scope
+
+H1-only M1-M4 cannot release complete production C01-C12 while original Stage causal/physical/full-drain primitives remain undefined. Their old no-Stage-extension clauses are superseded ONLY within this NEW CONDITIONAL M1-M5 package, not CURRENT contract. Owner must explicitly consider the following BOTH for whole H1 and later Windows/WSL Stage infrastructure:
+
+- Replace original full causal-role RAM/CPU with Windows Job commitment/separate working sets and guest cgroup allocation/CPU plus global RAM/CPU/VRAM gauges. Shared VM is not prepJob; commit is not RSS. Causal platformfees UNKNOWN_NOT_ZERO, not rolePASS. External4PROCESSES applies only to interpreted cohort with actual uncapped TIDs reported; native application MONITORED4 wherever applicable and guest controller+worker Tasks2 remain.
+- Replace Stage all-alias/all-writer hard physical task extent with ALL REPORTED raw platform write exposure, explicit hidden/below-counter exclusions/unknown inflight overshoot and logical image/allocation/history ledger. Only explicitM5 changes Stage guarantee. New24GiB STOP/6GiB nominal tail/30GiB violation is REPORTED WRITE EXPOSURE, distinct from E allocation layout, no active budget expansion/hard no-overshoot promise.
+- Replace full shared-platform provider drain/indefinite causal tail with M4's listed shared-platform postterminal exclusions and original-root platform exit witness. Every OWNED process/namespace/cgroup/FD/loop/image/controller/watchdog still needs actual stop/join/flush. SharedVM remaining explicitly excluded only after externalterminal, not exitproof; timeout never excludes ownedresidual.
+
+Retain prep4GiB/CPU200%, external512MiB/CPU100%, whole16GiB/VRAM8GiB; failed/missing/stale>100ms STOP and CPU>=90% STOP; E30=carrier24 inclguest20+external6/baseline<=8GiB/dual hostingFS+Windowsbacking8GiB free floors+separate reserve/no third8/control64MiBguest16MiBhost INCLUDED; nonE512/384STOP/128nominaltail/unknown overshoot; strict SAME image2->4GiB NOT2+4; guest C=min(4GiB,floor3*M0/5),AS=floorC/2,swap0/CPU200/Tasks2. StageA1200/study3600/fit900 incl60cleanup; ONE H1 prep1800/external6000, no renewal. Science/matcher/IoU/decoder/counts/folds/tolerances/GT permission unchanged.
+
+Owner M1-M5 adoption -> fresh C00 exact signature/owner/OS callpoint/effective scope/failure-STOP SPEC then DISTINCT QUALITY -> phase-qualified complete C01-C12 SOURCE in DAG. Selected positive mechanisms are Job/PI/ancestry, global memory/GetSystemTimes/NVML/PDH, guest namespace/cgroup/FD controls and original-root owned-exit protocol, not renamed missing full original producers. Appliedscope remains actual.
+
+If M5 rejected or only M1-M4 selected, Stage-dependent C04-C12 STOP/V5 ineligible: do NOT spend H1 on isolated Windows success. Known dependencies before uniqueclock, not unrelated futureSOURCE. Adoption DESIGN/SOURCE only; actual implementation/review/noGT/BEFORE/fullreview/FrozenAdmission required. Detailed authoritative separately accessible NON-GT science schema/evaluator/local41 mapping precedes affected sources/inputfreeze; exact disk identity/range/command/effect/privilege before disk action. No E guess. Existing conditional H1/Stage authority then applies directly, no generic renewed permission.
+
+#### R4. Root and cleanup clocks
+
+Proposed interpretation: ONE runner-visible root remains through PREP -> review/freeze -> lawful STUDY -> EXTERNAL terminal. Original prep/study are sequential, study has its own already-lawful native epoch (decision2550); external6000 NEVER rebases. Formal review/genuine FrozenAdmission must precede scientific start with enough original external time. If gates/time fail, no Stage/newH1/newcontrol allowance. Prep child cleanup is intermediate, NOT whole external q_accept/root exit; global STOP/failure/expiry prevents continuation.
+
+FIRST cleanup origin is immutable PER ORIGINAL budget domain/predeclared phase: prep c0p, study c0s, external c0e, not per helper/context. Early failure starts relevant cleanup immediately. For each domain d, Dcleanup,d=min(c0d+60s, originalDdomain, originalDexternal, any tighter original local deadline); reserve scheduled normal cleanup by min(Ddomain,Dexternal)-60s. Never refresh c0d on failure/handoff. Owned stuck actor remains billed UNKNOWN_NOT_ZERO/no success after expiry. Shared-platform exclusion applies only after EXTERNAL actual joins/flush/liveaccept/rootexit, never prep child exit.
+
+#### R5. Baseline and current citations
+
+Write delta begins first accepted baseline b0>=q0, NOTq0. q0->b0 initialization writes UNKNOWN_NOT_ZERO/explicitly excluded, never0. Elapsedq0/100ms unchanged; no dependentfile/compiler beforebaseline; no handoffreset ofb0/history.
+
+Current windows_preparation_job.py:_prepare_fixed_worker579 refuses581-582. Prior802/_birth_suspended/_create_job/_read_limits are historical REMOVED, not current producers. Current nativeowner837/1011/1164/1201/1264/1367; helperVM378/E383/exit388. windows_wall._persist_owned definition302/body311/terminal379 is ONEfunction. Citation-only/no unchangedSOURCEreview.
+
+#### R6. Existing registration, not runtime capability
+
+Root HKCU/Software/Microsoft/Windows/CurrentVersion/Lxss config-only read2026-10-26T05:36:10.9687430Z->05:36:11.0141478Z: ONE GUID{851afdaf-bf1a-4b7e-85b5-47ec86716f54}, Ubuntu-22.04/Version2, BasePath C:/Users/Fancy/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu22.04LTS_79rhkp1fndgsc/LocalState, VhdFileName ext4.vhdx, DefaultUid0. No WSL command/boot/VHD contents/hash/provider/physical query. Not running/appliedlimits/guestpackages/rootcapability/storagebinding proof.
+
+M5 may reuse this REGISTERED distro with task-owned namespace/cgroup/FD/loop images instead of mandatory fresh import/rootfs. Actual closure/limits/privilege/task identities still need lawful validation. No existing Ubuntu termination/global shutdown/.wslconfig mutation. Shared distro/VM may remain as explicit platform residual after task namespace/cgroup/controller exit+EOF, not fullVMexit. Exact newimage/path/create-format commands before approval; TARGET_NOT_PREPARED/no physicalPASS.
+
+#### Planned SOURCE units, not existing producer claims
+
+One implementer/unit, SPEC then DISTINCT QUALITY in DAG. New paths planned; closed unchanged source inherited, changed birth/context reviewed. Source paths relative to src/eating_event/route2_candidate_overlap unless stated.
+
+- U1: planned scripts/route2_guard_entry.ps1 (original-root coordinator), route2_guard_controller.ps1, route2_guard_watchdog.ps1; planned route2_guard_interop.ps1/route2_guard_ledger.ps1 for q0/originalPI/handle transfer/peer/cleanup origins/framing/work/root witness.
+- U2 after U1/C00: planned route2_guard_gauges.ps1, exact PDH/NVML statuses/layouts/mapping/b0/history/globalgauges/disjointJob ancestry. Only concrete changed-context interfaces in native/route2_windows_build_owner.c/.h get new review.
+- U3: existing tests/native/route2_windows_build_owner_harness.c/invented PE-catalog-relocation-ELF suites plus planned tests/route2_guard_faults.ps1. Protected child faults versus real OUTER terminal failure. Firstbuild remains owner.c+harness.c/twoTUs/fiveproducts; EXE not DLL/generalcontroller. Compiler-free guard authoritative WHOLE H1.
+- U4: wsl_controller.py/linux_production_controller.py/linux_initial_volume.py/native/route2_mount_helper.c/.h: actual task namespace/cgroup/FD/loop/limits/target ledger, not registration alone.
+- U5 DAG: C01 b_source_state.py; C04 originalmetadata/initialvolume; C05 planned linux_bank_creator.py; C06 planned linux_role_generation.py; C07 planned linux_role_publication.py/path_map.py sameFD; C08 native/route2_phase_spawn.c/.h/linux_child_launch.py/linux_phase_publication.py/phase_worker_entry.py; C09 linux_gt_history.py/planned linux_failure_cleanup.py; C10 terminal_observation.py/windows_wall.py + existing Linux close/quiescence adapters; C11 planned windows_final_owner_join.py root witness; C12 production_runner.py/linux_production_controller.py/scripts/run_route2_candidate_overlap_wsl.py. C02/C03 precede C04/C05->C06->C07->C08/C09->C10->C11->C12. Existing plan targets, not implemented-body claims; GT SOURCE gives no GT runtime.
+- U6: 64 exactargv/output/dependency/cleanup/target slots+readonly closure BEFOREq0; actual bootstrap/install/noGT/fault/cleanup INSIDEH1; official/fullreview/freeze separate.
+
+#### 一次性合同决定
+
+一次接受整套 M1–M5，首先只授权源码实施。实现、独立双审、完整清单、安装及无 GT 验证和全部 BEFORE 条件满足后，已有 H1、Stage 条件授权直接适用，无须泛化批准或要求负责人设计 API。
+
+需要明确接受的变化包括：以已加载的原始运行器进程第一条脚本的 q0 为新入口，早先加载历史仍未测量；q0 到首次有效磁盘基线的初始化写入也未测量并排除。资源证明改为进程 Job 提交量、来宾 cgroup 和整机报告指标；解释器外部监督组由四线程改为最多四进程，实际线程数照实记录。物理磁盘全写者硬边界改为所有已报告实例的累计写入监测及逻辑镜像台账，有明确覆盖缺口和未知在途超量。完整共享服务排空改为实际自有对象退出和刷新，加上列明的共享平台残留责任排除；最后由运行器观察原始根协调进程退出。这些变化同时明确提议覆盖 H1 和后续 Windows/WSL Stage 基础设施，不能偷偷自动沿用。
+
+100 毫秒规则、原有数值预算、单次尝试及内部清理期限不放宽；科学任务、折数、阈值、容差和 GT 权限不改变。如果只接受 M1–M4 或保留原合同，Stage 相关依赖继续停止，不能为了一个孤立的 Windows 编译里程碑消耗 H1。当前尚未采纳任何变更，不能声称所有准入门已关闭，也不能把证据缺口说成本地不可能。
+
+
+<a id="h1-owner-summary-order-spec2-repair-20261026"></a>
+
+### 中文操作顺序勘误：H1 先于实际安装和无 GT 验证
+
+本段仅纠正上一节“一次性合同决定”的顺序表述，冲突时以本段为准，不改变其他设计。第二轮定向 SPEC 的 FIRST 为05:47:13Z、READ_STOP 为05:48:47Z、FINAL 为05:48:51Z；原六项已关闭，但中文总结新增一项 P2，无 P1/P3，因此仍非 PASS。这是再次限定文字修复，不是一次通过。
+
+1. 负责人明确采纳整套 M1–M5 后，先完成经独立双审的源码、不可变依赖闭包、完整冻结操作清单及静态 pre-q0 BEFORE 条件；随后在 q0 消耗唯一一次 H1。实际安装、无 GT 验证和实际启动观测不是 H1 之前必须已有的运行结果，也不得另行进行未计费的 H1 前运行探测。
+2. 实际引导、初始化、安装、无 GT 验证，以及资源、故障和清理验证，都在同一次 H1 内完成：准备1800秒、原始外部监督6000秒，清理包含在原期限内，100毫秒规则不放宽。首次编译及依赖写入必须等待 H1 内实际产生的原生引导事实和独立监督就绪。真实首次失败、过期或陈旧观测终止尝试，不能重启、续时或继续 Stage。
+3. 准备成功且阶段清理在原预算内完成后，才进行新的完整正式复审，形成真实 FrozenAdmission，并满足 Stage 专属 BEFORE；然后直接使用已有条件授权开展科学 Stage。原始根协调进程及外部期限连续，阶段准备清理不是整个外部监督的终止验收。复审、冻结和 Stage 必须有原外部期限内的剩余预算，不能再给6000秒，也不需要另一次泛化启动批准。
+
+当前 M1–M5 尚未被负责人采纳，原合同及全部未关闭准入状态不变。本次只向原三份文档追加相同勘误；后续仍须定向 SPEC 复核，再由不同的新审阅者执行 QUALITY。实际修复 FIRST 为2026-10-26T05:49:32Z，协作上限180秒；最终写停、读停、停止时刻和文件身份另据实报告。
+
+
+<a id="h1-job-conservative-cap-pdh-frame-quality-repair-20261026"></a>
+
+### 2026-10-26 QUALITY repair: conservative Job ceiling and reported PDH frame freshness
+
+Append-only correction to the PROPOSED M1–M5 package at h1-complete-measured-contract-source-draft-20261026, h1-m1-m5-contract-spec-repair-20261026 and h1-owner-summary-order-spec2-repair-20261026. This section explicitly REPLACES only the conflicting proposed Job-discovery and PDH-freshness clauses identified below. It does not reinterpret those clauses as proved, change CURRENT original admission, or adopt M1–M5.
+
+Review history is not a one-pass success. The scoped SPEC after the order repair closed its scoped document issues: FIRST 2026-10-26T05:50:48Z, READ_STOP 05:50:58Z, STOP 05:51:01Z. The distinct fresh QUALITY reviewer gpt-6-astra/high had FIRST 05:54:13Z, READ_STOP 05:59:06.3207634Z, STOP 05:59:17Z and found 1 P2 plus 1 P3, no P1: undefined complete ancestor-Job discovery, and collection timestamps confused with underlying provider refresh. A later clarification accepted the proposed mechanisms in principle before session interruption; its final timestamps/verdict are unavailable: UNKNOWN, never PASS. This repair has no new reviewer verdict. Earlier failed/repaired review history remains recorded.
+
+#### Q1. Select Mode C: conservative maximum CPU ceiling without ancestor enumeration
+
+REPLACE the proposed M2 requirements to verify "all ancestor effective restrictions" or a "complete effective chain", and the corresponding U2/C00 selected-mechanism descriptions, with this single selected source method. QueryInformationJobObject(NULL, ...) queries the caller's immediate Job; it is NOT discovery of the complete ancestor chain. No complete ancestor list or all-ancestor absence assertion is needed or claimed for Mode C.
+
+Let N be the actual active native Windows logical-processor count, stable and verified inside the unique H1, with exactly one processor group and 1 <= N <= 64. Environment variables are not this evidence. Select b = 2 for prep and b = 1 for the external interpreted cohort. Preconfigure each owned role Job with integer CpuRate r = floor(b * 10000 / N); require the Windows valid range 1 <= r <= 10000, JOB_OBJECT_CPU_RATE_CONTROL_ENABLE | JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP, successful native status and exact rate/flag readback. Invalid N, changed topology, invalid rate or failed readback is STOP; do not clamp, retry, or choose another mode.
+
+For a role Job whose parent effective CPU capacity is A logical-CPU equivalents, including unknown stricter ambient restrictions, A <= N. Thus its maximum is A * r / 10000 <= N * floor(b * 10000 / N) / 10000 <= b. This is the conservative MAXIMUM CPU proof used for the proposed one-CPU denominator: prep <= 200% and external <= 100% of one verified logical CPU. It does not require discovering every ancestor's rate. Unknown stricter ancestors may reduce throughput, deny the selected assignment/breakaway, or prevent startup. There is no guaranteed minimum available capacity and no guarantee of two usable prep CPUs. The formula and method selection are source design, not observed effective runtime limits.
+
+The owned external Job uses JOB_OBJECT_LIMIT_BREAKAWAY_OK for the reviewed prep escape; silent breakaway is not selected. Prep has no breakaway permission. Preserve all other existing Job/resource/ownership flags and budgets. Birth of the prep child is atomic assignment through PROC_THREAD_ATTRIBUTE_JOB_LIST naming the already-configured prep Job, with CREATE_BREAKAWAY_FROM_JOB | EXTENDED_STARTUPINFO_PRESENT | CREATE_SUSPENDED. Do not first run outside prep and assign later. Unknown ambient nesting may refuse this exact operation; refusal is terminal STOP with bounded original cleanup, no alternative birth, retry or grace.
+
+INSIDE the unique H1 and before each relevant ResumeThread, verify the returned original PROCESS_INFORMATION handles and creation identity, actual role-Job membership and limits/rate readback, and stable native N. For the prep original PI child require IsProcessInJob(child, prepJob) = TRUE and IsProcessInJob(child, externalJob) = FALSE, using the exact owned Job handles. External children must be in the owned external Job. These tests prove these owned memberships, not a full ancestor chain. Failed, unavailable or inconsistent verification is STOP before resume. Existing root ownership, original PI/handle-transfer rules, first-100ms observations, memory caps, native MONITORED4/external four-process distinction, and all other flags remain binding. Unknown ambient restrictions are never represented as absent.
+
+#### Q2. Explicitly replace provider-refresh freshness with reported native PDH frame freshness
+
+The old proposed M3 requirement for "actual provider timestamp advancement/age <= 100ms", its "actual raw refresh100ms" premise, and the M1–M5/manifest requirement to detect a stale underlying provider generation despite a fresh collect are REPLACED for this metric by the following reported-frame contract. This is a MATERIAL proposed semantic guarantee change applying to both whole-H1 M1–M5 and later Windows/WSL Stage infrastructure through M5. It is not evidence that the original provider-refresh contract was met.
+
+Use each accepted native PDH raw frame's PDH_RAW_COUNTER.TimeStamp semantics as the reported frame time. Require valid status/type/identity/layout and valid, advancing native frame timestamps for every accepted repeated frame, with an accepted mapping to comparable clocks and frame age 0 <= age <= 100ms; a future/incomparable frame is invalid. The collection timestamp returned by PdhCollectQueryDataWithTime is not by itself proof of raw-frame validity or underlying physical/provider refresh. Independently bracket collection and processing with QPC: the whole collection, every operation, loop interval and independent heartbeat must satisfy the existing <= 100ms limits and original deadlines. Wall-clock discontinuity, invalid clock comparison/mapping, timestamp nonadvancement/regression, stale frame, changed topology, missing status, or collection/cadence overrun is terminal STOP, with no retry, grace or replacement timestamp.
+
+Do not stamp a stale frame fresh using local QPC, the query collection time, a wrapper time, or a heartbeat. An unchanged cumulative FirstValue with a valid advancing native frame timestamp is a valid possible idle observation; unchanged bytes alone do not prove stale data. Conversely, a successful collection cannot rescue a stale/nonadvancing native frame. This contract observes the reported PDH frame and independently bounded supervision.
+
+Underlying event/provider/hardware refresh-generation freshness is unobservable by this selected metric, remains UNKNOWN_NOT_ZERO, and is EXCLUDED FROM THIS CLAIM. An advancing native frame timestamp is not proof of new underlying physical measurements, physical provider refresh within 100ms, or exhaustive write visibility. Existing reported-instance coverage limits, hidden/below-counter exclusions, deferred writes and unknown in-flight overshoot remain. Do not use this change to claim that installed PDH actually meets the 100ms frame/cadence requirement; that capability is UNPROVEN until lawful same-invocation observations. If actual timestamp mapping, advancement or cadence is invalid, STOP.
+
+Keep write deltas anchored at the first accepted baseline b0 >= q0, never reset across handoffs. q0 -> b0 initialization writes remain UNMETERED/UNKNOWN_NOT_ZERO and explicitly excluded; no dependent file/compiler/write/install before the accepted baseline and other actual bootstrap gates. Existing cumulative raw-byte type, statuses, monotonicity, stable reported disk identities, bounds, one size plus one data call, and no-resize-loop rules remain. The manifest's proposed stale-provider/fresh-collect fixture is accordingly replaced by a stale-native-frame/fresh-collect rejection fixture; underlying provider-generation freshness is excluded rather than falsely tested.
+
+Primary contracts, fetched independently by the root during this repair: [Job CPU rate and parent-relative limits](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_cpu_rate_control_information), [QueryInformationJobObject immediate-Job NULL semantics](https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-queryinformationjobobject), [PDH_RAW_COUNTER.TimeStamp: collection time](https://learn.microsoft.com/en-us/windows/win32/api/pdh/ns-pdh-pdh_raw_counter), [PdhCollectQueryDataWithTime: first-counter retrieval time](https://learn.microsoft.com/en-us/windows/win32/api/pdh/nf-pdh-pdhcollectquerydatawithtime). Public contracts establish selected semantics, not this machine's runtime cadence or admission.
+
+#### Q3. Preserved gates, budgets and order
+
+These are two source-method/contract repairs, with no new mode, fallback, API probe, global shutdown or runtime action. All M1–M5 remain PROPOSED_NOT_ADOPTED. Existing C00AUDITED_UNPROVEN, all fourteen NOT_CLOSED conditions, dependent C04–C12 original STOP/NOT_ADMISSION, PREPARED_UNREVIEWED, APPLICATION_BLOCKED, NOT_APPROVAL_READY, FROZEN_ADMISSION=None and retained full FAIL remain. H1 is APPROVED_UNSTARTED and unconsumed by this document repair; H3/H4/H5 remain CONSUMED_FAILED_PARTIAL_NO_RETRY; no H6. No current SOURCE producer, source review pass, runtime pass, actual installed capability, target preparation or scientific result is asserted.
+
+All numeric limits are retained: prep 4GiB/CPU200%, external 512MiB/CPU100%, whole RAM16GiB/VRAM8GiB, whole CPU >=90% STOP, native MONITORED4 and interpreted external max4 processes with actual TIDs recorded. ONE H1 prep1800s/external6000s; StageA1200/study3600/fit900 and included60s cleanup retain original origins and tighter deadlines. E30=carrier24 including guest20 + external6, baseline<=8GiB, both existing8GiB free floors plus separate reserve, included guest64MiB/host16MiB control; reported-write24GiB STOP/6GiB nominal tail/30GiB violation, nonE384MiB STOP/128MiB nominal tail/512MiB maximum. Guest VM8GiB/2CPU/guiOff/swap0, C=min(4GiB,floor(3*M0/5)), AS=floor(C/2), cgroup swap0/CPU200/Tasks2, same image2->4GiB without double charge remain. Sampling/overshoot/excluded fees never become hard zero-overrun guarantees.
+
+Owner adoption of the whole material M1–M5 package would permit the reviewed SOURCE route only. Implemented mechanisms, independent scoped SPEC then distinct fresh QUALITY, immutable closure, exact finite manifest/target policy and static pre-q0 BEFORE come first. q0 then consumes the unique H1; actual bootstrap/PI/Job/N/frame/gauge/peer readiness, installation, no-GT and resource/fault/cleanup validation occur inside it, before their dependent operations. Real failure/staleness/expiry ends the attempt. Successful prep and bounded phase cleanup precede new full formal review, genuine FrozenAdmission and Stage-specific BEFORE; any Stage must fit the continuously running original external deadline. No renewed generic startup approval, unmetered pre-H1 runtime probe, new epoch, retry or budget is introduced.
+
+Original-root final coordinator, immutable cleanup origins, actual owned joins/flush/live acceptance/root exit witness and only the listed shared-platform postterminal exclusions remain. Stuck owned objects are never excluded by timeout. Scientific schema, matcher, 26D/HGB, .10/.25/.50, 600s/min180s, strict IoU>.25, strict next.start<end, folds/counts/tolerances, GT permissions and target-selection restrictions are unchanged.
+
+#### 中文负责人澄清：保证变化须纳入同一 M1–M5 决定
+
+本次修复没有采纳 M1–M5，也没有消耗 H1。CPU 选定保守上限方法：用 H1 内实际、稳定的单处理器组 N 计算自有 Job 的硬上限；更严格的未知祖先限制可降低吞吐或阻止启动，不能保证至少两颗 CPU 可用。原始 PI、准备 Job 为 TRUE／外部 Job 为 FALSE、原生 N 和限额读回均须在同一次 H1 内、恢复子进程前实际核验；不再声称能枚举全部祖先 Job。
+
+磁盘新鲜度保证有实质变化：拟保证的是原生 PDH 所报告帧的有效且推进的时间戳、帧龄不超过100毫秒，以及独立 QPC 对整次采集、循环和心跳的100毫秒监督；底层事件、提供者或硬件刷新代际的新鲜度不可由此观测，仍为 UNKNOWN_NOT_ZERO，并明确排除。这是对旧提供者刷新保证的替换，须作为同一 M1–M5 整体决定的内容，覆盖 H1 及后续 Stage 基础设施；不是证明旧合同已满足，也不是声称本机 PDH 已能达到该频率。累计字节不变但原生帧时间戳有效推进可以是空闲；仅采集时间推进不能使陈旧帧合格。
+
+先采纳整体设计并完成源码、独立双审及静态 BEFORE，再在 q0 消耗唯一 H1，实际引导、安装和无 GT 验证均在其中进行。准备成功后仍需完整正式复审、真实冻结和 Stage 专属条件，并受原外部期限约束。当前全部 M1–M5 仍为 PROPOSED_NOT_ADOPTED，C04–C12 继续原 STOP/NOT_ADMISSION；数值预算、单次尝试、科学任务和 GT 权限均未改变。QUALITY 曾发现1项P2和1项P3，澄清的最终裁决未知，不能写成一次通过或审阅通过。
+
+Repair FIRST 2026-10-26T08:23:56Z; cooperative document-work budget <=360s, cutoff 08:29:56Z, not native runtime enforcement. Only the original three documents receive identical UTF-8 append bytes; earlier bytes remain intact. Actual WRITE_STOP/READ_STOP/STOP, append identity and resulting document pins are reported separately after all writes stop. No SOURCE/index/Git/compiler/native load/WSL/ZIP/GT/Stage action.
+
+
+<a id="h1-entry-m1-m5-reviewed-proposal-actual-evidence-receipt-20261026"></a>
+
+### Reviewed first-entry proposal and actual evidence receipt ? not owner adoption or admission
+
+This is an administrative append after the frozen proposal's independent document reviews. No new SOURCE implementation or producer is introduced here. The review object is the original M1?M5 draft plus its explicit R1?R6, ordering and Q1?Q3 errata; later conflicting proposed clauses are superseded by the named errata. CURRENT original contract remains effective until an explicit owner decision. In particular, plan2238?2248 still stops unsupported dependent C04?C12 SOURCE. The original14 gates below remain individually NOT_CLOSED. This receipt is not the fresh C00 exact-native-contract review, full formal implementation review, actual BEFORE or FrozenAdmission.
+
+#### Concrete next route and precise decision boundary
+
+The complete proposed route is: explicit whole M1?M5 contract adoption -> fresh phase-qualified C00 exact signature/owner/OS callpoint/effective scope/failure semantics SPEC then different fresh QUALITY -> implemented C01?C12 SOURCE in the defined DAG, component reviews, immutable full dependency closure and exact finite operation/fixture/target manifest -> static pre-q0 BEFORE -> q0 consumes the already-approved unique H1 -> actual bounded bootstrap/first100ms observations/Job membership/original PI/peer READY before compiler or dependent writes -> firstbuild/installation/noGT/resource-fault-cleanup validation inside the same1800s prep and original6000s external supervision -> successful intermediate prep cleanup -> NEW complete formal review, real full freeze and Stage-specific BEFORE -> directly authorized lawful Stage inside the remaining original external clock. A real outer failure/stale observation/expiry is terminal, not a retry. No work after an external terminal acceptance/stop; no new clock after helper handoff.
+
+The new owner decision is a material contract decision required by the user's section7 and the still-effective SOURCE gate, not a repeat of H1 startup/scientific approval and not a skill-imposed approval. Whole package M1?M5 must explicitly cover BOTH H1 and later Windows/WSL Stage infrastructure; H1-only adoption leaves the complete DAG blocked and must not spend H1 merely on a Windows compile. The package includes all of: loaded-root/q0 history and q0-to-b0 write-measurement exclusions; commitment/cgroup/global reported resources instead of complete causal role charges; interpreted external max4 processes instead of max4 TIDs; conservative owned-Job maximum without unknown-ancestor capacity discovery; ALL REPORTED write exposure/logical allocation history instead of hard all-alias/all-writer physical containment; PDH reported native-frame freshness instead of underlying provider/event-generation freshness; actual owned joins/flush plus listed shared-platform postterminal exclusions and original-root runner exit witness instead of complete provider drain/native last-owner witness. Unknown costs, hidden writes, actual cadence and owned stuck residuals do not become zero/PASS.
+
+100ms numeric observation bounds, CPU>=90% irreversible STOP, original numeric RAM/CPU/disk/time limits, one H1/no retries, scientific folds/counts/tolerances/GT permissions are retained; changed measurement meanings, scope and guarantees are expressly material. Exact target identity/path/range/commands/effects/privilege and any necessary disk-mutation approval remain a separate concrete object; no existing disk/partition/image is modified by design adoption. TARGET_NOT_PREPARED is not satisfied by an E drive letter. Detailed separately accessible authoritative nonGT task2 schema/matcher/time/sampling/I/O/evaluator/dependency text and actual40/20-versus-local41 mapping remain missing before affected science adapters/input pins/freeze. Mixed ZIP endpoints/local basename are not a new lawful reading attempt.
+
+#### Actual independent review sequence, including failed rounds
+
+| Role / actual model | FIRST UTC | WRITE_STOP / READ_STOP UTC | STOP UTC | Actual result |
+|---|---|---|---|---|
+| Original capable author, gpt-6-astra/high, Oct25 |15:35:20.0128369|UNKNOWN / UNKNOWN|UNKNOWN|Usage-limit failure, no verdict. Oct26 byte checks found no authored changes; no provider/auth/endpoint/paid-route change.|
+| First-entry contract recovery, gpt-6.1-sol/high, Oct25 |15:19:35|n/a /15:22:31|15:22:39|Read-only authority recovery184s/480s; clarification15:24:04/15:24:28/15:24:44,40s/120s.|
+| Mechanism evidence, gpt-6-astra/high, Oct25 |15:19:21|n/a /15:26:13|15:27:33|Read-only capability evidence492s/600s; no installed/runtime verdict.|
+| Initial document implementer, gpt-6.1-sol/high, Oct26 |05:19:06|05:31:07 /05:31:51.8412433|05:31:52|25,576B first draft;766s/900s. An oversized tool request was rejected before process creation/no writes; bounded chunks then used.|
+| Independent initial SPEC, gpt-6-astra/high |05:33:54|n/a /05:38:40|05:39:22|4P2+2P3/noP1, NOT clear: bootstrap circularity, final-root witness, H1-only Stage dead end, early cleanup origin, baseline origin, stale references.|
+| Same document implementer repair |05:42:05|05:46:14 /05:46:36.8641701|05:46:37|12,233B erratum;272s/600s.|
+| Targeted SPEC |05:47:13|n/a /05:48:47|05:48:51|Six earlier issues closed;1 new P2 Chinese ordering remained/noP1P3; NOT clear.|
+| Same implementer ordering repair |05:49:32|05:50:00.7616202 /05:50:12.5674139|05:50:12, second-precision bucket|2,066B erratum; no fabricated finer STOP ordering.|
+| Targeted SPEC |05:50:48|n/a /05:50:58|05:51:01|0 scoped P1/P2/P3, DOCUMENT_ONLY.|
+| Distinct fresh QUALITY, gpt-6-astra/high |05:54:13|n/a /05:59:06.3207634|05:59:17|1P2+1P3/noP1, NOT clear: undefined all-ancestor Job discovery and PDH collection/provider refresh conflation.|
+| QUALITY clarification before interruption |UNKNOWN|n/a /UNKNOWN|UNKNOWN|Proposed fixes accepted in principle; final verdict/clocks unavailable, never a clearance.|
+| Sole active replacement document implementer, gpt-6.1-sol/high |08:23:56|08:26:57.8403968 /08:27:23.1511897|08:27:23, second-precision bucket|13,764B Q1?Q3 erratum;207s/360s. Previous implementer no longer live; no concurrent writer and no failure-count reset.|
+| Fresh targeted SPEC, gpt-6-astra/high |08:28:24|n/a /08:29:00|08:29:11|0 scoped P1/P2/P3, DOCUMENT_ONLY;47s/300s.|
+| Different fresh QUALITY, gpt-6-astra/high |08:30:10|n/a /08:32:22|08:32:35|0 scoped P1/P2/P3, DOCUMENT_ONLY;145s/360s. Actual R7730?8012 and all three full/tail identities inspected; priorP2/P3 closed.|
+
+The final two reviews inspect the actual frozen changed proposal and affected supersession context. They inherit unchanged closed scope rather than reopening it. They do not establish full C00, actual bootstrap, applied native limits, owner adoption, installation/noGT, formal admission or scientific PASS. Failed gates and repairs remain in this append chain; model/tool error or missing clocks are never review evidence.
+
+Frozen reviewed object before this administrative append:
+- R:2,068,550B/SHA256 9a14e9d68bec47ead192bee3eaa1e1a30e195d4f7644870a18513afd27442920.
+- P:1,745,822B/1540bcd28308f0391d4925ea4f7b73816b8c8056ea4441a2d529a69572670d38.
+- S:1,630,124B/6f0200ebd3ca33fedce6fc696a5283fdd6b28db493b6416f68d4cdb7199fde57.
+- Each original HEAD prefix is byte-exact; the equal53,639B proposal tail SHA256 is2572b0a2182d742778f811cf20c042d42cf660a37258736b8f4c9413bf808466. Its final13,764B repair SHA256 is364a00ffc4820d2e159a75929fe179bd1226e4571c624a66a627f19ddb44ab17.
+
+#### Installed-file metadata versus public API capability versus actual invocation
+
+These are earlier actual read-only AT_REST observations restored from this session's recorded facts, not fresh runtime probes or a claim of applied capability. File-rebind window2026-10-26T05:19:52.3439593Z?05:19:52.4509119Z matched the Oct25 recorded identities:
+
+| At-rest file | Bytes | SHA256 |
+|---|---:|---|
+|C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe|495616|60c9b29843624dd8af6b6a7b26147753be6aeef65098b9a503cc50850afe410f|
+|C:/Windows/Microsoft.NET/Framework64/v4.0.30319/mscorlib.dll|5495096|94715f6991e2b9dc7481532c05aa99e74a5fff4ee147be541bca27f99e003fc7|
+|C:/Windows/System32/nvml.dll|1344744|09ea2d8480f2665bac8f01474d5cb793eb18102adc433979bcf2126e0c073b40|
+|C:/Windows/System32/nvidia-smi.exe|1617640|331e219761e45d268355c4d3412bd811cd8f7b7f11a8062753a91a3483adc667|
+|C:/Windows/System32/pdh.dll|360448|e7b56a43e9c3f8208968530b83b600afa401463254796a1630a12864ae646bc4|
+
+NVML PE metadata Oct25T15:27:05.263658?15:27:05.266784UTC: x64 machine8664,405 exports, six selected names present (nvmlInit_v2, nvmlShutdown, nvmlDeviceGetCount_v2, nvmlDeviceGetHandleByIndex_v2, nvmlDeviceGetUUID, nvmlDeviceGetMemoryInfo_v2); direct imports KERNEL32.dll/ADVAPI32.dll only a PARTIAL transitive closure. PDH metadata Oct26T05:28:29.907874?05:28:29.908564UTC: x64,119 exports, ten selected names present (PdhOpenQueryW, PdhAddEnglishCounterW, PdhGetCounterInfoW, PdhExpandWildCardPathW, PdhAddCounterW, PdhCollectQueryDataWithTime, PdhGetRawCounterValue, PdhGetRawCounterArrayW, PdhRemoveCounter, PdhCloseQuery). No DLL loaded, no NVML device/API initialized, no PDH query/counter/provider exercised; permission/instance/type/native-frame cadence remain UNPROVEN. nvidia-smi was not run.
+
+Config-only HKCU Lxss window05:36:10.9687430?05:36:11.0141478UTC: GUID{851afdaf-bf1a-4b7e-85b5-47ec86716f54}, Ubuntu-22.04 Version2, BasePath C:/Users/Fancy/AppData/Local/Packages/CanonicalGroupLimited.Ubuntu22.04LTS_79rhkp1fndgsc/LocalState, VhdFileName ext4.vhdx, DefaultUID0. Root read the plain .wslconfig file only at05:57:41.8383829?05:57:41.9645539UTC: C:/Users/Fancy/.wslconfig,65B, SHA256 a563358aecf354fe25f69fd9778d8b4342b0ae5c8df1c580a1d4263a886643e5; [wsl2] memory=8GB,swap=0,processors=2,guiApplications=false. This is CONFIGURED, not running/applied limits/actual guest OS/packages/root privilege/storage binding. No WSL command/boot/VHD body/hash/physical query/config change occurred. Context7 resolve then focused WSL docs query used /websites/learn_microsoft_en-us_windows_wsl; [Microsoft WSL management](https://learn.microsoft.com/en-us/windows/wsl/manage) distinguishes settings from VM application and describes global shutdown impact. No global shutdown, other-distro termination or config change is inferred or executed.
+
+For the Q1?Q2 repair, root again used Context7 resolve->focused query. PDH primary results explicitly distinguish raw collection timestamps and first-counter retrieval from event/provider-generation freshness. CPU Context7 results were shallow; fallback opened the exact official Job CPU structure and QueryInformationJobObject pages cited in Q1?Q2. The conservative inequality is a design inference from public parent-relative maximum semantics, not a native measurement. Actual installed file/export metadata is distinct from both public API documentation and same-invocation evidence.
+
+#### Durable preservation lineage and index-scope correction
+
+The authority remains the decoded88,155B durable JSON, SHA256 b19c1c2dc59f8c7d473dbb346232bdb5c732097566a51dea248544763dcb4e46 at c23ce4d8d8fa96a48717ba986575dc56cedaf341, with434 workfiles/202 subproject indexrows/original11 complete staged rows. Apply actual subsequent Git changes through2aca0a2c46bfe049df6ec77c3d2794ac10235277:11 task paths including4 additions ->438 workfiles/206 subproject indexrows. No current scan is substituted as a new baseline.
+
+Actual root verification08:25:03.972244UTC and08:28:22.586249UTC reconstructed that lineage, checked all435 unaffected path/bytes/SHA256, the three exact original HEAD prefixes/known identical append chain, all206 subproject indexrows and original11 staged rows. The latter actual438 identity-list SHA256 was f78437ade2b5ad2ad1fcecd1d2b21ea5a6f9bed60d907f53a140007b72df5add. It records a comparison result, not an unknown-dirty snapshot baseline.
+
+Scope correction discovered05:55:55.3127119UTC and reconstructed05:56:28.308002UTC:206 rows cover bme_compitition_next ONLY; full repository root index has211. Full-root expected rows come from actual HEAD tree plus the original durable11 stage replacements with bme_compitition_next/ prefix. The five root-level extras are:
+- 100644 c6d062a090ed5d83beda15e89a8db955d502b957 stage0 .gitignore
+- 100644 f74d1686bb93a821d0e3bc097de10092cda4924c stage0 docs/superpowers/plans/2026-09-01-smartwatch-eating-detection-implementation-plan.md
+- 100644 5fe7c626b789303d40d63b6fd00319c682dc27e7 stage0 docs/superpowers/specs/2026-08-31-smartwatch-eating-detection-baseline-design.md
+- 100644 13cf63c981357415cb884d454ad9bbb122d03238 stage0 handoff-summary.md
+- 100644 fbf7096b2e95fd8a7eea9b9b69fc053c5ebc534b stage0 resume-prompt.txt
+
+No working body of these five extras is modified or used as a new handoff. Sorted full211 mode/blob/stage/path rows joined by LF+finalLF hash43097dfc6e70e68b73e469a8dfc5466f2c77c1227420a49db1c2ec9dc43a2410 matched05:56:28,08:25:03 and08:28:22. During exact3-doc staging only those3 rows may change; the other208 complete root rows and original11 staged identities must remain. Postcommit/push actual receipts follow; no reset/stash/force/add-A or unrelated overwrite is authorized.
+
+#### Full fourteen-condition closeout, individually updated
+
+| Gate | Actual inherited/new evidence | Remaining admission dependency | State |
+|---:|---|---|---|
+|1|Existing conditional H1 and direct lawful Stage authority retained; concrete whole-entry M1?M5 document proposal and scoped independent reviews exist.|Explicit material-contract decision if adopting; full reviewed implementation/install/owners/runner, all BEFORE and consumable real FrozenAdmission. No repeat generic startup/science approval.|NOT_CLOSED|
+|2|Public id14/id17 actual nonGT bodies/nine-way review retained:40train20test description, final standalone WindowsEXE+model+deps ZIP. Local41 mapping UNVERIFIED.|Detailed separately accessible nonGT matcher/schema/time/sampling/I/O/evaluator/dependencies; actual inventory mapping/new lawful pins, targeted changes/review; all105reference BEFORE105treatment, exact discrete and symmetric atol1e-12/rtol1e-10 equivalence.|NOT_CLOSED|
+|3|Closed bank/generation/history/sameFD and related SOURCE inherited unchanged; proposal gives whole-DAG route, not installed adapters.|Actual immutable bank/role creator/publisher, full history/no writable aliases/sameFD consumers and complete nested adapters/installed identities.|NOT_CLOSED|
+|4|Nested5x4x4, failed-inclusive25fit/25predict/65decode,20GT-backed+21stGT-free pooled reduction/pooledGTreads0 retained; no scientific call.|One actual StageA N/M/S/B/R and StageB projection/expansion ledger, sameimage2->4GiB lifecycle without2+4 double charge, strict capacity distinct from measured peak.|NOT_CLOSED|
+|5|Matched-origin/five-field projection/canonicalGT/phase/revoke/finalize double-exception/directory-v2/O_PATH110 fixes inherited byte-exact.|Actual lawful A2-004 matchedGT commitment/grant/release/revoke/finalgain-loss report; candidate coverage remains distinct.|NOT_CLOSED|
+|6|Original C01/Linux/GT identity/history4096/scan256/nlink1 SOURCE remains; config-only distro registration now documented.|Actual SID/GUID/UID/namespace/IPC/FD/mount/cgroup/TID/readonly/scratch/history identities, atmost1 undeletedgeneration, exact roleSHA256/data.img/tree.img/builder paths and ownership.|NOT_CLOSED|
+|7|TARGET_NOT_PREPARED; no disk/VHD mutation/query/format/import. M3/M5 all-reported-write replacement expressly unadopted.|Original finite physical allwriter binding unless whole revision adopted; then actual reviewed new-target identity/path/commands/range/effects/privilege, logical allocation/history. E30=24inclguest20+external6/baseline<=8/dual8floors+reserve/control64-16 included. No E guess.|NOT_CLOSED|
+|8|Existing native Job/rawPI/QPC/CPU-stop/oncecleanup SOURCE stays UNCOMPILED_UNRUN. .wslconfig has8GB/2CPU/guiOff/swap0 CONFIGURED only.|Actual native prebirth owners/applied VM and guest controls, M0/C/AS/swap0/CPU200/Tasks2; StageA1200/study3600/fit900 inclcleanup and complete applied charges/limits.|NOT_CLOSED|
+|9|Accepted wholeCPU<=100ms/>=90STOP and LOCAL_WINDOWS trust retained. Q1 conservative owned-Job ceiling/Q2 reported-frame freshness are unadopted design, not runtime.|Original causal-role/platform resources unless whole revision adopted; implemented/reviewed bootstrap/cohort/gauges, actual<=100ms native first/continuous facts, prep4GiB200%/external512MiB100% and whole16GiB/VRAM8GiB, clocks/tails. Source review cannot erase excluded or unknown fees.|NOT_CLOSED|
+|10|Original nonE512MiB/384STOP/128nominaltail/unknown inflight retained. Proposed PDH frame semantic/coverage change explicit.|Actual original AllocationSize/allwriter/history producer, or owner-adopted implemented/reviewed bounded reported-instance gauge+logical history with stated exclusions; no deletion/handoff reset or hard overshoot claim.|NOT_CLOSED|
+|11|Closed PE/ELF/native closures inherited; firstbuild exactly2TUs/fiveproducts and21critical toolchain files remain PARTIAL. Five system files/exports are only AT_REST evidence.|Full immutable PE/ELF/interpreter/stdlib/project/native/transitive/provider/APIset/SxS/ABI/symbol/relocation closure BEFORE load; exact finite operation manifest and final portable Windows model/runtime closure/equivalence.|NOT_CLOSED|
+|12|Known original-child joins/STOP/observer source unchanged. M4 names real root/controller/watchdog owners and stop/flush order but is not implemented or adopted.|Original full provider drain/native final witness unless explicit revision adopted; actual independently surviving cutoff/owned joins/EOF/emptyJobs/cgroup/namespace/FD/flush/liveq_accept/root exit, immutable cleanup origins and billed remaining tails. Owned stuck objects never waived by expiry.|NOT_CLOSED|
+|13|All failed and successful scoped document review rounds/clocks/models retained. Historical route2-ab-full-implementation-review-2026-09-29-FAIL-001 remains FAIL.|Actual full installation/noGTpositive/native-resource/fault/stop/crash/cleanup validation; NEW complete independent formalreview; full source/runtime/input/role/pathmap/protocol/budget freeze. Document-only scoped0 is not that review.|NOT_CLOSED|
+|14|Route2 lawfulStageA/B/results0, F1>=0.66OPEN; Route3v1-003 lawfulCOMPLETE/fourqualityFAIL/no rerun.|After complete BEFORE/official contract/full formalreview/real freeze, execute already conditionally authorized lawfulA/B; predeclared earlySTOP vs full5foldStageB, fourquality gates and actual matchedGT/F1 separately reported.|NOT_CLOSED|
+
+C00=AUDITED_UNPROVEN; wholeC01/C02/C03 incomplete. PREPARED_UNREVIEWED/APPLICATION_BLOCKED/NOT_APPROVAL_READY/FROZEN_ADMISSION=None. H1=APPROVED_UNSTARTED, no native epoch/nonce/consumption. H3/H4/H5=CONSUMED_FAILED_PARTIAL_NO_RETRY; no H6. H5 root34180/noncefe7f8c23d2c94d3db097d1105ff2706c primaryOBSERVED_RESOURCE_VIOLATION/RESOURCE_SAMPLE_STALE_OVER_100MS, cleanupstale; childstarted/terminated/joined, empty stdout/stderr EOF/no collectionrecord/ZIPprogressUNKNOWN. Excluded missing-sample-time-update cause remains excluded. No GT/ZIP reading, training, WSL, native build/load/harness, noGT test or Stage was executed.
+
+All three unchanged native pins remain: ownerC65,509B/7da23ef62384b051437cdeeeb77a8efc0072333d4dcdae145bfdf2928690c41f; H8,994B/b7dc02231062b53dd566e8899bfd005f30aa58b1d29c2882c4d36964dd371cbe; harness21,873B/ba2238ffa639d15dd0e4d9d147ea9273d71a0473eab8e6f394a138a1da56c697. Existing route2-c02-windows-build-owner-wholecpu90-source-review-2026-10-25-001 stays SOURCE_ONLY/UNCOMPILED_UNRUN, with its failed/repair/final independent reviews intact and no repeat audit.
+
+#### Exact-byte documentation verification
+
+The Q1?Q3 author appended55 CRLF lines per document. Default git diff --check flagged those CR end bytes as trailing whitespace (exit1); content checks found no bare CR or spaces/tabs before line endings. The exact-path CRLF-aware check, git -c core.whitespace=cr-at-eol diff --check, exited0. This is a per-command whitespace interpretation only: no repository/global config or reviewed file bytes were changed. Record the initial check failure; do not claim the default check passed. All later appends preserve the frozen reviewed prefix and exact raw staged blob identities.
+
+#### Manual adaptive checkpoint and limiting decision
+
+RESEARCH / SUBAGENT with actual collaboration tools, generic Windows resource/isolation/storage + ML contract-first profile; no training/Embedded path. Existing source/hardware/failed-mechanism evidence remains inherited. Old failed hypotheses and review rounds are not reset by new names. Changes are evidence-backed document repairs, not another native causal experiment. Current goal=whole firstbuild/H1/Stage entry; evidence=public API contracts, at-rest file/config facts, inherited production SOURCE, actual independent document findings; ruled out=timestamp-update explanation for H5 and complete-ancestor discovery from NULL Job query; remaining uncertainty=actual100ms/bootstrap/providers/limits/target/complete closure and official detailed nonGT contract. Classification=ARCHITECTURE/CONTRACT_INTERFACE_UNPROVEN, not a theorem of local impossibility.
+
+Earlier root05:45 checkpoint was extended to06:15 for real repairs; the session became inactive and no final06:15 stop was sampled. Resume first clock08:22:48UTC, bounded documentary closeout target09:05UTC; this records cooperative task budgeting, not native enforcement, H1 extension or a reconstructed stop. Replacement author360s/targetSPEC300s/differentQUALITY360s apply only to their document work. More than two scoped review rounds were needed because actual specific contradictions were found; the same unresolved gates/counters and all failure history remain. No blind native hypothesis, OpenCode403/auth/provider/endpoint retry, paid model route switch or token/money saving is asserted.
+
+Next action at this documentary gate: request the concrete whole M1?M5 material-contract decision after delivering the reviewed object; dependent SOURCE remains stopped until an answer. This is a necessary external decision under the current original contract, not a generic request to continue and not completion of the production/admission/F1 goal. No installed telemetry hook: gate_result/run_end coverage is manual in these original three documents; missing timing/cost data remains UNKNOWN_NOT_ZERO. Actual Git/preservation results are appended separately after they occur.
+
+Administrative receipt append UTC: 2026-10-26 08:33:32 UTC
