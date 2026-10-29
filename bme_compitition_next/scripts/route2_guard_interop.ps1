@@ -94,11 +94,13 @@ function Get-R2FixedApiSpecifications {
 72|GetFileInformationByHandleEx|kernel32|i32|BOOL|1|P:None,i32:None,P:Out,u32:None
 73|GetFinalPathNameByHandleW|kernel32|u32|DWORD|1|P:None,P:Out,u32:None,u32:None
 74|FlushFileBuffers|kernel32|i32|BOOL|1|P:None
+75|GetVolumeNameForVolumeMountPointW|kernel32|i32|BOOL|1|S:In,P:Out,u32:None
+76|GetDiskFreeSpaceExW|kernel32|i32|BOOL|1|S:In,P:Out,P:Out,P:Out
 '@
     $nullable = @{
         12=@(0,1); 14=@(4); 18=@(0); 19=@(5,6); 21=@(2,3)
         39=@(2); 43=@(); 46=@(3,4); 47=@(4); 51=@(3); 53=@(0)
-        60=@(0); 63=@(3); 64=@(3); 67=@(2); 71=@(3,6)
+        60=@(0); 63=@(3); 64=@(3); 67=@(2); 71=@(3,6); 75=@(); 76=@()
     }
     $sentinels = @{7=[uint32]::MaxValue;10=[uint32]0;11=[uint32]0;22=[uint32]::MaxValue;25=[uint32]0;26=[uint32]0;27=[uint32]0;28=[uint32]::MaxValue;73=[uint32]0}
     foreach ($row in ($rows -split '\r?\n')) {
@@ -193,6 +195,8 @@ function Get-R2FixedBufferContract {
 71|3:24:SECURITY_ATTRIBUTES
 72|2:8:FILE_INFO_CLASS_BUFFER
 73|1:2:MUTABLE_UTF16
+75|1:2048:MUTABLE_UTF16
+76|1:8:UINT64,2:8:UINT64,3:8:UINT64
 '@
     $sizes=@{}; $layouts=@{}; $dynamic=@{}; $classLayouts=@{}
     foreach ($row in ($rows -split '\r?\n')) {
@@ -201,7 +205,7 @@ function Get-R2FixedBufferContract {
     }
     # Capacity is checked BEFORE invoking against the original numeric count;
     # multiplication is checked and counts never authorize a new allocation.
-    $dynamicRows=@{13='2:3:1';14='2:3:1';19='3:4:1';35='1:2:1';39='2:3:1';46='1:2:1';47='1:2:1';53='1:2:1';57='1:2:1';72='2:3:1';73='1:2:2'}
+    $dynamicRows=@{13='2:3:1';14='2:3:1';19='3:4:1';35='1:2:1';39='2:3:1';46='1:2:1';47='1:2:1';53='1:2:1';57='1:2:1';72='2:3:1';73='1:2:2';75='1:2:2'}
     if ($dynamicRows.ContainsKey([int]$ApiId)) {
         $parts=$dynamicRows[[int]$ApiId].Split(':')
         $dynamic[$parts[0]]=New-R2InteropReadOnlyMap @{LengthParameter=[int]$parts[1];UnitBytes=[uint32]$parts[2]}
@@ -381,7 +385,7 @@ function New-R2InteropState {
             [Runtime.InteropServices.DllImportAttribute].GetField('CharSet'),
             [Runtime.InteropServices.DllImportAttribute].GetField('PreserveSig'))
         $specs=$apiSpecs
-        if ($specs.Count -ne 74 -or $layoutMap.Count -ne 30) {throw 'R2_INTEROP_FIXED_TABLE_CARDINALITY'}
+        if ($specs.Count -ne 76 -or $layoutMap.Count -ne 30) {throw 'R2_INTEROP_FIXED_TABLE_CARDINALITY'}
         foreach ($spec in $specs) {
             $dll=[string]$pins[$spec.DllKey]
             $method=$nativeBuilder.DefinePInvokeMethod($spec.Name,$dll,$spec.Name,([Reflection.MethodAttributes]::Public -bor [Reflection.MethodAttributes]::Static -bor [Reflection.MethodAttributes]::PinvokeImpl),[Reflection.CallingConventions]::Standard,$spec.ReturnType,[type[]]$spec.ParameterTypes,$spec.CallingConvention,[Runtime.InteropServices.CharSet]::Unicode)
@@ -475,8 +479,8 @@ function Assert-R2InteropConstructionCore {
     if (-not [object]::ReferenceEquals($Interop.NativeType,$state.NativeType) -or -not [object]::ReferenceEquals($Interop.Layouts,$state.Layouts) -or -not [object]::ReferenceEquals($Interop.ApiTable,$state.ApiTable) -or -not [object]::ReferenceEquals($Interop.PlanReference,$state.Plan) -or $Interop.IssuerSerial -ne $state.Serial -or -not [object]::ReferenceEquals($Interop.BoundContextReference,$state.BoundContext)) {throw 'R2_INTEROP_VIEW_TAMPER'}
     Assert-R2StaticPlan -Plan $state.Plan
     $fixed=@(Get-R2FixedApiSpecifications)
-    if ([Enum]::GetUnderlyingType($state.ApiEnum) -ne [uint32] -or [Enum]::GetNames($state.ApiEnum).Count -ne 74 -or [Enum]::GetUnderlyingType($state.LayoutEnum) -ne [uint32] -or [Enum]::GetNames($state.LayoutEnum).Count -ne 30) {throw 'R2_INTEROP_ENUM_TAMPER'}
-    if ($state.ApiTable.Count -ne 74 -or $state.Descriptors.Count -ne 74 -or $state.NativeType.GetMethods([Reflection.BindingFlags]'Public,Static,DeclaredOnly').Count -ne 74) {throw 'R2_INTEROP_API_TABLE_TAMPER'}
+    if ([Enum]::GetUnderlyingType($state.ApiEnum) -ne [uint32] -or [Enum]::GetNames($state.ApiEnum).Count -ne 76 -or [Enum]::GetUnderlyingType($state.LayoutEnum) -ne [uint32] -or [Enum]::GetNames($state.LayoutEnum).Count -ne 30) {throw 'R2_INTEROP_ENUM_TAMPER'}
+    if ($state.ApiTable.Count -ne 76 -or $state.Descriptors.Count -ne 76 -or $state.NativeType.GetMethods([Reflection.BindingFlags]'Public,Static,DeclaredOnly').Count -ne 76) {throw 'R2_INTEROP_API_TABLE_TAMPER'}
     foreach ($spec in $fixed) {
         if ([Enum]::GetName($state.ApiEnum,$spec.ApiId) -cne $spec.Name) {throw 'R2_INTEROP_API_ENUM_TAMPER'}
         $key=[Enum]::ToObject($state.ApiEnum,$spec.ApiId); $method=$state.ApiTable[$key]; $descriptor=$state.Descriptors[$key]
