@@ -1125,7 +1125,7 @@ function Initialize-R2ProcessOwner {
             if($null -ne $b.Context){return ,$b.Context}
             Enter-R2BootstrapStep $Quarantine $false
             try{return ,(Consume-R2PeerBootstrapStep $b)}catch{$b.Fault='R2_BOOTSTRAP_PROCESS_FAILURE';throw}
-            finally{Exit-R2BootstrapStep $Quarantine}
+            finally{Complete-R2BootstrapStepIfActive $Quarantine}
         }
         function Consume-R2PeerBootstrapStep($b) {
             $q=$b.Quarantine
@@ -1218,13 +1218,14 @@ function Initialize-R2ProcessOwner {
                 # No pending request remains: kernel completion was observed.
                 $null=Close-R2BootstrapHandle $q $b.Interop $b.Event
                 foreach($buffer in @($b.Data,$b.Count,$b.Times,$b.Entry,$b.Overlapped)){Release-R2BootstrapBuffer $q $buffer}
-                $b.Context=Consume-R2BootstrapAdmission $q $b.Proof;$b.Stage=6
+                $b.Context=New-R2PeerLedger $b.Proof $q.PlanReference $b.Interop;$b.Stage=6
                 return ,$b.Context
             }
             throw 'R2_BOOTSTRAP_INVALID_STAGE'
         }
         function Get-R2LocalPeer($Context) {
             Assert-R2ContextReference $Context
+            [void](Assert-R2ObservationOrigin $Context (Get-R2ObservationOrigin $Context))
             $b=$script:bootstrap
             if($null -eq $b -or $b.Stage -ne 6 -or -not [object]::ReferenceEquals($Context,$b.Context)){throw 'R2_LOCAL_PEER_ADMISSION_REQUIRED'}
             Assert-R2BootstrapAdmissionProof $b.Quarantine $b.Proof

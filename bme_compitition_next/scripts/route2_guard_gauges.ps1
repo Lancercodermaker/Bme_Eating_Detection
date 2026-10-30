@@ -38,10 +38,12 @@ function Initialize-R2GaugeOwner {
             if([Threading.Thread]::CurrentThread.ManagedThreadId -ne $script:thread){throw 'R2_GAUGE_OWNER_THREAD'}
             if($null -eq $script:state){
                 if(-not $Create){throw 'R2_GAUGE_NOT_INITIALIZED'}
+                $origin=Get-R2ObservationOrigin $Context
+                [void](Assert-R2ObservationOrigin $Context $origin)
                 $slot=Get-R2CurrentSlot $Context;Assert-R2PlanSlot $Context $slot
                 $identity=Reserve-R2ComponentIdentity $Context $slot 'Gauge'
                 $script:state=[pscustomobject]@{
-                    Context=$Context;Plan=$Context.PlanReference;Identity=$identity;Init=0;InitBegin=$null;Ready=$false;Closed=$false
+                    Context=$Context;Plan=$Context.PlanReference;ObservationOrigin=$origin;DiskBaselineScope=$(if($origin.ConstructionPath -ceq 'ROOT_ENTRY'){'ROOT_INVOCATION'}else{'SUPPLEMENTAL_PEER_LOCAL'});Identity=$identity;Init=0;InitBegin=$null;Ready=$false;Closed=$false
                     Small=$null;Raw=$null;Buffers=[Collections.Generic.List[object]]::new(2);Slices=@{}
                     NvmlAttempted=$false;NvmlLive=$false;NvmlClosed=$false;NvmlInitFact=$null
                     Query=$null;Physical=$null;Logical=$null;Acquisitions=[Collections.Generic.List[object]]::new()
@@ -61,6 +63,7 @@ function Initialize-R2GaugeOwner {
             }
             $r=$script:state
             if(-not [object]::ReferenceEquals($r.Context,$Context) -or -not [object]::ReferenceEquals($r.Plan,$Context.PlanReference)){throw 'R2_GAUGE_CONTEXT_SUBSTITUTION'}
+            [void](Assert-R2ObservationOrigin $Context $r.ObservationOrigin)
             Assert-R2PlanSlot $Context $r.Identity.OriginalSlotReference
             return $r
         }
@@ -81,11 +84,14 @@ function Initialize-R2GaugeOwner {
         }
         function Get-R2GaugeFirstCompletion($Context,$Fact) {
             Assert-R2NativeFact $Context $Fact
-            if(-not ($Fact.QpcBegin -is [long]) -or -not ($Fact.QpcEnd -is [long]) -or $Fact.QpcBegin -lt $Context.Q0 -or $Fact.QpcEnd -lt $Fact.QpcBegin){Stop-R2Gauge $Context 'R2_FIRST_RESOURCE_NATIVE_CLOCK' $Fact}
-            # Original q0 is never replaced by InitBegin/CycleBegin, peer
-            # startup, or the later first valid CPU delta. No additional QPC.
-            Test-R2GaugeElapsed $Context $Context.Q0 $Fact.QpcEnd
-            return [long]$Fact.QpcEnd
+            $r=Get-R2GaugeState $Context
+            $origin=Assert-R2ObservationOrigin $Context $r.ObservationOrigin
+            if(-not ($Fact.QpcBegin -is [long]) -or -not ($Fact.QpcEnd -is [long]) -or $Fact.QpcBegin -lt $origin.ActivationQpc -or $Fact.QpcEnd -lt $Fact.QpcBegin -or $Fact.QpcEnd -gt $origin.FirstObservationDeadline){Stop-R2Gauge $Context 'R2_FIRST_RESOURCE_NATIVE_CLOCK' $Fact}
+            # Include actual decoding/validation completion in the same original
+            # producer window, without reading or refreshing an origin clock.
+            $completed=Get-R2GaugeNow $Context
+            if($completed -lt $Fact.QpcEnd -or $completed -gt $origin.FirstObservationDeadline){Stop-R2Gauge $Context 'R2_FIRST_RESOURCE_PROCESSING_CLOCK' $Fact}
+            return [long]$completed
         }
         function Read-R2GaugeBytes($Context,$b,[uint32]$Offset,[uint32]$Count) {
             if($b.ContainsKey('BufferOwnerReference')){
@@ -183,7 +189,7 @@ function Initialize-R2GaugeOwner {
             }
             # Bounded private decoded history, never a caller supplied scalar.
             $r.CpuPrevious=$v;$r.CpuPreviousQpcBegin=$begin;$r.CpuPreviousQpcEnd=$end;$r.CycleCpu=$v
-            if(-not $r.FirstObserved){Test-R2GaugeElapsed $Context $Context.Q0 $f.QpcEnd;$r.FirstObserved=$true}
+            if(-not $r.FirstObserved){[void](Get-R2GaugeFirstCompletion $Context $f);$r.FirstObserved=$true}
         }
         function Read-R2GaugeTopology($Context,$r) {
             $g=Invoke-R2NativeCall $Context ([R2ApiId]::GetActiveProcessorGroupCount) @()
@@ -237,7 +243,8 @@ function Initialize-R2GaugeOwner {
                 $completed=Get-R2GaugeFirstCompletion $Context $f
                 $r.FirstNvmlMemoryQpcs.Add($index,$completed)
                 # All physical devices must finish their ORIGINAL first pass
-                # by q0+100ms. One early device never certifies the others.
+                # inside the original producer window. One early device never
+                # certifies the other original physical devices.
                 if($r.FirstNvmlMemoryQpcs.Count -eq $r.DeviceCount -and $null -eq $r.FirstNvmlPassQpc){$r.FirstNvmlPassQpc=$completed}
             }
             $r.Vram=$sum
@@ -479,7 +486,7 @@ function Initialize-R2GaugeOwner {
             if($script:serial -eq [long]::MaxValue){Stop-R2Gauge $Context 'R2_GAUGE_SAMPLE_SERIAL'};$script:serial++
             # Only one current sample is authoritative. CWT permits old client
             # views to be collected without retaining every polling frame.
-            $d=New-R2GaugeMap @{IssuerIdentity=$script:issuer;IssuerSerial=$script:serial;ContextReference=$Context;PlanReference=$r.Plan;OriginalSlotReference=(Get-R2CurrentSlot $Context);Status=$Status;Reason=$Reason;ObservedQpc=$Now;ProcessorCount=$r.N;RamUsedBytes=$r.Ram;VramUsedBytes=[long]$r.Vram;PhysicalWriteExposure=$Physical;NonEWriteExposure=$NonE;UnderlyingProviderFreshness='UNKNOWN_NOT_ZERO';TargetBindingReference=$r.Binding}
+            $d=New-R2GaugeMap @{IssuerIdentity=$script:issuer;IssuerSerial=$script:serial;ContextReference=$Context;PlanReference=$r.Plan;OriginalSlotReference=(Get-R2CurrentSlot $Context);ObservationOriginReference=$r.ObservationOrigin;DiskBaselineScope=$r.DiskBaselineScope;Status=$Status;Reason=$Reason;ObservedQpc=$Now;ProcessorCount=$r.N;RamUsedBytes=$r.Ram;VramUsedBytes=[long]$r.Vram;PhysicalWriteExposure=$Physical;NonEWriteExposure=$NonE;UnderlyingProviderFreshness='UNKNOWN_NOT_ZERO';TargetBindingReference=$r.Binding}
             $view=New-R2GaugeView $d
             $entry=[pscustomobject]@{View=$view;Data=$d;Consumed=$false;CycleBegin=$r.CycleBegin;Physical=$r.CyclePhysical;Logical=$r.CycleLogical;Binding=$r.Binding;Validation=$r.Validation;ValidationSequence=$r.ValidationSequence}
             $script:samples.Add($view,$entry);$r.CurrentSample=$view
@@ -490,11 +497,16 @@ function Initialize-R2GaugeOwner {
             Assert-R2GaugeRows $Context $r $r.CyclePhysical $r.PhysicalLast $r.PhysicalBase $now
             Assert-R2GaugeRows $Context $r $r.CycleLogical $r.LogicalLast $r.LogicalBase $now
             if($null -eq $r.PhysicalBase){
-                # b0 is the SAME invocation's first valid frame, never reset on
-                # missing target binding, deletion or later target publication.
+                # Root b0 remains invocation-wide. A later peer's local baseline
+                # supplements root evidence; it cannot replace/refund root b0.
                 if($null -eq $r.FirstPhysicalRawQpc -or $null -eq $r.FirstLogicalRawQpc){Stop-R2Gauge $Context 'R2_FIRST_PDH_NATIVE_OBSERVATIONS_MISSING'}
-                Test-R2GaugeElapsed $Context $Context.Q0 $now
-                $r.PhysicalBase=$r.CyclePhysical;$r.LogicalBase=$r.CycleLogical;$r.BaselineQpc=$now
+                $origin=Assert-R2ObservationOrigin $Context $r.ObservationOrigin
+                # Both row validations must actually finish inside the original
+                # first-observation window before either baseline is published.
+                $completed=Get-R2GaugeNow $Context
+                if($completed -lt $now -or $completed -lt $origin.ActivationQpc -or $completed -gt $origin.FirstObservationDeadline){Stop-R2Gauge $Context 'R2_FIRST_PDH_BASELINE_WINDOW'}
+                Test-R2GaugeElapsed $Context $r.CycleBegin $completed
+                $r.PhysicalBase=$r.CyclePhysical;$r.LogicalBase=$r.CycleLogical;$r.BaselineQpc=$completed
             }
             # These are write-once actual producer observations. Later READY
             # can await another fresh CPU delta or target validation without
@@ -623,6 +635,7 @@ function Initialize-R2GaugeOwner {
             Test-R2GaugeElapsed $Context $entry.CycleBegin $now
             Assert-R2GaugeRows $Context $r $entry.Physical $null $r.PhysicalBase $now
             Assert-R2GaugeRows $Context $r $entry.Logical $null $r.LogicalBase $now
+            if($r.DiskBaselineScope -ceq 'SUPPLEMENTAL_PEER_LOCAL'){return 'LOCAL_VERIFIED_ROOT_EVIDENCE_REQUIRED'}
             return 'VERIFIED'
         }
         function Close-R2GaugesStep($Context) {

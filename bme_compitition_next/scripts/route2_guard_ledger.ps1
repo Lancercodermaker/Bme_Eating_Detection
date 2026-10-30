@@ -1,5 +1,5 @@
 # SOURCE ONLY. Load after route2_guard_interop.ps1 definitions. No native work is
-# performed by loading this file. New-R2Ledger is called only after original q0.
+# performed by loading this file. Root/peer factories run after original q0.
 # The module created there keeps the issuance tables out of exported record views.
 # Windows PowerShell 5.1 lacks UInt32 enum syntax. These exact fixed enums are
 # defined in memory inside New-R2Ledger, after q0; file loading emits nothing.
@@ -40,9 +40,8 @@ function Initialize-R2LedgerEnums {
     }
 }
 
-function New-R2Ledger {
-    [CmdletBinding()]
-    param([Parameter(Mandatory)][long]$Q0,[Parameter(Mandatory)][long]$Frequency,[Parameter(Mandatory)][object]$Plan)
+function Initialize-R2LedgerOwner {
+    param([Parameter(Mandatory)][object]$Plan)
     if (Get-Module -Name Route2OriginalLedger) { throw 'R2_LEDGER_REISSUE' }
     Assert-R2StaticPlan -Plan $Plan
     Initialize-R2LedgerEnums
@@ -210,7 +209,7 @@ function New-R2Ledger {
             $v=New-R2View $d; $d['ContextReference']=$v;$d['DeadlineOwnerReference']=$v
             # Fixed disjoint root and three-peer portions, never four million per peer.
             $limits=New-R2Map @{Work=@{Births=224L;Handles=480L;Faults=20L;Observations=135000L;Calls=1800000L};Cleanup=@{Births=32L;Handles=160L;Faults=20L;Observations=15000L;Calls=200000L}}
-            $p=New-R2Map @{Plan=$Plan;Slots=$slots;Work=$work;Cleanup=$cleanup;Origins=$origins;OriginLocked=@{Prep=$false;Study=$false;External=$false};Jobs=$jobs;Registry=$registry;Peers=$peers;Faults=$faults;Limits=$limits;Step=$null;Bound=$false;BindAttempted=$false;ClockReady=$false;ClockBuffer=[IntPtr]::Zero;LastQpc=$Q0;Nonce=$null;NonceAttempted=$false;BytesReserved=0L;DisksReserved=0L;Allotments=@{};StudyStarted=$false;OriginalStudyFact=$null;FaultOverflow=$false}
+            $p=New-R2Map @{Plan=$Plan;Slots=$slots;Work=$work;Cleanup=$cleanup;Origins=$origins;OriginLocked=@{Prep=$false;Study=$false;External=$false};Jobs=$jobs;Registry=$registry;Peers=$peers;Faults=$faults;Limits=$limits;Step=$null;Bound=$false;BindAttempted=$false;ClockReady=$false;ClockBuffer=[IntPtr]::Zero;LastQpc=$Q0;Nonce=$null;NonceAttempted=$false;BytesReserved=0L;DisksReserved=0L;Allotments=@{};StudyStarted=$false;OriginalStudyFact=$null;FaultOverflow=$false;ConstructionPath='UNCOMMITTED';ConstructionSource=$null;ObservationOrigin=$null;AdmissionCommittedQpc=$null}
             $script:root=[pscustomobject]@{Type='Context';View=$v;Data=$d;Private=$p}
             $pool=[object[]]::new(64)
             for($i=0;$i -lt 64;$i++){
@@ -223,6 +222,75 @@ function New-R2Ledger {
             $script:objects.Add($script:root)
             $script:objectIndex.Add($v,$script:root)
             return ,$v
+        }
+        function New-R2RootLedgerState([long]$Q0,[long]$Frequency,[object]$Plan) {
+            $context=New-R2LedgerState $Q0 $Frequency $Plan
+            $script:root.Private.ConstructionSource=[object]::new()
+            $script:root.Private.ConstructionPath='ROOT_ENTRY'
+            return ,$context
+        }
+        function Commit-R2PeerLedger([object]$Context,[object]$Promotion) {
+            Assert-R2ContextReference $Context
+            if($script:root.Private.ConstructionPath -cne 'UNCOMMITTED' -or $null -ne $script:root.Private.AdmissionCommittedQpc -or $Context.StopState -ne [R2Fact]::FALSE){Throw-R2Fault 'R2_PEER_COMMIT_STATE'}
+            $q=$script:root.Private.BootstrapSource
+            $commit=Get-R2BootstrapAdmissionCommitData $Context $q $Promotion
+            Assert-R2BootstrapPromotion $Context $q
+            Reconcile-R2BootstrapCharges $Context $q
+            $p=$script:root.Private;$slot=$p.BootstrapSlot;$usage=$p.SlotUsage[[string]$slot.Id]
+            if(-not $p.Bound -or -not [object]::ReferenceEquals($commit.ProofReference,$Promotion) -or -not [object]::ReferenceEquals($commit.SlotUsageReference,$p.BootstrapUsage) -or -not [object]::ReferenceEquals($commit.OriginalSlotReference,$slot) -or $commit.AdmissionCommittedQpc -ne $p.BootstrapLastQpc -or $usage.Calls -ne $q.Calls -or $usage.Calls -ne $p.BootstrapChargedCalls -or $usage.LastQpc -ne $p.BootstrapLastQpc -or $usage.FirstStartedQpc -ne $p.BootstrapFirstStartedQpc -or $commit.AdmissionCommittedQpc -lt $p.BootstrapFirstStartedQpc -or $p.BootstrapFirstStartedQpc -lt $Context.Q0){Throw-R2Fault 'R2_PEER_COMMIT_BINDING'}
+            $p['AdmissionReference']=$commit;$p['BootstrapProof']=$Promotion
+            $p.AdmissionCommittedQpc=[long]$commit.AdmissionCommittedQpc
+            $p.ConstructionSource=$commit
+            $p.ConstructionPath='AUTHENTICATED_PEER_ADMISSION'
+        }
+        function Get-R2ObservationOrigin([object]$Context) {
+            Assert-R2ContextReference $Context
+            $p=$script:root.Private
+            if($null -ne $p.ObservationOrigin){[void](Assert-R2ObservationOrigin $Context $p.ObservationOrigin);return ,$p.ObservationOrigin}
+            if($Context.StopState -ne [R2Fact]::FALSE -or $p.ConstructionPath -cnotin @('ROOT_ENTRY','AUTHENTICATED_PEER_ADMISSION')){Throw-R2Fault 'R2_OBSERVATION_ORIGIN_UNCOMMITTED'}
+            $slot=Get-R2CurrentSlot $Context;Assert-R2PlanSlot $Context $slot
+            $step=$p.Step
+            if($step.Cleanup -or $null -eq $step.StartedQpc){Throw-R2Fault 'R2_OBSERVATION_ORIGIN_WORK_REQUIRED'}
+            $activation=[long]$Context.Q0;$bootstrap=$null;$admission=$null
+            if($p.ConstructionPath -ceq 'AUTHENTICATED_PEER_ADMISSION'){
+                $bootstrap=$p.BootstrapSource;$admission=$p.AdmissionReference
+                Assert-R2BootstrapPromotion $Context $bootstrap
+                $proof=Get-R2BootstrapAdmissionCommitData $Context $bootstrap $p.BootstrapProof
+                $usage=$p.SlotUsage[[string]$p.BootstrapSlot.Id]
+                if(-not [object]::ReferenceEquals($proof,$admission) -or -not [object]::ReferenceEquals($slot,$p.BootstrapSlot) -or $p.AdmissionCommittedQpc -ne $proof.AdmissionCommittedQpc -or $p.BootstrapLastQpc -ne $proof.AdmissionCommittedQpc -or $usage.LastQpc -ne $proof.AdmissionCommittedQpc -or $usage.FirstStartedQpc -ne $p.BootstrapFirstStartedQpc -or $usage.Calls -lt $p.BootstrapChargedCalls){Throw-R2Fault 'R2_OBSERVATION_ORIGIN_PEER_BINDING'}
+                $activation=[long]$p.AdmissionCommittedQpc
+            }
+            $deadline=[bigint]$activation+[bigint]::Divide([bigint]$Context.Frequency,10)
+            if($deadline -gt [long]::MaxValue){Throw-R2Fault 'R2_OBSERVATION_ORIGIN_OVERFLOW'}
+            $deadline=[bigint]::Min($deadline,[bigint](Get-R2DomainDeadline $step.Domain)-60*[bigint]$Context.Frequency)
+            $deadline=[bigint]::Min($deadline,[bigint]$Context.ExternalDeadline-60*[bigint]$Context.Frequency)
+            $deadline=[bigint]::Min($deadline,[bigint]$step.LocalDeadline)
+            # Use the existing charged entry/operation endpoint; minting reads no clock.
+            $known=[bigint]::Max([bigint]$step.StartedQpc,[bigint]$p.LastQpc)
+            if($p.ContainsKey('LastChargedQpc')){$known=[bigint]::Max($known,[bigint]$p.LastChargedQpc)}
+            if($activation -lt $Context.Q0 -or $known -lt $activation -or $known -gt $deadline){Throw-R2Fault 'R2_OBSERVATION_ORIGIN_EXPIRED'}
+            $record=New-R2Record 'ObservationOrigin' $Context $slot @{ConstructionPath=$p.ConstructionPath;RootQ0=[long]$Context.Q0;ActivationQpc=$activation;Frequency=[long]$Context.Frequency;FirstObservationDeadline=[long]$deadline;BootstrapReference=$bootstrap;AdmissionReference=$admission}
+            $record.Private['ConstructionSource']=$p.ConstructionSource
+            $record.Private['OriginalSlot']=$slot;$record.Private['ActivationQpc']=$activation
+            $record.Private['FirstObservationDeadline']=[long]$deadline;$record.Private['IssuerSerial']=$record.Data.IssuerSerial
+            $p.ObservationOrigin=$record.View
+            return ,$record.View
+        }
+        function Assert-R2ObservationOrigin([object]$Context,[object]$Origin) {
+            Assert-R2ContextReference $Context
+            try{$record=Get-R2Registered $Origin 'ObservationOrigin'}catch{Throw-R2Fault 'R2_OBSERVATION_ORIGIN_SUBSTITUTION'}
+            $p=$script:root.Private
+            if(-not [object]::ReferenceEquals($p.ObservationOrigin,$Origin) -or -not [object]::ReferenceEquals($Origin.ContextReference,$Context) -or -not [object]::ReferenceEquals($Origin.PlanReference,$p.Plan) -or -not [object]::ReferenceEquals($record.Private.ConstructionSource,$p.ConstructionSource) -or -not [object]::ReferenceEquals($Origin.OriginalSlotReference,$record.Private.OriginalSlot) -or $Origin.IssuerSerial -ne $record.Private.IssuerSerial -or $Origin.ActivationQpc -ne $record.Private.ActivationQpc -or $Origin.FirstObservationDeadline -ne $record.Private.FirstObservationDeadline -or $Origin.ConstructionPath -cne $p.ConstructionPath -or $Origin.RootQ0 -ne $Context.Q0 -or $Origin.Frequency -ne $Context.Frequency){Throw-R2Fault 'R2_OBSERVATION_ORIGIN_SUBSTITUTION'}
+            Assert-R2PlanSlot $Context $Origin.OriginalSlotReference
+            if($p.ConstructionPath -ceq 'ROOT_ENTRY'){
+                if($Origin.ActivationQpc -ne $Context.Q0 -or $null -ne $Origin.BootstrapReference -or $null -ne $Origin.AdmissionReference){Throw-R2Fault 'R2_OBSERVATION_ORIGIN_ROOT_BINDING'}
+            }elseif($p.ConstructionPath -ceq 'AUTHENTICATED_PEER_ADMISSION'){
+                # Cleanup authenticates the already-issued immutable provenance;
+                # later STOP/fault state cannot erase original resource ownership.
+                $commit=Assert-R2BootstrapAdmissionCommitHistory $Context $p.BootstrapSource $p.BootstrapProof $p.AdmissionReference
+                if(-not [object]::ReferenceEquals($Origin.BootstrapReference,$p.BootstrapSource) -or -not [object]::ReferenceEquals($Origin.AdmissionReference,$commit) -or -not [object]::ReferenceEquals($Origin.OriginalSlotReference,$p.BootstrapSlot) -or $Origin.ActivationQpc -ne $p.AdmissionCommittedQpc -or $Origin.ActivationQpc -ne $commit.AdmissionCommittedQpc){Throw-R2Fault 'R2_OBSERVATION_ORIGIN_PEER_BINDING'}
+            }else{Throw-R2Fault 'R2_OBSERVATION_ORIGIN_UNCOMMITTED'}
+            return ,$record.View
         }
         function Stop-R2Guard([object]$Context,[string]$Domain,[string]$Code,[Nullable[long]]$NativeStatus=$null,[uint64]$Serial=0) {
             Assert-R2ContextReference $Context
@@ -340,7 +408,9 @@ function New-R2Ledger {
             }
             $counter['Calls']=[long]$counter.Calls+1
             if($null -ne $step){$step.Calls++;$usage.Calls++}
-            return [Diagnostics.Stopwatch]::GetTimestamp()
+            $now=[Diagnostics.Stopwatch]::GetTimestamp()
+            $script:root.Private['LastChargedQpc']=$now
+            return $now
         }
         function Get-R2LedgerTimestamp([object]$Context) {
             Assert-R2ContextReference $Context
@@ -349,6 +419,7 @@ function New-R2Ledger {
         }
         function Enter-R2LedgerStep([object]$Context,[uint32]$SlotId,[uint32]$Operation=0,[bool]$Cleanup=$false,[bool]$Observer=$false) {
             Assert-R2ContextReference $Context
+            if(-not $Cleanup -and $script:root.Private.ConstructionPath -ceq 'UNCOMMITTED'){Throw-R2Fault 'R2_CONTEXT_UNCOMMITTED'}
             if($null -ne $script:root.Private.Step){Throw-R2Fault 'R2_NESTED_STEP'}
             $slot=$null
             foreach($candidate in $script:root.Private.Slots){if($candidate.Id -eq $SlotId){$slot=$candidate;break}}
@@ -961,6 +1032,7 @@ function New-R2Ledger {
         }
         function Initialize-R2NativeClock([object]$Context) {
             Assert-R2Bound $Context
+            $origin=Get-R2ObservationOrigin $Context
             if($script:root.Private.ClockReady -or $script:root.Private.ContainsKey('ClockAttempted')){Throw-R2Fault 'R2_CLOCK_REINITIALIZE'}
             $script:root.Private['ClockAttempted']=$true
             $slot=Get-R2CurrentSlot $Context
@@ -970,11 +1042,14 @@ function New-R2Ledger {
             $hz=Read-R2FactInt64 $f 0
             Retain-R2NativeFact $Context $f
             if($hz -ne $script:root.Data.Frequency -or $hz -le 0){Throw-R2Fault 'R2_QPF_MISMATCH'}
+            if($f.QpcBegin -lt $origin.ActivationQpc -or $f.QpcEnd -gt $origin.FirstObservationDeadline){Throw-R2Fault 'R2_CLOCK_EPOCH_AGREEMENT'}
             $f=Invoke-R2NativeCall $Context ([R2ApiId]::QueryPerformanceCounter) @($buffer)
             if($f.RawStatus -eq 0){Throw-R2Fault 'R2_QPC_FAILED' $f.StatusBits $f.IssuerSerial}
             $q=Read-R2FactInt64 $f 0
             Retain-R2NativeFact $Context $f
-            if($q -lt $f.QpcBegin -or $q -gt $f.QpcEnd -or $q -lt $script:root.Data.Q0 -or ([bigint]$f.QpcEnd-$script:root.Data.Q0)*10 -gt $hz){Throw-R2Fault 'R2_CLOCK_EPOCH_AGREEMENT'}
+            [void](Assert-R2ObservationOrigin $Context $origin)
+            $completed=Read-R2LedgerTimestamp
+            if($q -lt $f.QpcBegin -or $q -gt $f.QpcEnd -or $f.QpcBegin -lt $origin.ActivationQpc -or $f.QpcEnd -gt $origin.FirstObservationDeadline -or $completed -lt $f.QpcEnd -or $completed -gt $origin.FirstObservationDeadline){Throw-R2Fault 'R2_CLOCK_EPOCH_AGREEMENT'}
             $script:root.Private.ClockReady=$true;$script:root.Private.LastQpc=$q
             $script:root.Private['ClockBufferReference']=$buffer
             return ,$f
@@ -1163,11 +1238,12 @@ function New-R2Ledger {
             if($script:root.Private.SlotUsage.ContainsKey($key)){Throw-R2Fault 'R2_BOOTSTRAP_SLOT_USAGE_REISSUE'}
             # These are the same cumulative bootstrap attempts, including closed
             # handles and released buffers. Promotion never restores an allowance.
-            $script:root.Private.SlotUsage[$key]=@{Births=0L;Handles=[long]$usage.Handles;Calls=[long]$usage.Calls;Bytes=[long]$usage.Bytes;FirstStartedQpc=[long]$usage.FirstStartedQpc}
+            $script:root.Private.SlotUsage[$key]=@{Births=0L;Handles=[long]$usage.Handles;Calls=[long]$usage.Calls;Bytes=[long]$usage.Bytes;FirstStartedQpc=[long]$usage.FirstStartedQpc;LastQpc=[long]$usage.LastQpc}
             $script:root.Private['BootstrapSlot']=$slot
             $script:root.Private['BootstrapUsage']=$usage
             $script:root.Private['BootstrapFirstStartedQpc']=[long]$usage.FirstStartedQpc
             $script:root.Private['BootstrapLastQpc']=[long]$usage.LastQpc
+            Register-R2BootstrapAccountingContext $Context $Quarantine $Proof
             foreach($fact in $promotion.NativeFacts){
                 $e=New-R2Record 'NativeFact' $Context $slot @{ApiId=$fact.ApiId;RawStatus=$fact.RawStatus;StatusBits=$fact.StatusBits;QpcBegin=$fact.QpcBegin;QpcEnd=$fact.QpcEnd;Outputs=$fact.Outputs;ReturnValue=$fact.ReturnValue;BootstrapFactReference=$fact}
                 $e.Private['Completed']=($null -ne $fact.RawStatus);$e.Private['StatusAccepted']=$false;$e.Private['Arguments']=[object[]]@()
@@ -1185,6 +1261,7 @@ function New-R2Ledger {
                     $e.Private['AttemptFact']=$acquire;$e.Private['ReleaseOwner']='Native';$e.Private['Remote']=$false
                 }
                 $script:root.Private.Registry.Add($e.View)
+                Register-R2BootstrapTransferredOwnership $Context $Quarantine $transfer.Original $e.View
                 $script:root.Private.BootstrapMappings.Add([pscustomobject]@{Original=$transfer.Original;Promoted=$e.View})
             }
             foreach($mapping in $script:root.Private.BootstrapMappings){
@@ -1214,15 +1291,31 @@ function New-R2Ledger {
             $local.Calls=[long]$local.Calls+$delta
             $script:root.Private.BootstrapChargedCalls=[long]$Quarantine.Calls
             $script:root.Private.BootstrapLastQpc=[long]$usage.LastQpc
+            $local.LastQpc=[long]$usage.LastQpc
             $domain=switch -CaseSensitive([string]$slot.Phase){'Prep'{'Prep'}'PREP'{'Prep'}'External'{'External'}'EXTERNAL'{'External'}default{Throw-R2Fault 'R2_BOOTSTRAP_SLOT_PHASE'}}
             $workEnd=[bigint]::Min([bigint](Get-R2DomainDeadline $domain),[bigint]$Context.ExternalDeadline)-60*[bigint]$Context.Frequency
             if([bigint]$usage.LastQpc -ge [bigint]$local.FirstStartedQpc+[bigint]$slot.MaxDurationTicks -or [bigint]$usage.LastQpc -ge $workEnd){Throw-R2Fault 'R2_BOOTSTRAP_ORIGINAL_SLOT_DEADLINE'}
         }
-        Export-ModuleMember -Function Get-R2LedgerTimestamp,Record-R2RemoteDuplicateClosure,Reconcile-R2BootstrapCharges,Retain-R2NativeFact,Retire-R2NativeFact,Get-R2NvmlInitializationFact,Get-R2NvmlShutdownFact
-        Export-ModuleMember -Function Assert-R2ContextReference,Assert-R2PlanSlot,Get-R2CurrentSlot,New-R2LedgerState,Stop-R2Guard,Get-R2Deadline,Begin-R2LedgerCleanup,Enter-R2LedgerStep,Assert-R2Operation,Exit-R2LedgerStep,Add-R2BirthAttempt,Add-R2ObservationAttempt,Reserve-R2DiskInstances,Bind-R2Interop,New-R2NativeBuffer,Get-R2NativeBufferPointer,Get-R2NativeBufferSlice,Write-R2NativeBuffer,Write-R2NativeReference,Read-R2NativeBuffer,Release-R2NativeBuffer,Get-R2LocalAllocationView,Read-R2LocalAllocation,Reserve-R2Handle,Assert-R2NativeFact,Record-R2HandleAcquisition,Set-R2DuplicateHandleBinding,Invoke-R2NativeCall,Get-R2NativeFactOutput,Initialize-R2NativeClock,Get-R2NativeQpc,Get-R2InvocationNonce,Consume-R2Handle,Get-R2HandleValue,Get-R2NativeFactArguments,Get-R2LedgerSnapshot,Reserve-R2ComponentIdentity,Register-R2RoleJobs,Register-R2PeerReference,Reserve-R2BootstrapAllowance,Import-R2BootstrapOwnership,Get-R2PromotedBootstrapHandle,Reserve-R2NativeOpaqueReference,New-R2NativeOpaqueReference,Consume-R2NativeOpaqueReference
+        Export-ModuleMember -Function Get-R2ObservationOrigin,Assert-R2ObservationOrigin,Get-R2LedgerTimestamp,Record-R2RemoteDuplicateClosure,Reconcile-R2BootstrapCharges,Retain-R2NativeFact,Retire-R2NativeFact,Get-R2NvmlInitializationFact,Get-R2NvmlShutdownFact
+        Export-ModuleMember -Function Assert-R2ContextReference,Assert-R2PlanSlot,Get-R2CurrentSlot,Stop-R2Guard,Get-R2Deadline,Begin-R2LedgerCleanup,Enter-R2LedgerStep,Assert-R2Operation,Exit-R2LedgerStep,Add-R2BirthAttempt,Add-R2ObservationAttempt,Reserve-R2DiskInstances,Bind-R2Interop,New-R2NativeBuffer,Get-R2NativeBufferPointer,Get-R2NativeBufferSlice,Write-R2NativeBuffer,Write-R2NativeReference,Read-R2NativeBuffer,Release-R2NativeBuffer,Get-R2LocalAllocationView,Read-R2LocalAllocation,Reserve-R2Handle,Assert-R2NativeFact,Record-R2HandleAcquisition,Set-R2DuplicateHandleBinding,Invoke-R2NativeCall,Get-R2NativeFactOutput,Initialize-R2NativeClock,Get-R2NativeQpc,Get-R2InvocationNonce,Consume-R2Handle,Get-R2HandleValue,Get-R2NativeFactArguments,Get-R2LedgerSnapshot,Reserve-R2ComponentIdentity,Register-R2RoleJobs,Register-R2PeerReference,Reserve-R2BootstrapAllowance,Import-R2BootstrapOwnership,Get-R2PromotedBootstrapHandle,Reserve-R2NativeOpaqueReference,New-R2NativeOpaqueReference,Consume-R2NativeOpaqueReference
     }
     Import-Module -ModuleInfo $privateModule -Global -ErrorAction Stop
-    return ,(New-R2LedgerState $Q0 $Frequency $Plan)
+}
+
+function New-R2Ledger {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][long]$Q0,[Parameter(Mandatory)][long]$Frequency,[Parameter(Mandatory)][object]$Plan)
+    Initialize-R2LedgerOwner $Plan
+    return ,(& (Get-Module Route2OriginalLedger) {param($q,$f,$p) New-R2RootLedgerState $q $f $p} $Q0 $Frequency $Plan)
+}
+
+function New-R2PeerLedger {
+    param([Parameter(Mandatory)][object]$Promotion,[Parameter(Mandatory)][object]$Plan,[Parameter(Mandatory)][object]$Interop)
+    # The fixed quarantine owner validates the original private proof before it
+    # creates any ledger. No decoded role, epoch, ready flag or callback enters.
+    $owner=Get-Module Route2BootstrapQuarantine
+    if($null -eq $owner){throw 'R2_BOOTSTRAP_OWNER_REQUIRED'}
+    return ,(& $owner {param($p,$plan,$interop) New-R2AuthenticatedPeerLedger $p $plan $interop} $Promotion $Plan $Interop)
 }
 
 function New-R2BootstrapQuarantine {
@@ -1345,20 +1438,27 @@ function New-R2BootstrapQuarantine {
             # same reserved quota without reopening native consumer authority.
             if($script:q.Data.Calls -ge 16384 -or $step.Calls -ge $step.Limit){$script:q.Private.Step=$null;throw 'R2_BOOTSTRAP_STEP_CLOCK_BUDGET'}
             $script:q.Data['Calls']=[long]$script:q.Data.Calls+1;$step.Calls++
-            if($script:q.Data.Admitted){
+            if($script:q.Private.ContainsKey('AccountingContext')){
                 # Reserve this final actual QPC against the already authenticated
                 # original slot AND global partition before issuing the clock.
                 $script:q.Private.TransferSlotUsage['Calls']=[long]$script:q.Data.Calls
-                try{Reconcile-R2BootstrapCharges $script:q.Data.PromotedContext $Quarantine}catch{$script:q.Private.Step=$null;throw}
+                try{Reconcile-R2BootstrapCharges $script:q.Private.AccountingContext $Quarantine}catch{$script:q.Private.Step=$null;throw}
             }
             $end=[Diagnostics.Stopwatch]::GetTimestamp()
             $reversed=($null -ne $script:q.Private.LastQpc -and $end -lt $script:q.Private.LastQpc)
             $script:q.Private.LastQpc=$end
-            if($script:q.Data.Admitted){$script:q.Private.TransferSlotUsage['LastQpc']=$end}
+            if($script:q.Private.ContainsKey('AccountingContext')){$script:q.Private.TransferSlotUsage['LastQpc']=$end}
             $script:q.Private.Step=$null
             for($i=$script:bootstrapActive.Count-1;$i -ge 0;$i--){Retire-R2BootstrapFact $Quarantine $script:bootstrapActive[$i].View}
-            if($script:q.Data.Admitted){Reconcile-R2BootstrapCharges $script:q.Data.PromotedContext $Quarantine}
-            if($reversed -or ([bigint]$end-$step.StartedQpc)*10 -gt [Diagnostics.Stopwatch]::Frequency){$script:q.Data['Fault']='R2_BOOTSTRAP_STEP_100MS';throw 'R2_BOOTSTRAP_STEP_100MS'}
+            if($script:q.Private.ContainsKey('AccountingContext')){Reconcile-R2BootstrapCharges $script:q.Private.AccountingContext $Quarantine}
+            if($reversed -or ([bigint]$end-$step.StartedQpc)*10 -gt [Diagnostics.Stopwatch]::Frequency){if(-not $script:q.Data.Fault){$script:q.Data['Fault']='R2_BOOTSTRAP_STEP_100MS'};throw 'R2_BOOTSTRAP_STEP_100MS'}
+            if($script:q.Data.Admitted){
+                $script:q.Private['AdmissionCommit']=New-R2BootstrapView (New-R2BootstrapMap @{ContextReference=$script:q.Data.PromotedContext;PlanReference=$script:q.Data.PlanReference;BootstrapReference=$Quarantine;ProofReference=$script:q.Private.PromotionProof;OriginalSlotReference=$script:q.Private.PromotionFields.OriginalSlotReference;SlotUsageReference=$script:q.Private.TransferManifest.SlotUsage;AdmissionCommittedQpc=[long]$end;FirstStartedQpc=[long]$script:q.Private.FirstStartedQpc;FinalCalls=[long]$script:q.Data.Calls})
+            }
+        }
+        function Complete-R2BootstrapStepIfActive([object]$Quarantine){
+            Assert-R2BootstrapQuarantineReference $Quarantine
+            if($null -ne $script:q.Private.Step){Exit-R2BootstrapStep $Quarantine}
         }
         function New-R2BootstrapState([object]$Plan,[IntPtr]$Reader){
             if($null -ne $script:q){throw 'R2_BOOTSTRAP_REISSUE'}
@@ -1596,22 +1696,61 @@ function New-R2BootstrapQuarantine {
             if(($api -eq [R2ApiId]::CloseHandle -and $f.Data.RawStatus -eq 0) -or ($api -eq [R2ApiId]::LocalFree -and $ret -ne [IntPtr]::Zero) -or $end -lt $begin -or ([bigint]$end-$begin)*10 -gt [Diagnostics.Stopwatch]::Frequency){$script:q.Data['Fault']='R2_BOOTSTRAP_CLOSE_FAILED';throw 'R2_BOOTSTRAP_CLOSE_FAILED'}
             return ,$f.View
         }
-        function Consume-R2BootstrapAdmission([object]$Quarantine,[object]$Proof){
+        function New-R2AuthenticatedPeerLedger([object]$Proof,[object]$Plan,[object]$Interop){
+            $Quarantine=$script:q.View
+            $context=$null
+            try{
+                Assert-R2BootstrapQuarantineReference $Quarantine
+                if($script:q.Data.Admitted -or $script:q.Data.Fault){throw 'R2_BOOTSTRAP_ADMISSION_TERMINAL'}
+                if($null -eq $script:q.Private.Step -or -not [object]::ReferenceEquals($Plan,$script:q.Data.PlanReference) -or -not [object]::ReferenceEquals($Interop,$script:q.Private.Interop)){throw 'R2_BOOTSTRAP_ADMISSION_SOURCE'}
+                foreach($entry in $script:q.Private.PendingReads){if(-not $entry.Completed){throw 'R2_BOOTSTRAP_ADMISSION_IO_PENDING'}}
+                Assert-R2BootstrapAdmissionProof $Quarantine $Proof
+                $fields=Get-R2BootstrapAdmissionFields $Quarantine $Proof
+                if(-not [object]::ReferenceEquals($fields.Interop,$script:q.Private.Interop) -or $fields.Frequency -ne [Diagnostics.Stopwatch]::Frequency -or $fields.Role -notin @([R2Role]::CONTROLLER,[R2Role]::WATCHDOG,[R2Role]::TRANSPORT)){throw 'R2_BOOTSTRAP_ADMISSION_FIELDS'}
+                $q0=[long]$fields.Q0;$hz=[long]$fields.Frequency
+                if($q0 -le 0 -or $fields.PrepDeadline -ne [bigint]$q0+1800*[bigint]$hz -or $fields.ExternalDeadline -ne [bigint]$q0+6000*[bigint]$hz -or $null -ne $fields.StudyDeadline -or $fields.InvocationNonce.Count -ne 32){throw 'R2_BOOTSTRAP_ORIGINAL_DEADLINES'}
+                $script:q.Private.PromotionProof=$Proof;$script:q.Private.PromotionFields=$fields
+                Initialize-R2LedgerOwner $Plan
+                $context=& (Get-Module Route2OriginalLedger) {param($q,$f,$p) New-R2LedgerState $q $f $p} $q0 $hz $Plan
+                # Pending ownership is retained for cleanup, never classified ROOT.
+                $script:q.Data['PromotedContext']=$context
+                Import-R2BootstrapOwnership $context $Quarantine $Proof
+                $script:q.Data['Admitted']=$true
+                Bind-R2Interop $context $Interop
+                Exit-R2BootstrapStep $Quarantine
+                & (Get-Module Route2OriginalLedger) {param($c,$p) Commit-R2PeerLedger $c $p} $context $Proof
+                return ,$context
+            }catch{
+                $failure=$_
+                $firstCode=[string]$failure.Exception.Message
+                if(-not $firstCode.StartsWith('R2_',[StringComparison]::Ordinal) -or $firstCode.Length -gt 128){$firstCode='R2_BOOTSTRAP_ADMISSION_FAILED'}
+                if(-not $script:q.Data.Fault){$script:q.Data['Fault']=$firstCode}
+                # Replay can fail before a new local context exists. STOP the
+                # original associated owner too, with independent bounded attempts.
+                $associated=$script:q.Data.PromotedContext
+                $stopCode=[string]$script:q.Data.Fault
+                if($null -ne $associated){try{Stop-R2Guard $associated 'External' $stopCode $null 0}catch{}}
+                if($null -ne $context -and -not [object]::ReferenceEquals($context,$associated)){try{Stop-R2Guard $context 'External' $stopCode $null 0}catch{}}
+                # Reconcile a still-open transferred step before forbidding work.
+                try{Complete-R2BootstrapStepIfActive $Quarantine}catch{}
+                throw $failure
+            }
+        }
+        function Get-R2BootstrapAdmissionCommitData([object]$Context,[object]$Quarantine,[object]$Proof){
+            Assert-R2BootstrapPromotion $Context $Quarantine
+            if(-not $script:q.Data.Admitted -or $script:q.Data.Fault -or $null -ne $script:q.Private.Step -or -not [object]::ReferenceEquals($Proof,$script:q.Private.PromotionProof) -or -not $script:q.Private.ContainsKey('AdmissionCommit')){throw 'R2_BOOTSTRAP_ADMISSION_NOT_COMMITTED'}
+            return ,(Assert-R2BootstrapAdmissionCommitHistory $Context $Quarantine $Proof $script:q.Private.AdmissionCommit)
+        }
+        function Assert-R2BootstrapAdmissionCommitHistory([object]$Context,[object]$Quarantine,[object]$Proof,[object]$Commit){
             Assert-R2BootstrapQuarantineReference $Quarantine
-            if($script:q.Data.Admitted -or $script:q.Data.Fault){throw 'R2_BOOTSTRAP_ADMISSION_TERMINAL'}
-            foreach($entry in $script:q.Private.PendingReads){if(-not $entry.Completed){throw 'R2_BOOTSTRAP_ADMISSION_IO_PENDING'}}
-            Assert-R2BootstrapAdmissionProof $Quarantine $Proof
-            $fields=Get-R2BootstrapAdmissionFields $Quarantine $Proof
-            if(-not [object]::ReferenceEquals($fields.Interop,$script:q.Private.Interop) -or $fields.Frequency -ne [Diagnostics.Stopwatch]::Frequency -or $fields.Role -notin @([R2Role]::CONTROLLER,[R2Role]::WATCHDOG,[R2Role]::TRANSPORT)){throw 'R2_BOOTSTRAP_ADMISSION_FIELDS'}
-            $q0=[long]$fields.Q0;$hz=[long]$fields.Frequency
-            if($q0 -le 0 -or $fields.PrepDeadline -ne [bigint]$q0+1800*[bigint]$hz -or $fields.ExternalDeadline -ne [bigint]$q0+6000*[bigint]$hz -or $null -ne $fields.StudyDeadline -or $fields.InvocationNonce.Count -ne 32){throw 'R2_BOOTSTRAP_ORIGINAL_DEADLINES'}
-            $script:q.Private.PromotionProof=$Proof;$script:q.Private.PromotionFields=$fields
-            $context=New-R2Ledger $q0 $hz $script:q.Data.PlanReference
-            $script:q.Data['PromotedContext']=$context
-            Import-R2BootstrapOwnership $context $Quarantine $Proof
-            $script:q.Data['Admitted']=$true
-            Bind-R2Interop $context $script:q.Private.Interop
-            return ,$context
+            Assert-R2ContextReference $Context
+            # This historical record was issued only after original native proof
+            # validation and final charged reconciliation. Mutable health is a
+            # separate admission/work gate, never a cleanup provenance gate.
+            if(-not $script:q.Private.ContainsKey('AdmissionCommit') -or -not [object]::ReferenceEquals($Commit,$script:q.Private.AdmissionCommit) -or -not [object]::ReferenceEquals($Context,$script:q.Data.PromotedContext) -or -not [object]::ReferenceEquals($Proof,$script:q.Private.PromotionProof)){throw 'R2_BOOTSTRAP_ADMISSION_HISTORY_REFERENCE'}
+            $commit=$script:q.Private.AdmissionCommit
+            if(-not [object]::ReferenceEquals($commit.ContextReference,$Context) -or -not [object]::ReferenceEquals($commit.PlanReference,$script:q.Data.PlanReference) -or -not [object]::ReferenceEquals($commit.BootstrapReference,$Quarantine) -or -not [object]::ReferenceEquals($commit.ProofReference,$Proof) -or -not [object]::ReferenceEquals($commit.OriginalSlotReference,$script:q.Private.PromotionFields.OriginalSlotReference) -or -not [object]::ReferenceEquals($commit.SlotUsageReference,$script:q.Private.TransferManifest.SlotUsage) -or $commit.AdmissionCommittedQpc -ne $script:q.Private.LastQpc -or $commit.AdmissionCommittedQpc -ne $script:q.Private.TransferSlotUsage.LastQpc -or $commit.FirstStartedQpc -ne $script:q.Private.FirstStartedQpc -or $commit.FinalCalls -ne $script:q.Data.Calls -or $commit.FinalCalls -ne $script:q.Private.TransferSlotUsage.Calls){throw 'R2_BOOTSTRAP_ADMISSION_COMMIT_CHANGED'}
+            return ,$commit
         }
         function Assert-R2BootstrapPromotion([object]$Context,[object]$Quarantine){
             Assert-R2BootstrapQuarantineReference $Quarantine
@@ -1628,17 +1767,14 @@ function New-R2BootstrapQuarantine {
                 if($r.Type -ceq 'Buffer'){
                     if($r.Data.State -eq [R2HandleState]::LIVE){
                         $transfers.Add((New-R2BootstrapView (New-R2BootstrapMap @{Type='Buffer';Original=$r.View;Address=$r.Data.Address;Capacity=$r.Data.Capacity;Alignment=$r.Data.Alignment;BaseAddress=$r.Private.Base;State=$r.Data.State})))
-                        $r.Private['Transferred']=$Context
                     }
                 }elseif($r.Type -ceq 'Handle'){
                     $transfers.Add((New-R2BootstrapView (New-R2BootstrapMap @{Type='Handle';Original=$r.View;LocalValue=$r.Data.LocalValue;Kind=$r.Data.Kind;Ownership=$r.Data.Ownership;State=$r.Data.State;AcquireFact=$r.Data.AcquireFact;ConsumeFact=$r.Data.ConsumeFact})))
-                    $r.Private['Transferred']=$Context
                 }elseif($r.Type -ceq 'Candidate'){
                     $admitted=$false
                     foreach($original in $script:q.Private.PromotionFields.OwnedCandidateHandles){if([object]::ReferenceEquals($original,$r.View)){$admitted=$true;break}}
                     if($admitted){
                         $transfers.Add((New-R2BootstrapView (New-R2BootstrapMap @{Type='Handle';Original=$r.View;LocalValue=$r.Data.LocalValue;Kind=$r.Data.Kind;Ownership=[R2HandleOwnership]::OWNED;State=[R2HandleState]::LIVE;AcquireFact=$null;ConsumeFact=$null})))
-                        $r.Private['Transferred']=$Context
                     }
                 }
             }
@@ -1650,7 +1786,23 @@ function New-R2BootstrapQuarantine {
             $script:q.Private['TransferManifest']=$manifest
             return ,$manifest
         }
-        Export-ModuleMember -Function New-R2BootstrapState,Assert-R2BootstrapQuarantineReference,Enter-R2BootstrapStep,Exit-R2BootstrapStep,Get-R2BootstrapInheritedReader,New-R2BootstrapHandleCandidate,New-R2BootstrapBuffer,Get-R2BootstrapBufferSlice,Write-R2BootstrapBuffer,Read-R2BootstrapBuffer,Write-R2BootstrapReference,Release-R2BootstrapBuffer,Invoke-R2BootstrapNative,Close-R2BootstrapHandle,Consume-R2BootstrapAdmission,Assert-R2BootstrapPromotion,Get-R2BootstrapPromotionData,Retain-R2BootstrapNativeFact
+        function Register-R2BootstrapTransferredOwnership([object]$Context,[object]$Quarantine,[object]$Original,[object]$Promoted){
+            Assert-R2BootstrapPromotion $Context $Quarantine
+            $entry=Get-R2BootstrapRecord $Original ''
+            if($entry.Private.ContainsKey('Transferred')){throw 'R2_BOOTSTRAP_TRANSFER_REISSUE'}
+            # Original ownership remains in quarantine until THIS exact resource
+            # is present in the pending ledger's original cleanup registry.
+            foreach($held in $Context.Registry){
+                if([object]::ReferenceEquals($held,$Promoted) -and [object]::ReferenceEquals($held.BootstrapReference,$Original) -and [object]::ReferenceEquals($held.ContextReference,$Context)){$entry.Private['Transferred']=$Context;return}
+            }
+            throw 'R2_BOOTSTRAP_TRANSFER_REGISTRY_REQUIRED'
+        }
+        function Register-R2BootstrapAccountingContext([object]$Context,[object]$Quarantine,[object]$Proof){
+            Assert-R2BootstrapPromotion $Context $Quarantine
+            if($script:q.Private.ContainsKey('AccountingContext') -or -not [object]::ReferenceEquals($Proof,$script:q.Private.PromotionProof) -or -not $script:q.Private.ContainsKey('TransferManifest') -or $Context.Counters.Work.Calls -ne $script:q.Data.Calls){throw 'R2_BOOTSTRAP_ACCOUNTING_CONTEXT'}
+            $script:q.Private['AccountingContext']=$Context
+        }
+        Export-ModuleMember -Function New-R2BootstrapState,Assert-R2BootstrapQuarantineReference,Enter-R2BootstrapStep,Exit-R2BootstrapStep,Complete-R2BootstrapStepIfActive,Get-R2BootstrapAdmissionCommitData,Assert-R2BootstrapAdmissionCommitHistory,Register-R2BootstrapAccountingContext,Register-R2BootstrapTransferredOwnership,Get-R2BootstrapInheritedReader,New-R2BootstrapHandleCandidate,New-R2BootstrapBuffer,Get-R2BootstrapBufferSlice,Write-R2BootstrapBuffer,Read-R2BootstrapBuffer,Write-R2BootstrapReference,Release-R2BootstrapBuffer,Invoke-R2BootstrapNative,Close-R2BootstrapHandle,Assert-R2BootstrapPromotion,Get-R2BootstrapPromotionData,Retain-R2BootstrapNativeFact
     }
     Import-Module -ModuleInfo $bootstrapModule -Global -ErrorAction Stop
     return ,(New-R2BootstrapState $Plan $InheritedReaderLocator)
