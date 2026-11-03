@@ -54,6 +54,7 @@ def test_m1_train_cli_builds_paired_ppg_cache_and_runs_ppg_only_diagnostic(tmp_p
                 "model_mode": "ppg_only",
                 "m1_embedding_dim": 8,
                 "m1_modality_dropout": 0.0,
+                "m1_min_quality_fraction": 0.5,
                 "resample_hz": 25,
                 "max_gap_ms": 200,
                 "window_sec": 1,
@@ -80,6 +81,8 @@ def test_m1_train_cli_builds_paired_ppg_cache_and_runs_ppg_only_diagnostic(tmp_p
     metrics = json.loads((output_dir / "metrics.json").read_text(encoding="utf-8"))
     saved_config = yaml.safe_load((output_dir / "config.yaml").read_text(encoding="utf-8"))
     assert metrics["model_mode"] == "ppg_only"
+    assert metrics["min_quality_fraction"] == 0.5
     assert metrics["cache"]["ppg"]["files"] == 2
     assert saved_config["model"] == "m1_imu_ppg"
     assert saved_config["ppg_cache_dir"] == str(tmp_path / "cache" / "ppg")
+    assert saved_config["m1_min_quality_fraction"] == 0.5

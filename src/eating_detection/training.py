@@ -48,19 +48,34 @@ def compute_pos_weight(labels) -> float:
     return negatives / positives
 
 
-def resolve_m1_pos_weight(loss_mode: str, global_pos_weight: float) -> float:
+def resolve_m1_pos_weight(
+    loss_mode: str,
+    global_pos_weight: float,
+    configured_pos_weight: float | None = None,
+) -> float:
     """Resolve the scalar weight used by M1's non-stratified BCE modes."""
     if loss_mode not in {
         "global_bce",
         "availability_stratified_bce",
+        "fixed_prior_bce",
         "unweighted_bce",
         "focal_bce",
+        "negative_run_bce",
+        "temporal_run_bce",
     }:
         raise ValueError(
-            "m1_loss_mode must be global_bce, availability_stratified_bce, unweighted_bce, or focal_bce"
+            "m1_loss_mode must be global_bce, availability_stratified_bce, fixed_prior_bce, unweighted_bce, focal_bce, negative_run_bce, or temporal_run_bce"
         )
     if not np.isfinite(global_pos_weight) or global_pos_weight < 0:
         raise ValueError("global_pos_weight must be finite and non-negative")
+    if configured_pos_weight is not None and (
+        not np.isfinite(configured_pos_weight) or configured_pos_weight < 0
+    ):
+        raise ValueError("configured_pos_weight must be finite and non-negative")
+    if loss_mode == "fixed_prior_bce":
+        if configured_pos_weight is None:
+            raise ValueError("fixed_prior_bce requires configured_pos_weight")
+        return float(configured_pos_weight)
     return 1.0 if loss_mode == "unweighted_bce" else float(global_pos_weight)
 
 
@@ -70,17 +85,24 @@ def m1_bce_loss(
     pos_weight: float | torch.Tensor,
     loss_mode: str = "global_bce",
     focal_gamma: float = 2.0,
+    sample_weight: torch.Tensor | None = None,
+    temporal_run_penalty_weight: float = 0.0,
 ) -> torch.Tensor:
     """Compute the M1 BCE-logit loss, optionally focusing hard examples."""
     if loss_mode not in {
         "global_bce",
         "availability_stratified_bce",
+        "fixed_prior_bce",
         "unweighted_bce",
         "focal_bce",
+        "negative_run_bce",
+        "temporal_run_bce",
     }:
         raise ValueError(f"unsupported M1 loss mode: {loss_mode}")
     if focal_gamma < 0 or not np.isfinite(focal_gamma):
         raise ValueError("focal_gamma must be finite and non-negative")
+    if temporal_run_penalty_weight < 0 or not np.isfinite(temporal_run_penalty_weight):
+        raise ValueError("temporal_run_penalty_weight must be finite and non-negative")
     targets = targets.to(device=logits.device, dtype=logits.dtype)
     pos_weight_tensor = torch.as_tensor(
         pos_weight, dtype=logits.dtype, device=logits.device
@@ -91,13 +113,106 @@ def m1_bce_loss(
     weighted = torch.nn.functional.binary_cross_entropy_with_logits(
         logits, targets, pos_weight=pos_weight_tensor, reduction="none"
     )
-    if loss_mode != "focal_bce":
-        return weighted.mean()
-    focal_factor = torch.pow(1.0 - torch.exp(-unweighted), focal_gamma)
-    return (focal_factor * weighted).mean()
+    per_example = weighted
+    if loss_mode == "focal_bce":
+        focal_factor = torch.pow(1.0 - torch.exp(-unweighted), focal_gamma)
+        per_example = focal_factor * weighted
+    if sample_weight is None:
+        loss = per_example.mean()
+    else:
+        sample_weight = sample_weight.to(device=logits.device, dtype=logits.dtype)
+        if sample_weight.ndim != 1 or sample_weight.shape != logits.shape:
+            raise ValueError("sample_weight must have shape (batch,)")
+        if not torch.isfinite(sample_weight).all() or torch.any(sample_weight < 0):
+            raise ValueError("sample_weight must be finite and non-negative")
+        denominator = sample_weight.sum()
+        if denominator <= 0:
+            raise ValueError("sample_weight must contain a positive value")
+        loss = (per_example * sample_weight).sum() / denominator
+    if loss_mode == "temporal_run_bce" and temporal_run_penalty_weight > 0:
+        run_mask = compute_m1_temporal_run_mask(targets)
+        if torch.any(run_mask):
+            negative_targets = torch.zeros_like(logits[run_mask])
+            run_penalty = torch.nn.functional.binary_cross_entropy_with_logits(
+                logits[run_mask], negative_targets
+            )
+            loss = loss + temporal_run_penalty_weight * run_penalty
+    return loss
+
+
+def compute_m1_temporal_run_mask(
+    targets: torch.Tensor, *, min_run_length: int = 3
+) -> torch.Tensor:
+    """Mark negative labels that belong to contiguous runs in one ordered batch."""
+    if targets.ndim != 1:
+        raise ValueError("targets must have shape (batch,)")
+    if min_run_length < 1:
+        raise ValueError("min_run_length must be positive")
+    negative = targets == 0
+    if min_run_length == 1:
+        return negative
+    if len(targets) < min_run_length:
+        return torch.zeros_like(negative)
+    contiguous = negative.unfold(0, min_run_length, 1).all(dim=1)
+    mask = torch.zeros_like(negative)
+    for offset in range(min_run_length):
+        mask[offset : offset + len(contiguous)] |= contiguous
+    return mask
 
 
 _M1_MODALITY_STRATA = ("both", "imu_only", "ppg_only", "neither")
+
+
+def compute_m1_negative_run_weights(
+    labels,
+    source_ids,
+    starts_ms,
+    *,
+    step_ms: int,
+    reference_windows: float = 8.0,
+    max_weight: float = 4.0,
+) -> torch.Tensor:
+    """Weight only long, contiguous negative train runs.
+
+    A run cannot cross a source file, a positive/ignored gap, or a timestamp
+    discontinuity. Ignored windows are absent from the usual training dataset;
+    their missing timestamps therefore break continuity without using val/test.
+    """
+    labels_array = np.asarray(labels, dtype=np.float64)
+    sources_array = np.asarray(source_ids, dtype=object)
+    starts_array = np.asarray(starts_ms, dtype=np.int64)
+    if labels_array.ndim != 1 or sources_array.shape != labels_array.shape:
+        raise ValueError("labels and source_ids must have matching 1-D shapes")
+    if starts_array.shape != labels_array.shape:
+        raise ValueError("starts_ms must have the same 1-D shape as labels")
+    if not np.isfinite(labels_array).all():
+        raise ValueError("labels must be finite")
+    if step_ms <= 0:
+        raise ValueError("step_ms must be positive")
+    if not np.isfinite(reference_windows) or reference_windows <= 0:
+        raise ValueError("reference_windows must be finite and positive")
+    if not np.isfinite(max_weight) or max_weight < 1:
+        raise ValueError("max_weight must be finite and at least 1")
+    weights = np.ones(len(labels_array), dtype=np.float32)
+    index = 0
+    while index < len(labels_array):
+        if labels_array[index] != 0.0:
+            index += 1
+            continue
+        end = index + 1
+        while end < len(labels_array):
+            contiguous = (
+                labels_array[end] == 0.0
+                and sources_array[end] == sources_array[end - 1]
+                and starts_array[end] == starts_array[end - 1] + step_ms
+            )
+            if not contiguous:
+                break
+            end += 1
+        run_weight = min(float(max_weight), max(1.0, (end - index) / float(reference_windows)))
+        weights[index:end] = np.float32(run_weight)
+        index = end
+    return torch.from_numpy(weights)
 
 
 def _m1_modality_category(mask: np.ndarray) -> str:
@@ -185,6 +300,8 @@ def train_m1_one_batch(
     pos_weight: float | torch.Tensor,
     loss_mode: str = "global_bce",
     focal_gamma: float = 2.0,
+    sample_weight: torch.Tensor | None = None,
+    temporal_run_penalty_weight: float = 0.0,
 ) -> float:
     """Run one M1 joint-fusion update on logits and labels in [0, 1]."""
     if y.ndim != 1 or imu.ndim != 3 or ppg.ndim != 3 or len(imu) != len(y):
@@ -200,6 +317,8 @@ def train_m1_one_batch(
         pos_weight=pos_weight,
         loss_mode=loss_mode,
         focal_gamma=focal_gamma,
+        sample_weight=sample_weight,
+        temporal_run_penalty_weight=temporal_run_penalty_weight,
     )
     loss.backward()
     optimizer.step()
@@ -484,15 +603,27 @@ def _predict_cached(
 
 def _paired_cached_collate(batch):
     if isinstance(batch, PairedCachedBatch):
-        return batch.imu, batch.ppg, batch.modality_mask, batch.labels, batch.participants
+        values = (batch.imu, batch.ppg, batch.modality_mask, batch.labels, batch.participants)
+        return values if batch.sample_weights is None else values + (batch.sample_weights,)
     if isinstance(batch, list) and len(batch) == 1 and isinstance(batch[0], PairedCachedBatch):
         paired_batch = batch[0]
-        return (
+        values = (
             paired_batch.imu,
             paired_batch.ppg,
             paired_batch.modality_mask,
             paired_batch.labels,
             paired_batch.participants,
+        )
+        return values if paired_batch.sample_weights is None else values + (paired_batch.sample_weights,)
+    if len(batch[0]) == 6:
+        imu, ppg, masks, labels, participants, sample_weights = zip(*batch)
+        return (
+            torch.stack(imu),
+            torch.stack(ppg),
+            torch.stack(masks),
+            torch.stack(labels),
+            participants,
+            torch.stack(sample_weights),
         )
     imu, ppg, masks, labels, participants = zip(*batch)
     return (
@@ -612,6 +743,9 @@ def fit_m1_cached(
     model_mode: str = "fusion",
     embedding_dim: int = 64,
     modality_dropout: float = 0.25,
+    pooling: str = "avg",
+    fusion_mode: str = "concat",
+    min_quality_fraction: float = 0.0,
     imu_cache_issues: list[dict[str, str]] | None = None,
     ppg_cache_issues: list[dict[str, str]] | None = None,
 ) -> dict[str, object]:
@@ -634,10 +768,16 @@ def fit_m1_cached(
 
     set_seed(seed)
     train_dataset = PairedCachedWindowDataset(
-        imu_caches, ppg_caches, participants=train_participants
+        imu_caches,
+        ppg_caches,
+        participants=train_participants,
+        min_quality_fraction=min_quality_fraction,
     )
     val_dataset = PairedCachedWindowDataset(
-        imu_caches, ppg_caches, participants=val_participants
+        imu_caches,
+        ppg_caches,
+        participants=val_participants,
+        min_quality_fraction=min_quality_fraction,
     )
     if not len(train_dataset):
         raise ValueError("no training windows for the requested participants")
@@ -650,8 +790,33 @@ def fit_m1_cached(
     ]
     global_pos_weight = compute_pos_weight(train_labels)
     loss_mode = str(config_payload.get("m1_loss_mode", "global_bce"))
-    pos_weight = resolve_m1_pos_weight(loss_mode, global_pos_weight)
+    configured_pos_weight = config_payload.get("m1_pos_weight")
+    if configured_pos_weight is not None:
+        configured_pos_weight = float(configured_pos_weight)
+    pos_weight = resolve_m1_pos_weight(
+        loss_mode, global_pos_weight, configured_pos_weight=configured_pos_weight
+    )
     focal_gamma = float(config_payload.get("m1_focal_gamma", 2.0))
+    negative_run_weights = None
+    negative_run_reference_windows = float(
+        config_payload.get("m1_negative_run_reference_windows", 8.0)
+    )
+    negative_run_max_weight = float(
+        config_payload.get("m1_negative_run_max_weight", 4.0)
+    )
+    temporal_run_penalty_weight = float(
+        config_payload.get("m1_temporal_run_penalty_weight", 0.0)
+    )
+    if loss_mode == "negative_run_bce":
+        negative_run_weights = compute_m1_negative_run_weights(
+            train_labels,
+            [train_dataset.source_for_index(index) for index in range(len(train_dataset))],
+            [train_dataset.window_metadata(index)[1] for index in range(len(train_dataset))],
+            step_ms=int(round(float(config_payload.get("step_sec", 3)) * 1000.0)),
+            reference_windows=negative_run_reference_windows,
+            max_weight=negative_run_max_weight,
+        )
+        train_dataset.set_sample_weights(negative_run_weights)
     availability_pos_weights = None
     if loss_mode == "availability_stratified_bce":
         train_modality_masks = _m1_dataset_modality_masks(train_dataset, model_mode)
@@ -665,10 +830,16 @@ def fit_m1_cached(
         embedding_dim=embedding_dim,
         modality_dropout=modality_dropout,
         normalization="group",
+        pooling=pooling,
+        fusion_mode=fusion_mode,
     ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     loader = _paired_cached_loader(
-        train_dataset, batch_size, device, shuffle=True, seed=seed
+        train_dataset,
+        batch_size,
+        device,
+        shuffle=loss_mode != "temporal_run_bce",
+        seed=seed,
     )
     best_result = None
     best_state = None
@@ -706,7 +877,12 @@ def fit_m1_cached(
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(device)
         losses = []
-        for imu, ppg, modality_mask, targets, participants in loader:
+        for batch in loader:
+            if len(batch) == 6:
+                imu, ppg, modality_mask, targets, participants, sample_weights = batch
+            else:
+                imu, ppg, modality_mask, targets, participants = batch
+                sample_weights = None
             if len(set(participants)) != 1:
                 raise AssertionError("participant batch sampler mixed participant groups")
             imu = _standardize_batch(imu, imu_stats).to(
@@ -719,6 +895,10 @@ def fit_m1_cached(
                 device, non_blocking=device.type == "cuda"
             )
             targets = targets.to(device, non_blocking=device.type == "cuda")
+            if sample_weights is not None:
+                sample_weights = sample_weights.to(
+                    device, non_blocking=device.type == "cuda"
+                )
             batch_pos_weight = (
                 m1_stratum_pos_weight_tensor(modality_mask, availability_pos_weights)
                 if availability_pos_weights is not None
@@ -735,6 +915,8 @@ def fit_m1_cached(
                     batch_pos_weight,
                     loss_mode=loss_mode,
                     focal_gamma=focal_gamma,
+                    sample_weight=sample_weights,
+                    temporal_run_penalty_weight=temporal_run_penalty_weight,
                 )
             )
         _synchronize(device)
@@ -772,11 +954,34 @@ def fit_m1_cached(
             "model_mode": model_mode,
             "embedding_dim": embedding_dim,
             "modality_dropout": modality_dropout,
+            "pooling": pooling,
+            "fusion_mode": fusion_mode,
+            "min_quality_fraction": min_quality_fraction,
             "pos_weight": pos_weight,
             "global_pos_weight": global_pos_weight,
+            "configured_pos_weight": configured_pos_weight,
             "loss_mode": loss_mode,
             "focal_gamma": focal_gamma if loss_mode == "focal_bce" else None,
             "availability_pos_weight": availability_pos_weights,
+            "negative_run_reference_windows": (
+                negative_run_reference_windows if loss_mode == "negative_run_bce" else None
+            ),
+            "negative_run_max_weight": (
+                negative_run_max_weight if loss_mode == "negative_run_bce" else None
+            ),
+            "temporal_run_penalty_weight": (
+                temporal_run_penalty_weight if loss_mode == "temporal_run_bce" else None
+            ),
+            "negative_run_weight_summary": (
+                {
+                    "min": float(negative_run_weights.min()),
+                    "mean": float(negative_run_weights.float().mean()),
+                    "max": float(negative_run_weights.max()),
+                    "weighted_windows": int((negative_run_weights > 1).sum()),
+                }
+                if negative_run_weights is not None
+                else None
+            ),
             "participant_f1_mean": float(np.mean(f1_values)) if f1_values else 0.0,
             "participant_f1_std": float(np.std(f1_values)) if f1_values else 0.0,
             "participant_f1_worst": min(f1_values) if f1_values else 0.0,

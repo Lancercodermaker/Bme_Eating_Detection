@@ -164,6 +164,9 @@ def _run_train(args: argparse.Namespace) -> int:
                 "m1_modality_dropout": float(
                     config_payload.get("m1_modality_dropout", 0.25)
                 ),
+                "m1_min_quality_fraction": float(
+                    config_payload.get("m1_min_quality_fraction", 0.0)
+                ),
             }
         )
     _write_config(output_dir / "config.yaml", config_payload)
@@ -299,6 +302,9 @@ def _run_train(args: argparse.Namespace) -> int:
                 model_mode=str(config_payload["model_mode"]),
                 embedding_dim=int(config_payload["m1_embedding_dim"]),
                 modality_dropout=float(config_payload["m1_modality_dropout"]),
+                pooling=str(config_payload.get("m1_pooling", "avg")),
+                fusion_mode=str(config_payload.get("m1_fusion_mode", "concat")),
+                min_quality_fraction=float(config_payload["m1_min_quality_fraction"]),
                 imu_cache_issues=issues,
                 ppg_cache_issues=ppg_issues,
             )

@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 from typing import Mapping
 
 
@@ -94,25 +95,47 @@ class TemporalEncoder(nn.Module):
         in_channels: int,
         embedding_dim: int = 64,
         normalization: str = "group",
+        pooling: str = "avg",
     ):
         super().__init__()
         if in_channels <= 0 or embedding_dim <= 0:
             raise ValueError("encoder channel counts must be positive")
+        if pooling not in {"avg", "avgmax", "avg4"}:
+            raise ValueError("pooling must be avg, avgmax, or avg4")
         self.in_channels = in_channels
-        self.blocks = nn.Sequential(
+        self.pooling = pooling
+        blocks = [
             ConvBlock(in_channels, 32, normalization),
             ConvBlock(32, 64, normalization),
             ConvBlock(64, 96, normalization),
-            nn.AdaptiveAvgPool1d(1),
+        ]
+        if pooling == "avg":
+            blocks.append(nn.AdaptiveAvgPool1d(1))
+            projection_channels = 96
+        elif pooling == "avgmax":
+            projection_channels = 192
+        else:
+            projection_channels = 96 * 4
+        self.blocks = nn.Sequential(
+            *blocks,
         )
-        self.projection = nn.Linear(96, embedding_dim)
+        self.projection = nn.Linear(projection_channels, embedding_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.ndim != 3 or x.shape[1] != self.in_channels:
             raise ValueError(
                 f"expected (batch, channels, time) with {self.in_channels} channels"
             )
-        return self.projection(self.blocks(x).squeeze(-1))
+        encoded = self.blocks(x)
+        if self.pooling == "avg":
+            pooled = encoded.squeeze(-1)
+        elif self.pooling == "avgmax":
+            pooled = torch.cat(
+                [encoded.mean(dim=-1), encoded.amax(dim=-1)], dim=1
+            )
+        else:
+            pooled = _equal_bin_mean(encoded, 4).flatten(start_dim=1)
+        return self.projection(pooled)
 
 
 class IMUPPGFusion(nn.Module):
@@ -130,20 +153,40 @@ class IMUPPGFusion(nn.Module):
         embedding_dim: int = 64,
         modality_dropout: float = 0.25,
         normalization: str = "group",
+        pooling: str = "avg",
+        fusion_mode: str = "concat",
     ):
         super().__init__()
         if not 0.0 <= modality_dropout <= 1.0:
             raise ValueError("modality_dropout must be in [0, 1]")
-        self.imu_encoder = TemporalEncoder(imu_channels, embedding_dim, normalization)
-        self.ppg_encoder = TemporalEncoder(ppg_channels, embedding_dim, normalization)
-        self.modality_dropout = float(modality_dropout)
-        self.gate = nn.Sequential(
-            nn.Linear(embedding_dim * 2 + 2, embedding_dim),
-            nn.ReLU(),
-            nn.Linear(embedding_dim, 2),
-            nn.Sigmoid(),
+        if fusion_mode not in {
+            "concat", "shared_mean", "normalized_mean", "logit_mean", "logit_min"
+        }:
+            raise ValueError(
+                "fusion_mode must be concat, shared_mean, normalized_mean, logit_mean, or logit_min"
+            )
+        self.imu_encoder = TemporalEncoder(
+            imu_channels, embedding_dim, normalization, pooling=pooling
         )
-        self.head = nn.Linear(embedding_dim * 2 + 2, 1)
+        self.ppg_encoder = TemporalEncoder(
+            ppg_channels, embedding_dim, normalization, pooling=pooling
+        )
+        self.modality_dropout = float(modality_dropout)
+        self.fusion_mode = fusion_mode
+        if fusion_mode == "concat":
+            self.gate = nn.Sequential(
+                nn.Linear(embedding_dim * 2 + 2, embedding_dim),
+                nn.ReLU(),
+                nn.Linear(embedding_dim, 2),
+                nn.Sigmoid(),
+            )
+            self.head = nn.Linear(embedding_dim * 2 + 2, 1)
+        elif fusion_mode in {"logit_mean", "logit_min"}:
+            self.imu_head = nn.Linear(embedding_dim, 1)
+            self.ppg_head = nn.Linear(embedding_dim, 1)
+            self.missing_logit = nn.Parameter(torch.zeros(1))
+        else:
+            self.head = nn.Linear(embedding_dim, 1)
 
     @staticmethod
     def _validate_inputs(
@@ -201,6 +244,39 @@ class IMUPPGFusion(nn.Module):
         imu, ppg, active = self.apply_modality_dropout(imu, ppg, modality_mask)
         imu_embedding = self.imu_encoder(imu) * active[:, :1]
         ppg_embedding = self.ppg_encoder(ppg) * active[:, 1:]
+        if self.fusion_mode in {"logit_mean", "logit_min"}:
+            imu_logits = self.imu_head(imu_embedding).squeeze(-1)
+            ppg_logits = self.ppg_head(ppg_embedding).squeeze(-1)
+            available_count = active.sum(dim=1)
+            if self.fusion_mode == "logit_mean":
+                modality_logits = (
+                    imu_logits * active[:, 0] + ppg_logits * active[:, 1]
+                ) / available_count.clamp_min(1.0)
+            else:
+                both = (active[:, 0] == 1) & (active[:, 1] == 1)
+                imu_only = (active[:, 0] == 1) & (active[:, 1] == 0)
+                ppg_only = (active[:, 0] == 0) & (active[:, 1] == 1)
+                modality_logits = torch.where(
+                    both,
+                    torch.minimum(imu_logits, ppg_logits),
+                    torch.where(
+                        imu_only,
+                        imu_logits,
+                        torch.where(ppg_only, ppg_logits, self.missing_logit),
+                    ),
+                )
+            return torch.where(
+                available_count > 0.0,
+                modality_logits,
+                self.missing_logit.expand(imu.shape[0]),
+            )
+        if self.fusion_mode in {"shared_mean", "normalized_mean"}:
+            available_count = active.sum(dim=1, keepdim=True).clamp_min(1.0)
+            if self.fusion_mode == "normalized_mean":
+                imu_embedding = F.normalize(imu_embedding, p=2, dim=1) * active[:, :1]
+                ppg_embedding = F.normalize(ppg_embedding, p=2, dim=1) * active[:, 1:]
+            fused = (imu_embedding + ppg_embedding) / available_count
+            return self.head(fused).squeeze(-1)
         gates = self.gate(torch.cat((imu_embedding, ppg_embedding, active), dim=1))
         fused = torch.cat(
             (

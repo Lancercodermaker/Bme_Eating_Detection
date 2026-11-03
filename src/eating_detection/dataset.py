@@ -367,6 +367,7 @@ class PairedCachedBatch:
     modality_mask: torch.Tensor
     labels: torch.Tensor
     participants: tuple[str, ...]
+    sample_weights: torch.Tensor | None = None
 
 
 class PairedCachedWindowDataset(Dataset):
@@ -378,7 +379,10 @@ class PairedCachedWindowDataset(Dataset):
         ppg_caches: list[FeatureCache | LazyFeatureCache],
         participants: set[str] | None = None,
         include_ignored: bool = False,
+        min_quality_fraction: float = 0.0,
     ):
+        if not 0.0 <= min_quality_fraction <= 1.0:
+            raise ValueError("min_quality_fraction must be in [0, 1]")
         self.imu_caches = list(imu_caches)
         ppg_by_source: dict[str, FeatureCache | LazyFeatureCache] = {}
         for cache in ppg_caches:
@@ -395,17 +399,30 @@ class PairedCachedWindowDataset(Dataset):
         self.pairs: list[tuple[FeatureCache | LazyFeatureCache, FeatureCache | LazyFeatureCache]] = []
         self._window_modality_masks: list[np.ndarray] = []
         self._references: list[tuple[int, int]] = []
+        self._sample_weights: np.ndarray | None = None
         self._active_pair_index: int | None = None
         for imu_cache in self.imu_caches:
             ppg_cache = ppg_by_source[str(imu_cache.source_path.resolve())]
             self._validate_pair(imu_cache, ppg_cache)
             pair_index = len(self.pairs)
             self.pairs.append((imu_cache, ppg_cache))
-            self._window_modality_masks.append(self._window_modality_masks_for_pair(imu_cache, ppg_cache))
             if participants is not None and imu_cache.participant not in participants:
+                self._window_modality_masks.append(
+                    self._window_modality_masks_for_pair(imu_cache, ppg_cache)
+                )
                 continue
+            if min_quality_fraction > 0.0:
+                quality_usable = (
+                    self._window_quality_fractions(imu_cache)
+                    >= min_quality_fraction
+                )
+            else:
+                quality_usable = np.ones(len(imu_cache.window_loss_mask), dtype=bool)
+            self._window_modality_masks.append(
+                self._window_modality_masks_for_pair(imu_cache, ppg_cache)
+            )
             for window_index, usable in enumerate(imu_cache.window_loss_mask):
-                if include_ignored or bool(usable):
+                if (include_ignored or bool(usable)) and quality_usable[window_index]:
                     self._references.append((pair_index, window_index))
 
     @staticmethod
@@ -504,6 +521,26 @@ class PairedCachedWindowDataset(Dataset):
         pair_index, _ = self._references[index]
         return self.pairs[pair_index][0].participant
 
+    def source_for_index(self, index: int) -> str:
+        pair_index, _ = self._references[index]
+        return str(self.pairs[pair_index][0].source_path.resolve())
+
+    def set_sample_weights(self, weights) -> None:
+        """Attach train-only per-window weights without changing default batches."""
+        values = np.asarray(weights, dtype=np.float32)
+        if values.shape != (len(self._references),):
+            raise ValueError("sample weights must have shape (dataset_length,)")
+        if not np.isfinite(values).all() or np.any(values < 0):
+            raise ValueError("sample weights must be finite and non-negative")
+        if not np.any(values > 0):
+            raise ValueError("sample weights must contain a positive value")
+        self._sample_weights = values.copy()
+
+    def sample_weight_for_index(self, index: int) -> float:
+        if self._sample_weights is None:
+            return 1.0
+        return float(self._sample_weights[index])
+
     def batch_group_for_index(self, index: int):
         pair_index, _ = self._references[index]
         return self.pairs[pair_index][0].participant, pair_index
@@ -553,13 +590,16 @@ class PairedCachedWindowDataset(Dataset):
         self._activate_pair(pair_index)
         imu_cache, ppg_cache = self.pairs[pair_index]
         start, end = imu_cache.window_indices[window_index]
-        return (
+        item = (
             torch.from_numpy(imu_cache.features[:, int(start):int(end)]),
             torch.from_numpy(self._ppg_window(ppg_cache, int(start), int(end))),
             torch.from_numpy(self._window_modality_masks[pair_index][window_index]),
             torch.tensor(imu_cache.window_labels[window_index], dtype=torch.float32),
             imu_cache.participant,
         )
+        if self._sample_weights is None:
+            return item
+        return item + (torch.tensor(self._sample_weights[index], dtype=torch.float32),)
 
     def __getitems__(self, indices):
         indices = [int(index) for index in indices]
@@ -586,12 +626,16 @@ class PairedCachedWindowDataset(Dataset):
             ppg = np.ascontiguousarray(ppg_cache.features[:, offsets].transpose(1, 0, 2))
         masks = self._window_modality_masks[pair_index][window_indices]
         labels = np.asarray(imu_cache.window_labels[window_indices], dtype=np.float32)
+        sample_weights = None
+        if self._sample_weights is not None:
+            sample_weights = torch.from_numpy(self._sample_weights[np.asarray(indices)])
         return PairedCachedBatch(
             imu=torch.from_numpy(imu),
             ppg=torch.from_numpy(ppg),
             modality_mask=torch.from_numpy(masks),
             labels=torch.from_numpy(labels),
             participants=(imu_cache.participant,) * len(indices),
+            sample_weights=sample_weights,
         )
 
 

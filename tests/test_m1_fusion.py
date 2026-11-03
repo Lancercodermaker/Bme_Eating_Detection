@@ -7,6 +7,8 @@ from eating_detection.models import (
     load_compatible_imu_encoder_from_m0,
 )
 from eating_detection.training import (
+    compute_m1_negative_run_weights,
+    compute_m1_temporal_run_mask,
     compute_m1_stratum_pos_weights,
     m1_bce_loss,
     m1_stratum_pos_weight_tensor,
@@ -33,6 +35,85 @@ def test_m1_fuses_independent_imu_and_ppg_encoders_with_explicit_masks():
     assert torch.isfinite(logits).all()
     assert model.imu_encoder.in_channels == 10
     assert model.ppg_encoder.in_channels == 45
+
+
+def test_m1_avg4_pooling_preserves_four_temporal_bins_per_modality():
+    model = IMUPPGFusion(imu_channels=10, ppg_channels=45, pooling="avg4")
+    imu, ppg, modality_mask = _inputs(time_steps=125)
+
+    logits = model(imu, ppg, modality_mask)
+
+    assert logits.shape == (3,)
+    assert model.imu_encoder.projection.in_features == 96 * 4
+    assert model.ppg_encoder.projection.in_features == 96 * 4
+
+
+def test_m1_avgmax_pooling_preserves_temporal_peak_features_per_modality():
+    model = IMUPPGFusion(imu_channels=10, ppg_channels=45, pooling="avgmax")
+    imu, ppg, modality_mask = _inputs(time_steps=125)
+
+    logits = model(imu, ppg, modality_mask)
+
+    assert logits.shape == (3,)
+    assert model.imu_encoder.projection.in_features == 96 * 2
+    assert model.ppg_encoder.projection.in_features == 96 * 2
+
+
+def test_m1_shared_mean_fusion_uses_one_embedding_head_without_mask_features():
+    model = IMUPPGFusion(
+        imu_channels=10, ppg_channels=45, fusion_mode="shared_mean"
+    )
+
+    assert model.head.in_features == 64
+    assert not hasattr(model, "gate")
+
+
+def test_m1_normalized_mean_fusion_uses_one_embedding_head_without_mask_features():
+    model = IMUPPGFusion(
+        imu_channels=10, ppg_channels=45, fusion_mode="normalized_mean"
+    )
+
+    assert model.head.in_features == 64
+    assert not hasattr(model, "gate")
+
+
+def test_m1_logit_mean_fusion_uses_only_available_modality_logits():
+    model = IMUPPGFusion(
+        imu_channels=10, ppg_channels=45, fusion_mode="logit_mean"
+    ).eval()
+    imu, ppg, _ = _inputs(batch_size=2)
+    imu_only = torch.tensor([[1.0, 0.0], [1.0, 0.0]])
+
+    assert model.imu_head.in_features == 64
+    assert model.ppg_head.in_features == 64
+    assert model.missing_logit.shape == (1,)
+
+    with torch.inference_mode():
+        from_ppg = model(imu, ppg, imu_only)
+        from_zero = model(imu, torch.zeros_like(ppg), imu_only)
+
+    torch.testing.assert_close(from_ppg, from_zero)
+
+
+def test_m1_logit_min_fusion_is_conservative_when_both_modalities_are_available():
+    model = IMUPPGFusion(
+        imu_channels=10, ppg_channels=45, fusion_mode="logit_min"
+    ).eval()
+    with torch.no_grad():
+        model.imu_head.weight.zero_()
+        model.imu_head.bias.fill_(2.0)
+        model.ppg_head.weight.zero_()
+        model.ppg_head.bias.fill_(-1.0)
+        model.missing_logit.fill_(0.5)
+    imu, ppg, _ = _inputs(batch_size=4, time_steps=8)
+    modality_mask = torch.tensor(
+        [[1.0, 1.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]]
+    )
+
+    with torch.inference_mode():
+        logits = model(imu, ppg, modality_mask)
+
+    torch.testing.assert_close(logits, torch.tensor([-1.0, 2.0, -1.0, 0.5]))
 
 
 def test_invalid_ppg_mask_prevents_zero_values_from_being_interpreted_as_observed():
@@ -139,6 +220,15 @@ def test_m1_unweighted_bce_removes_global_class_prior_from_training_weight():
     assert resolve_m1_pos_weight("global_bce", 35.17690685668581) == 35.17690685668581
 
 
+def test_m1_fixed_prior_bce_uses_configured_weight():
+    assert (
+        resolve_m1_pos_weight(
+            "fixed_prior_bce", 35.17690685668581, configured_pos_weight=4.0
+        )
+        == 4.0
+    )
+
+
 def test_m1_focal_bce_downweights_confident_examples():
     logits = torch.tensor([6.0, -6.0])
     targets = torch.tensor([1.0, 0.0])
@@ -149,6 +239,100 @@ def test_m1_focal_bce_downweights_confident_examples():
     )
 
     assert focal < bce
+
+
+def test_m1_negative_run_weights_only_penalize_long_train_negative_runs():
+    labels = torch.tensor([0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0])
+    source_ids = ["file-a"] * 6 + ["file-b"] * 3
+    starts_ms = [0, 3000, 6000, 9000, 12000, 15000, 0, 3000, 9000]
+
+    weights = compute_m1_negative_run_weights(
+        labels,
+        source_ids,
+        starts_ms,
+        step_ms=3000,
+        reference_windows=2,
+        max_weight=4.0,
+    )
+
+    torch.testing.assert_close(
+        weights,
+        torch.tensor([2.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0]),
+    )
+
+
+def test_m1_negative_run_bce_uses_sample_weights_without_changing_positive_prior():
+    logits = torch.tensor([-2.0, 2.0])
+    targets = torch.zeros(2)
+
+    unweighted = m1_bce_loss(
+        logits, targets, pos_weight=1.0, loss_mode="negative_run_bce"
+    )
+    weighted = m1_bce_loss(
+        logits,
+        targets,
+        pos_weight=1.0,
+        loss_mode="negative_run_bce",
+        sample_weight=torch.tensor([1.0, 4.0]),
+    )
+
+    assert weighted > unweighted
+    assert resolve_m1_pos_weight("negative_run_bce", 35.17690685668581) == 35.17690685668581
+
+
+def test_m1_negative_run_weight_cap_is_configurable_for_long_runs():
+    labels = torch.zeros(40)
+    source_ids = ["file-a"] * 40
+    starts_ms = [index * 3000 for index in range(40)]
+
+    capped_four = compute_m1_negative_run_weights(
+        labels,
+        source_ids,
+        starts_ms,
+        step_ms=3000,
+        reference_windows=8.0,
+        max_weight=4.0,
+    )
+    capped_sixteen = compute_m1_negative_run_weights(
+        labels,
+        source_ids,
+        starts_ms,
+        step_ms=3000,
+        reference_windows=8.0,
+        max_weight=16.0,
+    )
+
+    assert torch.all(capped_four == 4.0)
+    assert torch.all(capped_sixteen == 5.0)
+    assert torch.all(capped_sixteen >= capped_four)
+
+
+def test_m1_temporal_run_mask_marks_only_contiguous_negative_runs():
+    labels = torch.tensor([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+
+    mask = compute_m1_temporal_run_mask(labels, min_run_length=3)
+
+    torch.testing.assert_close(
+        mask,
+        torch.tensor([True, True, True, False, True, True, True, True, False]),
+    )
+
+
+def test_m1_temporal_run_bce_adds_negative_run_penalty():
+    logits = torch.tensor([2.0, 2.0, -2.0, -2.0])
+    targets = torch.zeros(4)
+
+    base = m1_bce_loss(logits, targets, pos_weight=1.0, loss_mode="global_bce")
+    temporal = m1_bce_loss(
+        logits,
+        targets,
+        pos_weight=1.0,
+        loss_mode="temporal_run_bce",
+        temporal_run_penalty_weight=2.0,
+    )
+
+    assert temporal > base
+    assert resolve_m1_pos_weight("temporal_run_bce", 35.17690685668581) == 35.17690685668581
 
 
 def test_m1_cuda_forward_backward_sample():

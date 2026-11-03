@@ -3,6 +3,7 @@ import json
 import pytest
 
 from eating_detection.cache import FeatureCacheConfig, build_feature_cache
+from eating_detection.dataset import PairedCachedWindowDataset
 from eating_detection.ppg_cache import PPGCacheConfig, build_ppg_cache
 from eating_detection.training import fit_m1_cached
 
@@ -58,6 +59,33 @@ def _paired_lazy_caches(tmp_path):
     return imu_caches, ppg_caches
 
 
+def test_m1_paired_dataset_filters_windows_below_imu_quality_threshold(tmp_path):
+    imu_caches, ppg_caches = _paired_lazy_caches(tmp_path)
+    imu_caches[0] = build_feature_cache(
+        imu_caches[0].source_path,
+        [(1000, 2000)],
+        tmp_path / "cache",
+        FeatureCacheConfig(resample_hz=25, max_gap_ms=200, window_sec=1, step_sec=1),
+    )
+    imu_caches[0].quality_mask[:, : imu_caches[0].quality_mask.shape[1] // 2] = False
+
+    unfiltered = PairedCachedWindowDataset(
+        imu_caches, ppg_caches, participants={"p1"}
+    )
+    filtered = PairedCachedWindowDataset(
+        imu_caches,
+        ppg_caches,
+        participants={"p1"},
+        min_quality_fraction=0.5,
+    )
+
+    assert len(filtered) < len(unfiltered)
+    assert all(
+        filtered._window_quality_fractions(imu_caches[0])[window_index] >= 0.5
+        for _, window_index in filtered._references
+    )
+
+
 def test_m1_cached_ppg_only_training_uses_cache_and_writes_reproducible_outputs(monkeypatch, tmp_path):
     imu_caches, ppg_caches = _paired_lazy_caches(tmp_path)
 
@@ -83,11 +111,13 @@ def test_m1_cached_ppg_only_training_uses_cache_and_writes_reproducible_outputs(
         model_mode="ppg_only",
         embedding_dim=8,
         modality_dropout=0.25,
+        min_quality_fraction=0.5,
     )
 
     assert result["device"] == "cpu"
     assert result["metrics"]["model_mode"] == "ppg_only"
     assert result["metrics"]["loss_mode"] == "global_bce"
+    assert result["metrics"]["min_quality_fraction"] == 0.5
     assert result["metrics"]["modality_coverage"]["train"]["ppg_available"] > 0
     assert set(result["metrics"]["calibration"]) == {
         "binary_window_membership", "soft_overlap_target"
@@ -118,3 +148,38 @@ def test_m1_cached_training_rejects_cache_participants_outside_the_frozen_split(
             iou_threshold=0.25,
             device_name="cpu",
         )
+
+
+def test_m1_negative_run_bce_records_train_only_weighting(tmp_path):
+    imu_caches, ppg_caches = _paired_lazy_caches(tmp_path)
+
+    result = fit_m1_cached(
+        imu_caches=imu_caches,
+        ppg_caches=ppg_caches,
+        train_participants={"p1"},
+        val_participants={"p2"},
+        truth={"p2": [(1000, 2000)]},
+        output_dir=tmp_path / "run",
+        config_payload={
+            "event_iou_threshold": 0.25,
+            "m1_loss_mode": "negative_run_bce",
+            "step_sec": 1,
+            "m1_negative_run_reference_windows": 2.0,
+            "m1_negative_run_max_weight": 3.0,
+        },
+        split_manifest={"train": ["p1"], "val": ["p2"], "excluded_test": ["test"]},
+        epochs=1,
+        batch_size=2,
+        seed=7,
+        iou_threshold=0.25,
+        device_name="cpu",
+        model_mode="ppg_only",
+        embedding_dim=8,
+        modality_dropout=0.0,
+    )
+
+    metrics = result["metrics"]
+    assert metrics["loss_mode"] == "negative_run_bce"
+    assert metrics["negative_run_reference_windows"] == 2.0
+    assert metrics["negative_run_max_weight"] == 3.0
+    assert metrics["negative_run_weight_summary"]["max"] >= 1.0

@@ -1,5 +1,209 @@
 # 智能手表进食检测项目：新对话接续摘要
 
+## 2026-09-09 clean-quality diagnostic（M2 gate 仍 false）
+
+为区分“数据管线问题”和“模型架构问题”，只给 M1 paired dataset 增加了与 M0 一致的 IMU `min_quality_fraction=0.5` 过滤；未引入外部数据、未重训 M0、未读取 test、未创建或运行 M2。先写回归测试并观察 RED，再实现最小改动；专项 M1=`5 passed`，全套=`150 passed`，`compileall`、`git diff --check`、CUDA smoke 通过。
+
+- 配置=`configs/experiments/m1_clean_quality_e1.yaml`；full run=`artifacts/m1_fusion_clean_quality_e1/`，CUDA batch=`16`，训练=`3918.25 s`，epoch=`1303.15/1308.60/1305.79 s`，IMU/PPG cache=`1121/1121 hit`，test 未读取。
+- clean run train/val windows=`1,306,197/271,724`，较原 M1 validation `593,589` 少 `321,865` 个窗口，说明 quality gate 生效。
+- 独立报告=`artifacts/experiments/m1_fusion_clean_quality_e1/error_analysis.json`：TP/FP/FN=`4/63/47`，P/R/F1=`0.0597015/0.0784314/0.0677966`，participant mean/std/worst=`0.0689078/0.0714318/0`，start/end MAE=`694011/144528 ms`；短暂 FP=`4/63=6.34921%`，`both` predicted-positive rate/FPR=`0.0390493%/0.0407640%`，`imu_only`=`100%/100%`。
+- 对照 frozen M0=`TP/FP/FN 21/171/30`、F1=`0.1728395`、Recall=`0.4117647`。因此官方数据不是完全不可学；quality/coverage 问题真实存在，但仅清理窗口没有消除长 FP，反而暴露 M1 原始 concat fusion 的模态分层失衡。当前主判断：先修正 M1 数据可用性定义，再处理架构缺少事件级长时序上下文；不再把 `neither` 窗口单独视为长 FP 根因。
+
+- 结论：`M2 gate=false`；本轮是诊断证据，不选择 clean-quality 作为最终性能方向，不创建或运行 M2。
+
+## 2026-09-08 M1 logit-mean + availability-stratified BCE 复验（候选淘汰；M2 gate 仍 false）
+
+本轮在同一 frozen split 上完成 `logit_mean` fusion 与 train-only availability-stratified BCE 的完整 3-epoch CUDA run；未读取 test、未重训 M0、未创建或运行 M2。
+
+- full run=`artifacts/m1_fusion_logit_mean_availability_e1/`，windows=`3,578,835`（train=`2,985,246`、val=`593,589`），IMU/PPG cache=`1121/1121 hit`，训练=`8509.22 s`，epoch=`2837.09/2831.45/2839.46 s`，stderr 为空。
+- 独立报告=`artifacts/experiments/m1_fusion_logit_mean_availability_e1/error_analysis.json`：TP/FP/FN=`34/946/17`，P/R/F1=`0.034694/0.666667/0.0659554`，participant mean/std/worst=`0.0578241/0.0315472/0`，start/end MAE=`492860.1/104338.2 ms`；FP duration median/p90/max=`162000/2178074/12011694 ms`，window median/p90=`45/717`，短暂 FP=`62/946=6.55391%`。
+- modality evidence：`both` predicted-positive rate/FPR=`89.2959%/88.9624%`，`imu_only`=`88.9489%/88.3845%`，`neither`=`0%`；availability weights=`both 15.4561 / imu_only 14.9599 / neither 35.1769`。split SHA-256=`18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6`，source CSV/test 均未读取。
+- M2 observed：short-FP dominance=`false`、Recall=`66.6667%`、probability/validity/interval context support=`false`；因此 M2=`false`。`logit_mean` 只提升了 Recall，分层 prior 仍不能消除 observed-modality 长 FP。
+
+下一方向：实现并单测 conservative `logit_min` fusion，让 both-modality 窗口只在 IMU/PPG 两个 logit 都支持时保持高分；仍不创建或运行 M2。
+
+## 2026-09-08 M1 logit-mean fusion 复验（候选淘汰；M2 gate 仍 false）
+
+- full run=`artifacts/m1_fusion_logit_mean_e1/`，global BCE、3 epoch CUDA、batch=`16`、训练=`8127.87 s`，epoch=`2706.26/2710.42/2709.94 s`，stderr 为空。
+- 独立报告=`artifacts/experiments/m1_fusion_logit_mean_e1/error_analysis.json`：TP/FP/FN=`31/882/20`，P/R/F1=`0.033954/0.607843/0.0643154`，participant mean/std/worst=`0.0580073/0.0319887/0`，start/end MAE=`500766.7/98918.3 ms`；FP duration median/p90/max=`141000/2608680/19973102 ms`，window median/p90=`39/847.2`，短暂 FP=`63/882=7.14286%`。
+- `both` predicted-positive rate/FPR=`92.9309%/92.6775%`，`imu_only`=`82.9497%/82.1583%`，`neither`=`0%`；只读 decoder sweep 中 Recall>50% 时 short-FP fraction 最高=`13.6914%`，无 gate 候选。
+- M2=`false`（Recall=`60.7843%` 但 short-FP dominance/context support 均 false）；下一轮先验证 train-only availability-stratified BCE 与该 fusion 的组合。
+
+## 2026-09-08 M1 avgmax pooling 复验（候选淘汰；M2 gate 仍 false）
+
+- full run=`artifacts/m1_fusion_avgmax_pooling_e1/`，只改变 temporal pooling 为 `avgmax`，保留原 concat/global BCE、dropout、decoder、cache 和 split；3 epoch CUDA，训练=`8518.02 s`，epoch=`2817.10/2841.92/2857.74 s`。
+- 独立报告=`artifacts/experiments/m1_fusion_avgmax_pooling_e1/error_analysis.json`：TP/FP/FN=`28/583/23`，P/R/F1=`0.045827/0.549020/0.0845921`，participant mean/std/worst=`0.0752753/0.0465699/0`，start/end MAE=`727658.2/83076.6 ms`；短暂 FP=`29/583=4.97427%`，Recall=`54.9020%`。
+- `both` predicted-positive rate/FPR=`95.0042%/94.7949%`，`imu_only`=`82.0814%/81.3872%`；decoder sweep 无 gate 候选，长 FP 仍由 observed modality coverage 主导。M2=`false`，下一轮转向 logit-level conservative fusion。
+
+## 2026-09-07 M1 negative-run BCE e2 复验（候选淘汰；M2 gate 仍 false）
+
+- `artifacts/m1_fusion_negative_run_bce_e2/` 使用 train-only negative-run cap=`16.0`，其余保持原 concat/global BCE 管线；训练=`8684.75 s`，epoch=`2906.57/2916.91/2860.02 s`。
+- 独立报告=`artifacts/experiments/m1_fusion_negative_run_bce_e2/error_analysis.json`：TP/FP/FN=`19/142/32`，P/R/F1=`0.118012/0.372549/0.179245`；短暂 FP=`0/142=0%`，Recall=`37.2549%`，long FP median duration=`3318113.5 ms`。较 cap=`4` 更强地压低长 FP，但 Recall 崩塌，M2=`false`。
+- decoder-only sweep 无 gate 候选；下一轮验证单一 architecture 变量 `avgmax`，不创建 M2。
+
+## 2026-09-07 M1 no-modality-dropout 复验（候选淘汰；M2 gate 仍 false）
+
+本轮在同一 frozen train/validation split 上完成原 concat/global-BCE M1 结构的 `m1_modality_dropout=0.0` 完整 3-epoch CUDA run；未读取 test、未重训 M0、未创建或运行 M2。
+
+### 事实
+
+- 只改变训练期 modality dropout 为 `0.0`，保持 concat fusion、global train-only BCE、avg pooling、原 decoder、双 cache、seed 和 split；full run=`artifacts/m1_fusion_no_modality_dropout_e1/`，`device=cuda`、`batch_size=16`、windows=`3,578,835`（train=`2,985,246`、val=`593,589`），IMU/PPG cache=`1121/1121 hit`，`test_not_used=true`。
+- 训练=`7862.23 s`，epoch=`2630.11/2618.98/2611.87 s`，GPU max allocated=`38.60 MB`；checkpoint、metrics、training log、events 和 `window_probabilities.jsonl` 均完整生成，stderr 为空。
+- 训练侧/独立分析 TP/FP/FN=`25/418/26`，P/R/F1=`0.0564334/0.4901961/0.1012146`，participant mean/std/worst=`0.0933466/0.0661283/0`，start/end MAE=`674733.8/86950.4 ms`。
+- 独立报告=`artifacts/experiments/m1_fusion_no_modality_dropout_e1/error_analysis.json`：FP duration median/p90/max=`289500/5910860.2/23359557 ms`，window median/p90=`87.5/1939.3`；短暂 FP=`19/418=4.54545%`，Recall=`49.0196%`。binary/soft Brier/ECE=`0.2757563/0.3258336`、`0.2758124/0.3261898`。
+- modality evidence：`both` predicted-positive rate/FPR=`97.1390%/97.0148%`，`imu_only`=`88.8824%/88.2881%`，`neither`=`0%`；取消 dropout 没有消除 observed-modality 的长 FP shortcut。provenance split SHA-256=`18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6`，source CSV/test 均未读取。
+
+### 风险、候选与验收标准
+
+- gate observed：short-FP dominance=`false`（`4.54545% < 50%`）、positive-event Recall=`49.0196%`（未严格大于 50%）、probability/validity/interval context support=`false`，M2 gate=`false`；不得启动 M2。
+- 系统调试结论：no-dropout 仅改变训练分布，仍不能抑制 `both`/`imu_only` 的高分长连续 FP；下一单一 M1 方向拟验证 train-only negative-run weighted BCE，让长负背景获得可审计的额外负样本权重，不读取 validation/test，不叠加 decoder、context 或新模型容量。
+- 下一候选必须先经 TDD RED→GREEN，确认负 run 分段、忽略标签/文件边界、只用 train 统计、权重上限和 legacy config 兼容；随后才注册配置并做同一 frozen split 的 full validation/error analysis。
+
+### 选择与交付
+
+- 选择：淘汰 no-modality-dropout，继续 M1；保留完整 run 和独立报告作为失败证据；不创建或运行 M2。
+
+## 2026-09-07 M1 normalized-mean 复验（候选淘汰；M2 gate 仍 false）
+
+本轮在 frozen train/validation split 上完成 modality-specific normalized mean 的完整 3-epoch CUDA run；未读取 test、未重训 M0、未创建或运行 M2。
+
+### 事实
+
+- TDD 专项=`15 passed`、全套=`140 passed`；只将 shared-mean 的 IMU/PPG embedding 分别 L2 normalize 后再求 availability-aware mean，保持 global train-only BCE、avg pooling、`modality_dropout=0.25`、原 decoder、双 cache 和 split。
+- full run=`artifacts/m1_fusion_normalized_mean_e2/`，checkpoint=`epoch 3`，windows=`3,578,835`（train=`2,985,246`、val=`593,589`），IMU/PPG cache=`1121/1121 hit`，`device=cuda`、`batch_size=16`、`test_not_used=true`；epoch loss=`0.6721980/0.6787165/0.7075065`，训练=`8194.78 s`，epoch=`2733.04/2730.38/2730.04 s`，GPU max allocated=`39.32 MB`。
+- 训练侧/独立分析 TP/FP/FN=`21/179/30`，P/R/F1=`0.1050000/0.4117647/0.1673307`，participant mean/std/worst=`0.1461368/0.1056068/0`，start/end MAE=`615517.5/79659.7 ms`。
+- 独立报告=`artifacts/experiments/m1_fusion_normalized_mean_e2/error_analysis.json`：FP duration median/p90/max=`1914000/12250816.2/24915528 ms`，window median/p90=`631/4066`；短暂 FP=`6/179=3.35196%`，Recall=`41.1765%`。binary/soft Brier/ECE=`0.2519498/0.3199287`、`0.2520053/0.3202849`。
+- modality evidence：`both` predicted-positive rate/FPR=`100%/100%`，`imu_only`=`99.7133%/99.6977%`，`neither`=`0%`；L2 normalization 没有打破 availability-stratum shortcut，反而使 observed modalities 基本全阳性。报告 provenance split SHA-256=`18caba0864331037df66745668d56cabb0499af4c9f2799e2e7b4114394feef6`，source CSV/test 均未读取。
+- 同一概率输出的只读 threshold sweep 也未形成 gate：threshold=`0.20` 时 Recall=`51.1111%` 但 short-FP=`9/304=2.96053%`；threshold=`0.90` 的最高 short-FP fraction 也仅=`734/3934=18.6579%`。
+
+### 风险、候选与验收标准
+
+- normalized-mean 的 short-FP dominance、Recall 严格大于 50%、probability/validity/interval context support 均不满足，M2 gate=`false`；不得启动 M2。
+- 下一单一 M1 方向只改变训练期 modality dropout：`m1_modality_dropout=0.0`，让模型只学习真实可用 modality 的联合分布，保持原 concat、global BCE、avg pooling、decoder、cache 和 frozen split，不叠加 normalized/shared mean、fixed prior、avg4、强 dropout 或 M2 context。配置=`configs/experiments/m1_no_modality_dropout.yaml`，输出=`artifacts/m1_fusion_no_modality_dropout_e1/`。
+
+### 选择与交付
+
+- 选择：淘汰 normalized-mean，继续 M1；保留完整 run、独立报告和 threshold sweep 作为失败证据；不创建或运行 M2。
+
+## 2026-09-07 M1 shared-mean + both-prior BCE 复验（候选淘汰；M2 gate 仍 false）
+
+本节记录对 shared-mean 输出 prior 的单一 loss 校准复验。严格使用 frozen train/validation split、现有双 cache，未读取 test、未重训 M0、未创建或运行 M2。
+
+### 事实
+
+- 保留 shared-mean 架构，只将 global train-only `pos_weight=35.1769` 改为 train `both` stratum 推导的 fixed `pos_weight=15.4561`；没有叠加 avg4、dropout、decoder 或 context。
+- 专项 M1=`14 passed`、全套=`139 passed`；full run=`artifacts/m1_fusion_shared_mean_both_prior_e1/`，IMU/PPG cache=`1121/1121 hit`，windows=`3,578,835`，3 epoch CUDA，batch=`16`，`test_not_used=true`。
+- epoch loss=`0.3338849/0.3511153/0.3584828`，训练=`7635.24 s`，epoch=`2498.03/2596.26/2539.36 s`；TP/FP/FN=`37/1381/14`，P/R/F1=`0.0260931/0.7254902/0.0503744`，participant mean/std/worst=`0.0461866/0.0267140/0`，start/end MAE=`418557.2/115420.5 ms`。
+- 独立报告=`artifacts/experiments/m1_fusion_shared_mean_both_prior_e1/error_analysis.json`：FP duration median/p90/max=`99000/1266000/12904228 ms`，window median/p90=`25/405`；短暂 FP=`123/1381=8.90659%`。binary/soft Brier/ECE=`0.1162751/0.1575266`、`0.1161367/0.1578828`。
+- modality evidence：`both` predicted-positive rate=`84.3407%`、`imu_only`=`98.1678%`、`neither`=`0%`；prior shrink 降低了分数和校准误差，但主要把长 FP 切成更多事件，没有形成短 FP dominance。
+
+### 风险、候选与验收标准
+
+- Recall=`72.5490%` 通过，但 Precision/F1 大幅恶化，short-FP fraction=`8.90659% < 50%`，context support=`false`，所以 M2 gate=`false`。
+- 下一单一 M1 方向为 modality-specific normalized mean：对 IMU/PPG embedding 分别 L2 normalize 后再按可用 modality 求均值；保持 global BCE、avg pooling、dropout、decoder、cache 和 split，不叠加 fixed prior 或 M2 context。配置为`configs/experiments/m1_normalized_mean_fusion.yaml`。
+
+### 选择与交付
+
+- 选择：淘汰 shared-mean both-prior BCE，继续 M1；不创建或运行 M2。
+- both-prior config、full run 和独立 error-analysis artifact 保留为失败证据。
+
+## 2026-09-07 M1 shared-mean fusion 复验（候选淘汰；M2 gate 仍 false）
+
+本节记录在前轮强 dropout 后验证的 availability-invariant fusion。严格使用 frozen train/validation split、`cache/m0_full`、`cache/m1_ppg`，未读取 test、未重训 M0、未创建或运行 M2。
+
+### 事实
+
+- TDD RED→GREEN 后专项 M1=`14 passed`，全套=`139 passed`；shared-mean 不把 raw modality mask 或零填充 concat 送入 classifier/gate，而是对可用 IMU/PPG embedding 做共享均值后进入单一 head。
+- 首次 batch=`64` full run 仅因 host-side `numpy ArrayMemoryError` 在临时 PPG batch 分配处于 epoch 2 中止；没有使用半成品结果。保持代码、seed、split、cache 和 3 epoch 不变，改用 batch=`16` 完成同一候选，full run=`artifacts/m1_fusion_shared_mean_e1/`，IMU/PPG cache=`1121/1121 hit`，windows=`3,578,835`，CUDA，`test_not_used=true`。
+- 完整 run epoch loss=`0.5768392/0.6230866/0.6320540`，训练时间=`7530.31 s`，epoch=`2538.07/2480.00/2510.68 s`，GPU max allocated=`39.32 MB`；metrics 记录 batch=`16`。
+- 训练侧和独立分析均得到 TP/FP/FN=`27/342/24`，P/R/F1=`0.0731707/0.5294118/0.1285714`，participant mean/std/worst=`0.1074696/0.0613915/0`，start/end MAE=`420034.7/72489.3 ms`。
+- 独立报告=`artifacts/experiments/m1_fusion_shared_mean_e1/error_analysis.json`：FP duration median/p90/max=`375000/6992894.9/23399919 ms`，window count median/p90=`121/2316.8`；短暂 FP=`12/342=3.50877%`。binary/soft Brier/ECE=`0.2679920/0.3252369`、`0.2680491/0.3255931`。
+- modality evidence：`both` predicted-positive rate=`99.0136%`、FPR=`98.9702%`，`imu_only` predicted-positive rate=`90.1994%`，`neither`=`0%`；质量接近完整的窗口仍产生长 FP，故根因已不支持单纯 quality/availability shortcut。
+
+### 风险、候选与验收标准
+
+- Recall=`52.9412%` 严格超过 50%，但短暂 FP dominance=`3.50877%` 远低于 50%，且 FP duration/window-count 分布明显为长连续段；M2 gate=`false`，context support=`false`。
+- 下一单一 M1 方向为 modality-specific normalized mean：对 IMU/PPG embedding 分别 L2 normalize 后再按可用 modality 求均值；不叠加 fixed prior、avg4、dropout、decoder 或 M2 context。配置为`configs/experiments/m1_normalized_mean_fusion.yaml`，输出为`artifacts/m1_fusion_normalized_mean_e1/`。
+
+### 选择与交付
+
+- 选择：淘汰 shared-mean global BCE，继续 M1；不创建或运行 M2。
+- shared-mean config、完整 run、资源失败/恢复记录和独立 error-analysis artifact 保留为证据。
+
+## 下一轮 M1 normalized-mean 预注册方向
+
+- 保持 shared-mean 的 availability-invariant head，唯一改变是对每个 modality embedding 做 L2 normalization 后再平均，避免 raw embedding magnitude 让 IMU 分支支配融合。
+- 只在 frozen split、global train-only BCE、原 decoder 和双 cache 上验证；gate 仍要求 short-FP fraction≥50%、Recall>50%、context support 三项同时成立。
+
+## 2026-09-07 M1 strong modality-dropout 复验（候选淘汰；M2 gate 仍 false）
+
+本节记录 avg4 淘汰后的单一 availability regularization 候选。严格使用 frozen train/validation split、`cache/m0_full`、`cache/m1_ppg`，未读取 test、未重训 M0、未创建或运行 M2。
+
+### 事实
+
+- 针对 raw availability mask shortcut，只将训练期 `m1_modality_dropout` 从 `0.25` 提升为 `1.0`；每个 both 窗口训练时随机保留一个 modality，保持原 avg pooling、global BCE、raw mask 输入契约、decoder、cache 和 split 不变。
+- fresh 专项 M1=`27 passed`，全套=`138 passed`；full frozen run=`artifacts/m1_fusion_strong_dropout_e1/`，IMU/PPG cache=`1121/1121 hit`，windows=`3,578,835`，3 epoch CUDA，`test_not_used=true`。
+- full run loss=`0.9476618/0.9574974/0.9739854`，训练 `pos_weight=35.1769`，训练侧 P/R/F1=`0.1180124/0.3725490/0.1792453`。
+- independent error analysis=`artifacts/experiments/m1_fusion_strong_dropout_e1/error_analysis.json`：TP/FP/FN=`19/142/32`，P/R/F1=`0.1180124/0.3725490/0.1792453`，participant mean/std/worst=`0.1531839/0.1095215/0`，start/end MAE=`839148.2/74066.6 ms`。
+- FP duration median/p90/max=`3318113.5/12834089.4/24286362 ms`，window count median/p90=`1100/4260.6`；短暂 FP=`0/142=0%`。`both` predicted-positive rate=`1.0`、`imu_only`=`0`；binary/soft Brier/ECE=`0.4144794/0.4616484`、`0.4145845/0.4620046`。
+
+### 风险、候选与验收标准
+
+- 强 dropout 没有打破 eval-time raw mask shortcut，反而把全部 FP 变成长连续段；F1 虽略高于原 M1，但 calibration、Recall 和 gate 均不达标，候选淘汰。
+- M2 gate=`false`：short-FP dominance=`false`（`0% < 50%`）、Recall=`37.2549% < 50%`、context support=`false`。
+- 下一单一 M1 候选为 availability-invariant shared-mean fusion：可用 modality embedding 做共享均值后进入单一 head，不把 raw mask 或零填充 concat 作为 classifier/gate 输入；不叠加 avg4、fixed prior、strong dropout 或 M2 context。
+
+### 选择与交付
+
+- 选择：淘汰 strong modality-dropout，继续 M1；不创建或运行 M2。
+- strong-dropout config、full run 和独立 error-analysis artifact 保留为失败证据。
+
+## 2026-09-07 M1 temporal-bin pooling 复验（候选淘汰；M2 gate 仍 false）
+
+本节记录 fixed-prior 之后的单一 temporal representation 候选。严格使用 frozen train/validation split、`cache/m0_full`、`cache/m1_ppg`，未读取 test、未重训 M0、未创建或运行 M2。
+
+### 事实
+
+- systematic debugging 已确认当前 `IMUPPGFusion` 的两个 modality encoder 使用全局 `AdaptiveAvgPool1d(1)`，窗口内时序形状被压成单一均值；只选择将两个 encoder 改为 `avg4` temporal bins，保持 global BCE、raw mask、dropout、decoder、cache 和 split 不变。
+- TDD RED→GREEN 新增 `avg4` pooling shape/forward 回归；专项 M1=`13 passed`，全套=`138 passed`。
+- full frozen run=`artifacts/m1_fusion_temporal_pooling_e1/`，IMU/PPG cache=`1121/1121 hit`，windows=`3,578,835`，3 epoch CUDA，`test_not_used=true`；loss=`1.0499854/0.9913688/0.9656858`，`pos_weight=35.1769`。
+- independent error analysis=`artifacts/experiments/m1_fusion_temporal_pooling_e1/error_analysis.json`：TP/FP/FN=`22/255/29`，Precision/Recall/F1=`0.0794224/0.4313725/0.1341463`，participant mean/std/worst=`0.1175802/0.0839017/0`，start/end MAE=`851102.8/74506.0 ms`。
+- FP duration median/p90/max=`525000/9223489/24744528 ms`，window count median/p90=`165/3062`；短暂 FP=`9/255=3.52941%`。`both` predicted-positive rate=`1.0`；binary/soft Brier/ECE=`0.2656526/0.3745342`、`0.2656837/0.3748904`。
+
+### 风险、候选与验收标准
+
+- avg4 未改善 raw availability shortcut，且 calibration/F1 均恶化；候选淘汰。
+- M2 gate=`false`：short-FP dominance=`false`（`3.52941% < 50%`）、Recall=`43.1373% < 50%`、context support=`false`。
+- 下一单一 M1 候选为强 modality-dropout：将原 M1 `m1_modality_dropout=0.25` 提升为 `1.0`，训练时每个 both 窗口都随机保留一个 modality，以削弱 raw mask/availability prior；不叠加 avg4、fixed prior 或新的 decoder。
+
+### 选择与交付
+
+- 选择：淘汰 avg4 pooling，继续 M1；不创建或运行 M2。
+- avg4 config、full run 和独立 error-analysis artifact 保留为失败证据。
+
+## 2026-09-07 M1 fixed-prior BCE 复验（候选淘汰；M2 gate 仍 false）
+
+本节记录 focal-BCE 之后的单一 prior-shrink 候选。严格使用 frozen train/validation split、`cache/m0_full`、`cache/m1_ppg`，未读取 test、未重训 M0、未创建或运行 M2。
+
+### 事实
+
+- 训练集 `both` 正窗口率=`6.0768%`，validation `both` 正窗口率=`4.2129%`；原 global `pos_weight=35.1769` 与 e2 `both` weight=`15.4561` 均可能使 validation `both` 概率先验偏高。基于该证据只选择 fixed prior-shrunk BCE，设置 `m1_pos_weight=4.0`，不改变 fusion、decoder、cache 或 split。
+- TDD RED→GREEN 新增 configured fixed-prior weight；专项 M1=`12 passed`，全套=`137 passed`。
+- full frozen run=`artifacts/m1_fusion_fixed_prior_bce_e1/`，IMU/PPG cache=`1121/1121 hit`，windows=`3,578,835`，3 epoch CUDA，`test_not_used=true`；loss=`0.2917084/0.2563704/0.2485395`，训练 `pos_weight=4.0`。
+- independent error analysis=`artifacts/experiments/m1_fusion_fixed_prior_bce_e1/error_analysis.json`：TP/FP/FN=`21/220/30`，Precision/Recall/F1=`0.0871369/0.4117647/0.1438356`，participant mean/std/worst=`0.1215559/0.0838309/0`，start/end MAE=`496446.0/79659.7 ms`。
+- FP duration median/p90/max=`805500/11371933.5/24741528 ms`，window count median/p90=`264/3773.6`；短暂 FP=`8/220=3.63636%`。binary/soft Brier/ECE=`0.0276277/0.0650243`、`0.0272593/0.0653805`。
+
+### 风险、候选与验收标准
+
+- fixed prior 改善了 calibration 和 FP 数量，但未改善 event Recall；`both` predicted-positive rate=`1.0`、`imu_only`=`0.9506`，长 FP 仍占主导，候选淘汰。
+- M2 gate=`false`：short-FP dominance=`false`（`3.63636% < 50%`）、Recall=`41.1765% < 50%`、context support=`false`。
+- 下一单一 M1 候选为 temporal-bin pooling：将两个 modality encoder 从全局 `AdaptiveAvgPool1d(1)` 改为固定 `avg4` temporal bins，保留窗口内时序形状；loss、mask、decoder、split 和 cache 均保持不变。
+
+### 选择与交付
+
+- 选择：淘汰 fixed-prior BCE，继续 M1；不创建或运行 M2。
+- fixed-prior config、full run 和独立 error-analysis artifact 保留为失败证据。
+
 ## 2026-09-07 M1 focal-BCE 复验（候选淘汰；M2 gate 仍 false）
 
 本节为当前最新实验状态。严格使用 frozen train/validation split、`cache/m0_full`、`cache/m1_ppg`，未读取 test、未重训 M0、未创建或运行 M2。
