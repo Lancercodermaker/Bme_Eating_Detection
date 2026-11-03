@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Iterator, Mapping, Sequence
 
 import numpy as np
 
@@ -14,13 +14,14 @@ from eating_event.a1.boundaries import build_support_components
 from eating_event.a1.contracts import WindowIdentity, canonical_json as a1_canonical_json
 from eating_event.a1.inputs import A1Window, TruthRecord
 from eating_event.a1.pipeline import Role, build_role_graph, validate_role_graph
-from eating_event.a2.budget import StudyResourceError, require_environment
+from eating_event.a2.budget import StudyResourceError, check_study_family_disk_budget_003, require_environment
 from eating_event.a2.contracts import (
     A2_CONFIG,
     A2FeatureRow,
     CandidateKey,
     ContextWindow,
     DEFAULT_STUDY_ID,
+    STUDY_003_ID,
     load_config,
     validate_study_binding,
 )
@@ -48,6 +49,46 @@ class InvalidA2Source(ValueError):
     """The approved A1 identity or data contract does not authenticate."""
 
 
+@dataclass(frozen=True, slots=True)
+class CacheGeometryRow(Mapping[str, object]):
+    """Compact per-window geometry view; avoids a dict for each of 632,100 rows."""
+
+    identity: WindowIdentity
+    stable_id: str
+    participant_id: str
+    record_id: str
+    session_id: str
+    row_index: int
+    start_ms: int
+    end_ms: int
+    coverage: float
+    crosses_gap: bool
+
+    _fields = (
+        "identity",
+        "stable_id",
+        "participant_id",
+        "record_id",
+        "session_id",
+        "row_index",
+        "start_ms",
+        "end_ms",
+        "coverage",
+        "crosses_gap",
+    )
+
+    def __getitem__(self, key: str) -> object:
+        if key not in self._fields:
+            raise KeyError(key)
+        return getattr(self, key)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._fields)
+
+    def __len__(self) -> int:
+        return len(self._fields)
+
+
 def _canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
@@ -71,6 +112,85 @@ def _read_jsonl(path: Path) -> list[dict[str, object]]:
                 raise InvalidA2Source(f"JSONL row {number} is not an object: {path.name}")
             rows.append(value)
     return rows
+
+
+def _iter_json_array(path: Path, *, chunk_bytes: int = 1024 * 1024) -> Iterator[object]:
+    """Incrementally decode a top-level JSON array without retaining its rows."""
+
+    decoder = json.JSONDecoder()
+    with path.open("r", encoding="utf-8") as stream:
+        buffer = ""
+        position = 0
+        eof = False
+
+        def fill() -> bool:
+            nonlocal buffer, position, eof
+            tail = buffer[position:]
+            chunk = stream.read(chunk_bytes)
+            if not chunk:
+                eof = True
+                buffer = tail
+                position = 0
+                return False
+            buffer = tail + chunk
+            position = 0
+            return True
+
+        def skip_space() -> None:
+            nonlocal position
+            while True:
+                while position < len(buffer) and buffer[position].isspace():
+                    position += 1
+                if position < len(buffer) or eof:
+                    return
+                fill()
+
+        skip_space()
+        while position >= len(buffer) and not eof:
+            fill()
+            skip_space()
+        if position >= len(buffer) or buffer[position] != "[":
+            raise InvalidA2Source("global identity JSON must be an array")
+        position += 1
+        need_value = True
+        first_value = True
+        while True:
+            skip_space()
+            if position >= len(buffer) and not eof:
+                fill()
+                continue
+            if position >= len(buffer):
+                raise InvalidA2Source("global identity JSON array is truncated")
+            marker = buffer[position]
+            if need_value:
+                if marker == "]":
+                    if not first_value:
+                        raise InvalidA2Source("global identity JSON has a trailing comma")
+                    position += 1
+                    break
+                try:
+                    value, end = decoder.raw_decode(buffer, position)
+                except json.JSONDecodeError as exc:
+                    if eof:
+                        raise InvalidA2Source("global identity JSON row is malformed") from exc
+                    fill()
+                    continue
+                yield value
+                position = end
+                need_value = False
+                first_value = False
+            else:
+                if marker == ",":
+                    position += 1
+                    need_value = True
+                elif marker == "]":
+                    position += 1
+                    break
+                else:
+                    raise InvalidA2Source("global identity JSON rows are not comma-separated")
+        skip_space()
+        if position < len(buffer) or (not eof and stream.read().strip()):
+            raise InvalidA2Source("global identity JSON has trailing data")
 
 
 def current_a2_code_identity(workspace: str | Path) -> dict[str, str]:
@@ -271,7 +391,7 @@ def _load_cache_geometry(
     cache_manifest_path: Path,
     manifest_audit_path: Path,
     cache_root: Path,
-) -> tuple[list[dict[str, object]], dict[str, str], str, str]:
+) -> tuple[list[CacheGeometryRow], dict[str, str], str, str]:
     manifest = _read_json(cache_manifest_path)
     audit = _read_json(manifest_audit_path)
     if not isinstance(manifest, dict) or not isinstance(manifest.get("entries"), list):
@@ -279,7 +399,7 @@ def _load_cache_geometry(
     if not isinstance(audit, dict) or not isinstance(audit.get("records"), list):
         raise InvalidA2Source("approved record audit is malformed")
     audit_by_opaque = index_approved_manifest_records(audit["records"], manifest["entries"])
-    geometry: list[dict[str, object]] = []
+    geometry: list[CacheGeometryRow] = []
     cache_hashes: dict[str, str] = {}
     seen_sessions: set[tuple[str, str]] = set()
     for entry in manifest["entries"]:
@@ -324,18 +444,18 @@ def _load_cache_geometry(
             raise InvalidA2Source("approved cache window geometry violates A1 quality constraints")
         for row_index in range(starts.size):
             identity = WindowIdentity(participant, record_id, session, row_index)
-            geometry.append({
-                "identity": identity,
-                "stable_id": identity.stable_id,
-                "participant_id": participant,
-                "record_id": record_id,
-                "session_id": session,
-                "row_index": row_index,
-                "start_ms": int(starts[row_index]),
-                "end_ms": int(ends[row_index]),
-                "coverage": float(coverage[row_index]),
-                "crosses_gap": bool(crosses_gap[row_index]),
-            })
+            geometry.append(CacheGeometryRow(
+                identity=identity,
+                stable_id=identity.stable_id,
+                participant_id=participant,
+                record_id=record_id,
+                session_id=session,
+                row_index=row_index,
+                start_ms=int(starts[row_index]),
+                end_ms=int(ends[row_index]),
+                coverage=float(coverage[row_index]),
+                crosses_gap=bool(crosses_gap[row_index]),
+            ))
     if len(geometry) != 632100 or len(manifest["entries"]) != 1127:
         raise InvalidA2Source("approved cache row/record counts differ from the A1 run")
     return geometry, cache_hashes, sha256_file(cache_manifest_path), sha256_file(manifest_audit_path)
@@ -365,6 +485,109 @@ def _load_global_identity(path: Path, geometry: Sequence[Mapping[str, object]]) 
         index_by_stable[identity.stable_id] = index
         identities.append({**identity_row, "stable_id": identity.stable_id})
     return identities, index_by_stable, sha256_file(path)
+
+
+def _iter_validate_global_identity(path: Path, geometry: Sequence[Mapping[str, object]]) -> dict[str, int]:
+    """Validate the A1 identity array in order, retaining only its stable-id index."""
+
+    index_by_stable: dict[str, int] = {}
+    count = 0
+    for count, identity_row in enumerate(_iter_json_array(path), 1):
+        if count > len(geometry) or not isinstance(identity_row, dict):
+            raise InvalidA2Source("A1 global window identity has an invalid row count or row")
+        identity = WindowIdentity(
+            str(identity_row.get("participant_id", "")),
+            str(identity_row.get("record_id", "")),
+            str(identity_row.get("session_id", "")),
+            int(identity_row.get("row_index", -1)),
+        )
+        index = count - 1
+        if index >= len(geometry) or identity.stable_id != geometry[index]["stable_id"]:
+            raise InvalidA2Source("global identity order differs from approved cache order")
+        if identity.stable_id in index_by_stable:
+            raise InvalidA2Source("duplicate stable global window identity")
+        index_by_stable[identity.stable_id] = index
+    if count != len(geometry):
+        raise InvalidA2Source("A1 global window identity has the wrong row count")
+    return index_by_stable
+
+
+def _spool_candidate_rows(
+    source: Path,
+    candidate_roles: Mapping[str, Role],
+    spool_dir: Path,
+    *,
+    disk_guard: Callable[[int], None] | None = None,
+) -> tuple[dict[str, Path], dict[str, list[str]], dict[str, int]]:
+    """Validate and spool JSONL candidates by role without retaining the 72k rows."""
+
+    if disk_guard is not None:
+        disk_guard(4096)
+    spool_dir.mkdir(parents=True, exist_ok=False)
+    paths = {
+        role_id: spool_dir / f"{hashlib.sha256(role_id.encode('utf-8')).hexdigest()[:20]}.jsonl"
+        for role_id in candidate_roles
+    }
+    streams = {role_id: path.open("w", encoding="utf-8", newline="\n") for role_id, path in paths.items()}
+    ids_by_role: dict[str, list[str]] = {role_id: [] for role_id in candidate_roles}
+    seen: set[tuple[str, str]] = set()
+    counts = {role_id: 0 for role_id in candidate_roles}
+    pending: dict[str, list[str]] = {role_id: [] for role_id in candidate_roles}
+    pending_bytes = 0
+    try:
+        with source.open("r", encoding="utf-8") as source_stream:
+            for number, line in enumerate(source_stream, 1):
+                if not line.strip():
+                    continue
+                value = json.loads(line)
+                if not isinstance(value, dict):
+                    raise InvalidA2Source(f"candidate JSONL row {number} is not an object")
+                row = value
+                role_id = str(row.get("role_id", ""))
+                candidate_id = str(row.get("candidate_id", ""))
+                if not role_id or not candidate_id:
+                    raise InvalidA2Source("candidate identity requires role_id and candidate_id")
+                key = (role_id, candidate_id)
+                if key in seen:
+                    raise InvalidA2Source(f"duplicate composite candidate identity: {role_id}/{candidate_id}")
+                seen.add(key)
+                role = candidate_roles.get(role_id)
+                if role is None:
+                    raise InvalidA2Source("A1 candidate row references an unapproved role")
+                validate_outer_label(row, outer_role=role.inner_fold is None)
+                if row.get("boundary_kind") != "observed_window_support_component_v1" or row.get("source_segment_id") is not None:
+                    raise InvalidA2Source("A1 candidate boundary/source-segment contract differs")
+                features = row.get("features")
+                if not isinstance(features, list) or len(features) != 16 or not np.isfinite(np.asarray(features, dtype=np.float64)).all():
+                    raise InvalidA2Source("A1 candidate must preserve exactly 16 finite saved features")
+                encoded = json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n"
+                encoded_bytes = len(encoded.encode("utf-8"))
+                if pending_bytes + encoded_bytes >= 1024 * 1024:
+                    if disk_guard is not None:
+                        disk_guard(pending_bytes + encoded_bytes)
+                    for pending_role, chunks in pending.items():
+                        if chunks:
+                            streams[pending_role].write("".join(chunks))
+                            pending[pending_role] = []
+                    pending_bytes = 0
+                pending[role_id].append(encoded)
+                pending_bytes += encoded_bytes
+                ids_by_role[role_id].append(candidate_id)
+                counts[role_id] += 1
+        if disk_guard is not None:
+            disk_guard(pending_bytes)
+        for pending_role, chunks in pending.items():
+            if chunks:
+                streams[pending_role].write("".join(chunks))
+        for stream in streams.values():
+            stream.flush()
+        for stream in streams.values():
+            import os
+            os.fsync(stream.fileno())
+    finally:
+        for stream in streams.values():
+            stream.close()
+    return paths, ids_by_role, counts
 
 
 def _load_a1_roles(path: Path, participants: Sequence[str]) -> tuple[Role, ...]:
@@ -567,6 +790,61 @@ def _all_training_rows(
     return result
 
 
+def _all_training_rows_from_spools(
+    spool_paths: Mapping[str, Path],
+    roles: Sequence[Role],
+    training_truths: Mapping[str, Sequence[TruthRecord]],
+) -> list[dict[str, object]]:
+    """Compute the fixed G3 precheck by loading only one verifier's OOF roles."""
+
+    from eating_event.a1.scoring import validate_g3
+
+    result: list[dict[str, object]] = []
+    for verifier in (role for role in roles if role.kind == "verifier"):
+        if verifier.inner_fold is None:
+            training_roles = [f"candidate/{verifier.outer_fold}/{inner.inner_fold}/inner" for inner in roles if inner.kind == "candidate" and inner.outer_fold == verifier.outer_fold and inner.inner_fold is not None and inner.subinner_fold is None]
+        else:
+            training_roles = [f"candidate/{verifier.outer_fold}/{verifier.inner_fold}/{sub.subinner_fold}/subinner" for sub in roles if sub.kind == "candidate" and sub.outer_fold == verifier.outer_fold and sub.inner_fold == verifier.inner_fold and sub.subinner_fold is not None]
+        if len(training_roles) != 4 or any(role_id not in spool_paths for role_id in training_roles):
+            raise InvalidA2Source("verifier OOF training graph does not contain four candidate roles")
+        labels: list[int] = []
+        participants: list[str] = []
+        positive_gt: set[tuple[str, str]] = set()
+        for role_id in training_roles:
+            role_rows = _read_jsonl(spool_paths[role_id])
+            for row in role_rows:
+                label = int(row["label"])
+                participant = str(row["participant_id"])
+                labels.append(label)
+                participants.append(participant)
+                if label == 1:
+                    positive_gt.update(
+                        (participant, truth.event_id)
+                        for truth in training_truths.get(participant, ())
+                        if interval_iou(_candidate_interval(row), truth.interval) > 0.25
+                    )
+            del role_rows
+        try:
+            validate_g3(labels, participants)
+        except ValueError as exc:
+            raise VerifierDataInsufficient(f"G3: {verifier.role_id}: {exc}") from exc
+        fit_participants = set(participants)
+        if not fit_participants <= set(verifier.fit_participants) or fit_participants & set(verifier.outer_valid):
+            raise InvalidA2Source("verifier candidate fit rows violate participant isolation")
+        result.append({
+            "verifier_role_id": verifier.role_id,
+            "candidate_training_roles": training_roles,
+            "positive_candidate_count": sum(label == 1 for label in labels),
+            "positive_participant_count": len({p for p, label in zip(participants, labels) if label == 1}),
+            "positive_canonical_gt_count": len(positive_gt),
+            "both_classes": len(set(labels)) == 2,
+        })
+        del labels, participants, positive_gt
+    if len(result) != 25:
+        raise InvalidA2Source("G3 audit did not cover all 25 verifier roles")
+    return result
+
+
 def _write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -591,6 +869,7 @@ def _materialize_role(
     geometry_by_component: Mapping[str, Sequence[ContextWindow]],
     score_hash: str,
     cache_hash_digest: str,
+    disk_guard: Callable[[int], None] | None = None,
 ) -> dict[str, object]:
     rows: list[dict[str, object]] = []
     labels: list[dict[str, object]] = []
@@ -655,6 +934,11 @@ def _materialize_role(
     row_path = materialized / "candidate-rows" / f"{key}.jsonl"
     matrix_path = materialized / "feature-matrices" / f"{key}.npy"
     label_path = materialized / "training-labels" / f"{key}.jsonl" if labels else None
+    if disk_guard is not None:
+        projected = matrix.nbytes + 4096
+        projected += sum(len((json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")) for row in rows)
+        projected += sum(len((json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")) for row in labels)
+        disk_guard(projected)
     _write_jsonl(row_path, rows)
     matrix_path.parent.mkdir(parents=True, exist_ok=True)
     np.save(matrix_path, matrix, allow_pickle=False)
@@ -686,6 +970,7 @@ def run_audit(
     config_sha256: str,
     startup_resources: Mapping[str, int] | None = None,
     study_id: str = DEFAULT_STUDY_ID,
+    progress_callback: Callable[[str], None] | None = None,
 ) -> dict[str, object]:
     """Authenticate source artifacts and materialize fixed features; never fits or predicts."""
 
@@ -703,7 +988,8 @@ def run_audit(
         raise StudyResourceError("persisted startup resource sample is unavailable")
     available_bytes = int(startup_resources.get("startup_available_bytes", 0))
     rss_ceiling = int(startup_resources.get("rss_ceiling_bytes", 0))
-    if available_bytes <= 0 or rss_ceiling <= 0 or rss_ceiling > min(8 * 1024**3, int(available_bytes * 0.60)):
+    max_rss = min(4 * 1024**3, (available_bytes * 60) // 100) if study_id == STUDY_003_ID else min(8 * 1024**3, int(available_bytes * 0.60))
+    if available_bytes <= 0 or rss_ceiling <= 0 or rss_ceiling > max_rss:
         raise StudyResourceError("persisted startup RSS ceiling is invalid")
     a1_root = root / str(config["a1_artifact_root"])
     checksum_path = a1_root / "final-checksums.json"
@@ -718,6 +1004,8 @@ def run_audit(
     if not isinstance(code_identity, dict) or len(code_identity) != 45:
         raise InvalidA2Source("A1 run manifest must register exactly 45 code paths")
     validate_a1_code_identity(code_identity, root)
+    if progress_callback is not None:
+        progress_callback("source_identity")
     environment = a1_manifest.get("environment")
     if not isinstance(environment, dict):
         raise InvalidA2Source("A1 environment identity is missing")
@@ -746,48 +1034,95 @@ def run_audit(
         manifest_audit,
         cache_root,
     )
+    if progress_callback is not None:
+        progress_callback("cache_geometry")
     participants = tuple(sorted({str(row["participant_id"]) for row in geometry}))
     if len(participants) != 41 or "6C7" not in participants:
         raise InvalidA2Source("approved cache population must include all 41 participants and 6C7")
     validated_eligible = validate_eligible_gt_participants(eligibility_payload["event_eligibility"], participants)
     if validated_eligible != _eligibility_participants:
         raise InvalidA2Source("eligible canonical GT participant collection is inconsistent")
-    global_identity, global_index_by_stable, window_identity_sha = _load_global_identity(a1_root / "window-identity.json", geometry)
+    if study_id == STUDY_003_ID:
+        global_index_by_stable = _iter_validate_global_identity(a1_root / "window-identity.json", geometry)
+        # Cache geometry is the validated, compact identity view. No second
+        # 632,100-row identity object list is retained.
+        global_identity: Sequence[Mapping[str, object]] = geometry
+        window_identity_sha = sha256_file(a1_root / "window-identity.json")
+    else:
+        global_identity, global_index_by_stable, window_identity_sha = _load_global_identity(a1_root / "window-identity.json", geometry)
     if len({str(row["participant_id"]) for row in global_identity}) != 41:
         raise InvalidA2Source("global window identities do not contain the approved 41 participants")
+    if progress_callback is not None:
+        progress_callback("global_identity")
     roles = _load_a1_roles(a1_root / "role-graph.json", participants)
     role_by_id = {role.role_id: role for role in roles}
     candidate_roles = {role.role_id: role for role in roles if role.kind == "candidate"}
     all_roles = role_by_id
 
     candidate_path = a1_root / "event-candidates.jsonl"
-    raw_candidate_rows = _read_jsonl(candidate_path)
-    for row in raw_candidate_rows:
-        row["role_id"] = str(row.get("role_id", ""))
-    check_candidate_rows(raw_candidate_rows)
-    candidates_by_role_raw: dict[str, list[dict[str, object]]] = {role_id: [] for role_id in candidate_roles}
-    for row in raw_candidate_rows:
-        role_id = str(row["role_id"])
-        role = candidate_roles.get(role_id)
-        if role is None:
-            raise InvalidA2Source("A1 candidate row references an unapproved role")
-        is_outer = role.inner_fold is None
-        validate_outer_label(row, outer_role=is_outer)
-        if row.get("boundary_kind") != "observed_window_support_component_v1" or row.get("source_segment_id") is not None:
-            raise InvalidA2Source("A1 candidate boundary/source-segment contract differs")
-        features = row.get("features")
-        if not isinstance(features, list) or len(features) != 16 or not np.isfinite(np.asarray(features, dtype=np.float64)).all():
-            raise InvalidA2Source("A1 candidate must preserve exactly 16 finite saved features")
-        candidates_by_role_raw[role_id].append(row)
-    if sum(map(len, candidates_by_role_raw.values())) != 72112:
+    candidate_spools: dict[str, Path] = {}
+    candidate_ids_by_role: dict[str, list[str]] = {}
+    candidate_counts: dict[str, int] = {}
+    candidates_by_role_raw: dict[str, list[dict[str, object]]] = {}
+    disk_guard: Callable[[int], None] | None = None
+    if study_id == STUDY_003_ID:
+        external_001 = root / "artifacts" / "a2-study-budget.jsonl"
+        external_002 = root / "artifacts" / "a2-study-budget-v1-002.jsonl"
+        external_003 = root / "artifacts" / "a2-study-budget-v1-003.jsonl"
+        lock_003 = root / "artifacts" / "a2-study-budget-v1-003.lock"
+        disk_limit = int(config["limits"]["disk_bytes"])
+
+        def guard_projected_disk(required_bytes: int) -> None:
+            usable = disk_limit - 4 * 1024**2 - max(0, int(required_bytes))
+            if usable <= 0:
+                raise StudyResourceError("A2-003 projected write would consume the reserved telemetry space")
+            check_study_family_disk_budget_003(
+                root,
+                output_dir,
+                (external_001, external_002, external_003, lock_003),
+                max_disk_bytes=usable,
+            )
+
+        disk_guard = guard_projected_disk
+    if study_id == STUDY_003_ID:
+        candidate_spools, candidate_ids_by_role, candidate_counts = _spool_candidate_rows(
+            candidate_path,
+            candidate_roles,
+            output_dir / "temporary" / "candidate-role-spools",
+            disk_guard=disk_guard,
+        )
+        total_candidate_rows = sum(candidate_counts.values())
+    else:
+        raw_candidate_rows = _read_jsonl(candidate_path)
+        for row in raw_candidate_rows:
+            row["role_id"] = str(row.get("role_id", ""))
+        check_candidate_rows(raw_candidate_rows)
+        candidates_by_role_raw = {role_id: [] for role_id in candidate_roles}
+        for row in raw_candidate_rows:
+            role_id = str(row["role_id"])
+            role = candidate_roles.get(role_id)
+            if role is None:
+                raise InvalidA2Source("A1 candidate row references an unapproved role")
+            validate_outer_label(row, outer_role=role.inner_fold is None)
+            if row.get("boundary_kind") != "observed_window_support_component_v1" or row.get("source_segment_id") is not None:
+                raise InvalidA2Source("A1 candidate boundary/source-segment contract differs")
+            features = row.get("features")
+            if not isinstance(features, list) or len(features) != 16 or not np.isfinite(np.asarray(features, dtype=np.float64)).all():
+                raise InvalidA2Source("A1 candidate must preserve exactly 16 finite saved features")
+            candidates_by_role_raw[role_id].append(row)
+        candidate_ids_by_role = {role_id: [str(row["candidate_id"]) for row in rows] for role_id, rows in candidates_by_role_raw.items()}
+        candidate_counts = {role_id: len(rows) for role_id, rows in candidates_by_role_raw.items()}
+        total_candidate_rows = len(raw_candidate_rows)
+    if total_candidate_rows != 72112:
         raise InvalidA2Source("A1 role-qualified candidate count differs from the approved source")
+    if progress_callback is not None:
+        progress_callback("candidate_spool")
 
     model_rows = _load_model_provenance(a1_root / "model-provenance.jsonl")
     if set(model_rows) != set(all_roles):
         raise InvalidA2Source("A1 model provenance role set differs from the frozen graph")
     model_hashes = _validate_model_blobs(a1_root, model_rows)
     score_rows = _read_jsonl(a1_root / "score-provenance.jsonl")
-    candidate_ids_by_role = {role_id: [str(row["candidate_id"]) for row in rows] for role_id, rows in candidates_by_role_raw.items()}
     input_audit_path = a1_root / "input-audit.json"
     input_audit = _read_json(input_audit_path)
     if not isinstance(input_audit, dict) or input_audit.get("status") != "READY":
@@ -818,10 +1153,13 @@ def run_audit(
         expected_source_hashes=source_hashes,
     )
     score_hashes.update(model_hashes)
+    del score_rows, model_rows, model_hashes
     if len(score_provenance) != 130 or candidate_score_role_count != 105:
         raise InvalidA2Source("A1 score role count is incomplete")
+    if progress_callback is not None:
+        progress_callback("score_provenance")
 
-    geometry_by_identity = {str(row["stable_id"]): row for row in geometry}
+    geometry_by_identity = {str(row["stable_id"]): row for row in geometry} if study_id != STUDY_003_ID else None
     output_dir.mkdir(parents=True, exist_ok=True)
     materialized = output_dir / "materialized"
     source_hashes.update({
@@ -901,7 +1239,7 @@ def run_audit(
                 for stable_id in stable_ids:
                     component_by_stable[stable_id] = component.component_id
                     global_index = global_index_by_stable[stable_id]
-                    geometry_row = geometry_by_identity[stable_id]
+                    geometry_row = geometry_by_identity[stable_id] if geometry_by_identity is not None else geometry[global_index]
                     score = relative_by_global[global_index]
                     if not np.isfinite(score):
                         raise InvalidA2Source("approved candidate context score is missing")
@@ -915,7 +1253,8 @@ def run_audit(
                         relative=float(score),
                     ))
         stable_ids = set(component_by_stable)
-        for row in candidates_by_role_raw[role_id]:
+        raw_rows = candidates_by_role_raw[role_id] if study_id != STUDY_003_ID else _read_jsonl(candidate_spools[role_id])
+        for row in raw_rows:
             validate_support_identity(
                 row,
                 role_id=role_id,
@@ -928,26 +1267,27 @@ def run_audit(
         role_digests.append(_materialize_role(
             output_dir,
             role,
-            candidates_by_role_raw[role_id],
+            raw_rows,
             context_by_component,
             score_hash=score_record["score_file_sha256"],
             cache_hash_digest=cache_hash_digest,
+            disk_guard=disk_guard if study_id == STUDY_003_ID else None,
         ))
-        del relative_by_global, role_geometry, by_record, windows, component_by_stable, context_by_component, stable_ids
+        del relative_by_global, role_geometry, by_record, windows, component_by_stable, context_by_component, stable_ids, raw_rows
 
     outer_roles = sorted((role for role in candidate_roles.values() if role.inner_fold is None), key=lambda role: role.outer_fold)
     outer_candidate_counts: list[int] = []
     outer_covered: list[int] = []
     for role in outer_roles:
-        rows = candidates_by_role_raw[role.role_id]
+        rows = candidates_by_role_raw[role.role_id] if study_id != STUDY_003_ID else _read_jsonl(candidate_spools[role.role_id])
         truths = [truth for participant in role.scored_participants for truth in evaluation_truths.get(participant, ())]
         covered = sum(any(str(candidate["participant_id"]) == truth.participant_id and interval_iou(_candidate_interval(candidate), truth.interval) > 0.25 for candidate in rows) for truth in truths)
-        outer_candidate_counts.append(len(rows))
+        outer_candidate_counts.append(candidate_counts[role.role_id])
         outer_covered.append(covered)
     if outer_candidate_counts != list(config["outer_candidate_counts"]) or outer_covered != list(config["outer_candidate_covered_gt"]):
         raise InvalidA2Source("frozen outer candidate/coverage invariants differ")
 
-    g3_precheck = _all_training_rows(candidates_by_role_raw, roles, training_truths)
+    g3_precheck = _all_training_rows(candidates_by_role_raw, roles, training_truths) if study_id != STUDY_003_ID else _all_training_rows_from_spools(candidate_spools, roles, training_truths)
     if current_a2_code_identity(root) != frozen_a2_code:
         raise InvalidA2Source("A2 code identity changed during the real-source audit")
 
@@ -982,30 +1322,47 @@ def run_audit(
             raw = np.asarray(content["raw"], dtype=np.float64)
         verifier_scores_by_role[role.outer_fold] = (ids, raw)
     by_gt = {truth.event_id: truth for values in evaluation_truths.values() for truth in values}
+    truths_by_outer: dict[str, list[TruthRecord]] = {role.outer_fold: [] for role in outer_roles}
+    outer_by_participant = {participant: role for role in outer_roles for participant in role.scored_participants}
     for gt_id in a1_fn_ids:
         truth = by_gt.get(gt_id)
         if truth is None:
             raise InvalidA2Source("A1 unmatched GT ID is not in approved evaluation truth")
-        outer = next(role for role in outer_roles if truth.participant_id in role.scored_participants)
-        rows = candidates_by_role_raw[outer.role_id]
-        matching = [row for row in rows if str(row["participant_id"]) == truth.participant_id and interval_iou(_candidate_interval(row), truth.interval) > 0.25]
-        if not matching:
-            category = "no_candidate_iou_over_0_25"
-        else:
-            ids, raw = verifier_scores_by_role[outer.outer_fold]
-            score_map = {candidate_id: float(value) for candidate_id, value in zip(ids, raw)}
-            threshold = thresholds.get(outer.outer_fold)
-            if threshold is None:
-                raise InvalidA2Source("A1 frozen threshold choice is missing")
-            passing = [row for row in matching if score_map.get(str(row["candidate_id"]), -1.0) >= threshold]
-            if not passing:
-                category = "all_matching_candidates_below_threshold"
-            elif all(_candidate_interval(row).end_ms - _candidate_interval(row).start_ms < int(config["min_duration_ms"]) for row in passing):
-                category = "thresholded_candidate_filtered_by_min_duration"
+        outer = outer_by_participant.get(truth.participant_id)
+        if outer is None:
+            raise InvalidA2Source("A1 unmatched GT participant has no frozen outer role")
+        truths_by_outer[outer.outer_fold].append(truth)
+    for outer in outer_roles:
+        rows = candidates_by_role_raw[outer.role_id] if study_id != STUDY_003_ID else _read_jsonl(candidate_spools[outer.role_id])
+        ids, raw = verifier_scores_by_role[outer.outer_fold]
+        score_map = {candidate_id: float(value) for candidate_id, value in zip(ids, raw)}
+        threshold = thresholds.get(outer.outer_fold)
+        if threshold is None:
+            raise InvalidA2Source("A1 frozen threshold choice is missing")
+        for truth in truths_by_outer[outer.outer_fold]:
+            matching = [row for row in rows if str(row["participant_id"]) == truth.participant_id and interval_iou(_candidate_interval(row), truth.interval) > 0.25]
+            if not matching:
+                category = "no_candidate_iou_over_0_25"
             else:
-                category = "decoder_or_one_to_one_matching"
-        a1_fn_categories[gt_id] = category
+                passing = [row for row in matching if score_map.get(str(row["candidate_id"]), -1.0) >= threshold]
+                if not passing:
+                    category = "all_matching_candidates_below_threshold"
+                elif all(_candidate_interval(row).end_ms - _candidate_interval(row).start_ms < int(config["min_duration_ms"]) for row in passing):
+                    category = "thresholded_candidate_filtered_by_min_duration"
+                else:
+                    category = "decoder_or_one_to_one_matching"
+            a1_fn_categories[truth.event_id] = category
+        del rows, score_map, ids, raw
     _write_json(materialized / "a1-fn-transition-input.json", {"ids": a1_fn_ids, "first_break_categories": a1_fn_categories})
+
+    if study_id == STUDY_003_ID:
+        import shutil
+        temporary_root = (output_dir / "temporary").resolve()
+        try:
+            temporary_root.relative_to(output_dir.resolve())
+        except ValueError as exc:
+            raise InvalidA2Source("A2-003 temporary spool path escaped fixed output") from exc
+        shutil.rmtree(temporary_root, ignore_errors=False)
 
     a2_code = frozen_a2_code
     all_study_files: dict[str, str] = {}
@@ -1017,6 +1374,8 @@ def run_audit(
             if row.get(field):
                 name = str(row[field])
                 all_study_files[name] = sha256_file(output_dir / name)
+    if progress_callback is not None:
+        progress_callback("role_context_materialization")
     report = {
         "status": "AUDIT_READY",
         "study_id": study_id,
@@ -1034,7 +1393,7 @@ def run_audit(
         "participant_count": len(participants),
         "participants": list(participants),
         "evaluation_gt_count": sum(len(values) for values in evaluation_truths.values()),
-        "candidate_row_count": len(raw_candidate_rows),
+        "candidate_row_count": total_candidate_rows,
         "candidate_role_count": len(candidate_roles),
         "verifier_role_count": sum(role.kind == "verifier" for role in roles),
         "score_role_count": len(score_provenance),
@@ -1063,6 +1422,8 @@ def run_audit(
     _write_json(ready_path, report)
     ready_sha = sha256_file(ready_path)
     (output_dir / "audit-ready.sha256").write_text(ready_sha + "  audit-ready.json\n", encoding="ascii")
+    if progress_callback is not None:
+        progress_callback("audit_complete")
     return {"status": "AUDIT_READY", "audit_ready_sha256": ready_sha, "report": report}
 
 
@@ -1190,7 +1551,74 @@ def verify_audit_ready(
     return report
 
 
-def load_audited_corpus(workspace: str | Path, output: str | Path, *, study_id: str = DEFAULT_STUDY_ID):
+def _load_materialized_role_candidates(output_dir: Path, digest: Mapping[str, object], role_id: str):
+    from eating_event.a2.execution import A2Candidate
+
+    rows = _read_jsonl(output_dir / str(digest["candidate_rows_file"]))
+    matrix = np.load(output_dir / str(digest["feature_matrix_file"]), allow_pickle=False)
+    label_by_key: dict[tuple[str, str], int] = {}
+    if digest.get("training_label_file"):
+        for label in _read_jsonl(output_dir / str(digest["training_label_file"])):
+            key = (str(label["role_id"]), str(label["candidate_id"]))
+            if key in label_by_key:
+                raise InvalidA2Source("duplicate role-scoped training label")
+            label_by_key[key] = int(label["label"])
+    if matrix.shape != (len(rows), 26) or matrix.dtype != np.float32:
+        raise InvalidA2Source("materialized candidate row and feature matrix order differ")
+    candidates: list[A2Candidate] = []
+    for index, row in enumerate(rows):
+        key = (role_id, str(row["candidate_id"]))
+        interval_row = row["interval"]
+        interval = EventInterval(int(interval_row["start_ms"]), int(interval_row["end_ms"]))
+        support = tuple(
+            WindowIdentity(str(item["participant_id"]), str(item["record_id"]), str(item["session_id"]), int(item["row_index"]))
+            for item in row["support_indices"]
+        )
+        candidates.append(A2Candidate(
+            role_id=role_id,
+            candidate_id=key[1],
+            participant_id=str(row["participant_id"]),
+            record_id=str(row["record_id"]),
+            session_id=str(row["session_id"]),
+            component_id=str(row["component_id"]),
+            interval=interval,
+            source_16d=np.asarray(row["source_16d"], dtype=np.float64),
+            features_26d=matrix[index],
+            support_indices=support,
+            label=label_by_key.get(key),
+        ))
+    if label_by_key and len(label_by_key) != len(candidates):
+        raise InvalidA2Source("training label join is incomplete for the candidate role")
+    return tuple(candidates)
+
+
+class _LazyRoleCandidates(Mapping[str, tuple[object, ...]]):
+    """Non-caching mapping that materializes only the requested candidate role."""
+
+    def __init__(self, output_dir: Path, digests: Sequence[Mapping[str, object]]) -> None:
+        self.output_dir = output_dir
+        self.digests = {str(row["role_id"]): row for row in digests}
+
+    def __getitem__(self, role_id: str) -> tuple[object, ...]:
+        digest = self.digests.get(role_id)
+        if digest is None:
+            raise KeyError(role_id)
+        return _load_materialized_role_candidates(self.output_dir, digest, role_id)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.digests)
+
+    def __len__(self) -> int:
+        return len(self.digests)
+
+
+def load_audited_corpus(
+    workspace: str | Path,
+    output: str | Path,
+    *,
+    study_id: str = DEFAULT_STUDY_ID,
+    progress_callback: Callable[[str], None] | None = None,
+):
     """Load only authenticated A2 materialized inputs for the fit process."""
 
     from eating_event.a2.execution import A2Candidate, FeatureCorpus
@@ -1207,45 +1635,13 @@ def load_audited_corpus(workspace: str | Path, output: str | Path, *, study_id: 
     participants = tuple(report["participants"])
     validate_role_graph(roles, participants)
     role_digests = report["role_digests"]
-    candidates_by_role: dict[str, tuple[A2Candidate, ...]] = {}
-    for digest in role_digests:
-        role_id = str(digest["role_id"])
-        rows = _read_jsonl(output_dir / str(digest["candidate_rows_file"]))
-        matrix = np.load(output_dir / str(digest["feature_matrix_file"]), allow_pickle=False)
-        label_by_key: dict[tuple[str, str], int] = {}
-        if digest.get("training_label_file"):
-            for label in _read_jsonl(output_dir / str(digest["training_label_file"])):
-                key = (str(label["role_id"]), str(label["candidate_id"]))
-                if key in label_by_key:
-                    raise InvalidA2Source("duplicate role-scoped training label")
-                label_by_key[key] = int(label["label"])
-        candidates: list[A2Candidate] = []
-        if matrix.shape[0] != len(rows):
-            raise InvalidA2Source("materialized candidate row and feature matrix order differ")
-        for index, row in enumerate(rows):
-            key = (role_id, str(row["candidate_id"]))
-            interval_row = row["interval"]
-            interval = EventInterval(int(interval_row["start_ms"]), int(interval_row["end_ms"]))
-            support = tuple(
-                WindowIdentity(str(item["participant_id"]), str(item["record_id"]), str(item["session_id"]), int(item["row_index"]))
-                for item in row["support_indices"]
-            )
-            candidates.append(A2Candidate(
-                role_id=role_id,
-                candidate_id=key[1],
-                participant_id=str(row["participant_id"]),
-                record_id=str(row["record_id"]),
-                session_id=str(row["session_id"]),
-                component_id=str(row["component_id"]),
-                interval=interval,
-                source_16d=np.asarray(row["source_16d"], dtype=np.float64),
-                features_26d=matrix[index],
-                support_indices=support,
-                label=label_by_key.get(key),
-            ))
-        if label_by_key and len(label_by_key) != len(candidates):
-            raise InvalidA2Source("training label join is incomplete for the candidate role")
-        candidates_by_role[role_id] = tuple(candidates)
+    if study_id == STUDY_003_ID:
+        candidates_by_role: Mapping[str, tuple[object, ...]] = _LazyRoleCandidates(output_dir, role_digests)
+    else:
+        candidates_by_role = {
+            str(digest["role_id"]): _load_materialized_role_candidates(output_dir, digest, str(digest["role_id"]))
+            for digest in role_digests
+        }
     truths_by_participant: dict[str, list[TruthRecord]] = {participant: [] for participant in participants}
     for row in _read_jsonl(materialized / "truths.jsonl"):
         interval_row = row["interval"]
@@ -1256,6 +1652,8 @@ def load_audited_corpus(workspace: str | Path, output: str | Path, *, study_id: 
         )
         truths_by_participant[truth.participant_id].append(truth)
     transitions = _read_json(materialized / "a1-fn-transition-input.json")
+    if progress_callback is not None:
+        progress_callback("run_role_load")
     return FeatureCorpus(
         participants=participants,
         roles=roles,

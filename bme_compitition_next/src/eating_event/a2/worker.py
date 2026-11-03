@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 
 from eating_event.a2.contracts import DEFAULT_STUDY_ID, load_config, validate_study_binding
 
@@ -40,13 +41,15 @@ def main() -> int:
                 config_sha256=config_sha256,
                 startup_resources=request.get("startup_resources"),
                 study_id=study_id,
+                progress_callback=(lambda stage: _write_progress(output, stage)) if study_id.endswith("-003") else None,
             )
         elif mode == "run":
             from eating_event.a2.audit import load_audited_corpus
             from eating_event.a2.budget import FitAttemptLedger, StudyLedger
             from eating_event.a2.execution import execute_validation
 
-            corpus = load_audited_corpus(workspace, output, study_id=study_id)
+            progress = (lambda stage: _write_progress(output, stage)) if study_id.endswith("-003") else None
+            corpus = load_audited_corpus(workspace, output, study_id=study_id, progress_callback=progress)
             ledger = StudyLedger(
                 workspace / "artifacts",
                 output,
@@ -55,7 +58,11 @@ def main() -> int:
                 predecessor=config.get("predecessor"),
                 config_sha256=config_sha256,
             )
-            result = execute_validation(corpus, budget=FitAttemptLedger(ledger))
+            fit_budget = FitAttemptLedger(
+                ledger,
+                on_fit_end=(lambda _role, _status: _write_progress(output, "fit")) if study_id.endswith("-003") else None,
+            )
+            result = execute_validation(corpus, budget=fit_budget)
             result["status"] = "COMPLETE"
             result["study_id"] = study_id
             result["study_output"] = str(config["study_output"])
@@ -97,6 +104,13 @@ def _environment_identity() -> dict[str, object]:
         "platform": platform.platform(),
         "libraries": {name: importlib.metadata.version(name) for name in ("numpy", "scipy", "scikit-learn", "psutil")},
     }
+
+
+def _write_progress(output: Path, stage: str) -> None:
+    target = output / "worker-progress.json"
+    temporary = output / "worker-progress.json.tmp"
+    temporary.write_text(json.dumps({"last_completed_stage": stage, "recorded_epoch": time.time()}, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(target)
 
 
 def _write_json(path: Path, value: object) -> None:
