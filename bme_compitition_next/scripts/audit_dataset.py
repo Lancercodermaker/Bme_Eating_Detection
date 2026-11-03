@@ -8,6 +8,7 @@ from pathlib import Path
 import time
 
 from eating_event.audit import audit_tsv_files, write_audit_json, write_dataset_audit_report
+from eating_event.coverage import apply_raw_failure_to_manifest, build_formal_eligibility
 from eating_event.config import load_config
 from eating_event.data.manifest import discover_raw_files_with_audit
 from eating_event.data.raw import RawFileFormatError, read_imu_tsv_with_audit
@@ -69,12 +70,14 @@ def _diagnostic_config_audit(
             try:
                 result = read_imu_tsv_with_audit(record.path, chunk_size=config.raw_chunk_size)
             except RawFileFormatError as exc:
+                classification = apply_raw_failure_to_manifest(manifest_audit, record, exc)
                 skipped_files += 1
                 raw_audits.append(
                     {
                         "path": str(record.path),
-                        "status": "skipped_malformed",
-                        "reason": str(exc),
+                        "status": classification.status,
+                        "reason": classification.reason,
+                        "error": str(exc),
                         "participant_id": record.participant_id,
                         "session_id": record.session_folder,
                     }
@@ -99,15 +102,15 @@ def _diagnostic_config_audit(
                     "dropped_timestamp_count": audit.dropped_timestamp_count,
                 }
             )
+        eligibility = build_formal_eligibility(records, manifest_audit)
         status_counts = dict(manifest_audit.status_counts)
-        status_counts["skipped_malformed"] = status_counts.get("skipped_malformed", 0) + skipped_files
         payload = {
             "schema_version": "dataset_audit_v1",
             "run_id": run_id,
             "diagnostic_only": diagnostic_only,
             "telemetry_scope": "diagnostic" if diagnostic_only else "formal",
             "status": "pass" if not skipped_files else "pass_with_skips",
-            "failure_class": "DATA/PIPELINE" if skipped_files else None,
+            "failure_class": None,
             "started_at": started_at,
             "ended_at": _now(),
             "source_root": str(config.raw_data_root),
@@ -120,11 +123,18 @@ def _diagnostic_config_audit(
             "dropped_timestamp_count": dropped_timestamp_count,
             "manifest_records": manifest_audit.records,
             "files": raw_audits,
+            "processed_file_count": eligibility.processed_count,
+            "skipped_file_count": eligibility.skipped_count,
+            "skipped_reason_counts": dict(eligibility.skipped_reason_counts),
+            "participant_session_eligibility": dict(eligibility.participant_session_eligibility),
+            "ineligible_participants": list(eligibility.ineligible_participants),
+            "manifest_sha256": eligibility.manifest_sha256,
+            "denominator_sha256": eligibility.denominator_sha256,
             "elapsed_seconds": time.perf_counter() - started_clock,
         }
         write_dataset_audit_report(payload, output)
         return 0
-    except (OSError, ValueError, RawFileFormatError) as exc:
+    except (OSError, ValueError, RawFileFormatError, RuntimeError) as exc:
         payload = {
             "schema_version": "dataset_audit_v1",
             "run_id": run_id,

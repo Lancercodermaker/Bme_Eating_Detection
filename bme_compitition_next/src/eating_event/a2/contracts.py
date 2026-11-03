@@ -99,6 +99,8 @@ A2_CONFIG: dict[str, object] = {
 
 STUDY_001_ID = "a2-context-verifier-v1-001"
 STUDY_002_ID = "a2-context-verifier-v1-002"
+STUDY_003_ID = "a2-context-verifier-v1-003"
+STUDY_004_ID = "a2-context-verifier-v1-004"
 DEFAULT_STUDY_ID = STUDY_001_ID
 PREDECESSOR_001: dict[str, object] = {
     "study_id": STUDY_001_ID,
@@ -116,20 +118,131 @@ PREDECESSOR_001: dict[str, object] = {
     "external_ledger_bytes": 634,
 }
 
+PREDECESSOR_002: dict[str, object] = {
+    "study_id": STUDY_002_ID,
+    "status": "INCOMPLETE_RESOURCE",
+    "run_status_sha256": "f96ee4eff5d56e80c5793fd3522069396f2505872019cfce43c1df711e355e7c",
+    "stop_record_sha256": "62d40008488b4577f0549c1483dde5ce9b527bfeed810572abe8284bc1745d94",
+    "external_ledger_sha256": "804287e46a7513aa7b916988d07775a98e477a02989cfe5480978867ec5db5a9",
+    "mirror_ledger_sha256": "804287e46a7513aa7b916988d07775a98e477a02989cfe5480978867ec5db5a9",
+    "config_sha256": "89d1a7697dadf3a92f1a2249a68d186ca3ffb48ad8b06697bf142f5952e78949",
+    "output_tree_sha256": "bdcb14f362c735429473b0d4678e175e2d5cdfc09c2f2628935d97d848b9179f",
+    "active_wall_seconds": 17.547000000005937,
+    "fit_wall_seconds": 0.0,
+    "verifier_fit_attempts": 0,
+    "candidate_fit_attempts": 0,
+    "candidate_predict_attempts": 0,
+    "audit_calls": 1,
+    "run_calls": 0,
+    "rss_ceiling_bytes": 2127893299,
+    "startup_available_bytes": 4113694720,
+    "last_recorded_accepted_rss_bytes": 2116214784,
+    "failing_measurement_bytes": None,
+    "output_tree_bytes": 10250,
+    "external_ledger_bytes": 2504,
+}
+
+PREDECESSOR_FAMILY_001_002: dict[str, object] = {
+    "schema": "a2_predecessor_family_v1",
+    "members": [copy.deepcopy(PREDECESSOR_001), copy.deepcopy(PREDECESSOR_002)],
+    "active_wall_seconds": 21.047000000005937,
+    "fit_wall_seconds": 0.0,
+    "verifier_fit_attempts": 0,
+    "candidate_fit_attempts": 0,
+    "candidate_predict_attempts": 0,
+}
+
+PREDECESSOR_003: dict[str, object] = {
+    "study_id": STUDY_003_ID,
+    "status": "INVALID",
+    "config_sha256": "dca4d895f5d65bf7df6583ddd935338fa614f91952103508bed5189dd1fbc993",
+    "a2_code_identity_sha256": "b60e9cd5dd9138210af665b6f0124d76fd99ba7fe7e27fe169237287aeeec918",
+    "frozen_study_identity_sha256": "d39aa40d4207668a89db34f6de5f8c9f3d24ac3267cab9bc120cf7e4d0328f5c",
+    "frozen_code_archive_sha256": "336ce6bc7c008feb89ef4643f28f5ce61369369c8506a2439c8030b59739b670",
+    "run_status_sha256": "4039ef151dd47f48ab11436d1c7e583b7f592c72eb2617db27d07e39630b3315",
+    "stop_record_sha256": "a6f17a77b652e9bf95c43083e7c0f1b27becbdc4450ea81b1d0e2b2d73466b74",
+    "external_ledger_sha256": "eae9f876cf0cf3c58a49e3fe6da5bbc74ced55d7791074227eafccae6191cbae",
+    "mirror_ledger_sha256": "eae9f876cf0cf3c58a49e3fe6da5bbc74ced55d7791074227eafccae6191cbae",
+    "output_tree_sha256": "fa999f999b99ef783249d607e53eadd88359232afe5c93100c7d545c4264e7ec",
+    "active_wall_seconds": 123.64099999997416,
+    "fit_wall_seconds": 0.0,
+    "verifier_fit_attempts": 0,
+    "candidate_fit_attempts": 0,
+    "candidate_predict_attempts": 0,
+    "audit_calls": 1,
+    "run_calls": 0,
+    "rss_ceiling_bytes": 3612401664,
+    "output_tree_bytes": 339692500,
+    "output_tree_files": 164,
+    "external_ledger_bytes": 240035,
+    "temporary_spool_files": 105,
+    "temporary_spool_bytes": 288058474,
+    "materialized_files": 50,
+    "materialized_bytes": 50782012,
+}
+
+PREDECESSOR_FAMILY_001_002_003: dict[str, object] = {
+    "schema": "a2_predecessor_family_v1",
+    "members": [
+        copy.deepcopy(PREDECESSOR_001),
+        copy.deepcopy(PREDECESSOR_002),
+        copy.deepcopy(PREDECESSOR_003),
+    ],
+    "active_wall_seconds": (
+        float(PREDECESSOR_001["active_wall_seconds"])
+        + float(PREDECESSOR_002["active_wall_seconds"])
+        + float(PREDECESSOR_003["active_wall_seconds"])
+    ),
+    "fit_wall_seconds": 0.0,
+    "verifier_fit_attempts": 0,
+    "candidate_fit_attempts": 0,
+    "candidate_predict_attempts": 0,
+    "audit_calls": 3,
+    "run_calls": 0,
+}
+
 
 def expected_study_config(study_id: str) -> dict[str, object]:
     if study_id == STUDY_001_ID:
         return copy.deepcopy(A2_CONFIG)
-    if study_id != STUDY_002_ID:
+    if study_id == STUDY_004_ID:
+        expected = expected_study_config(STUDY_003_ID)
+        expected.update({
+            "study_id": STUDY_004_ID,
+            "study_output": "artifacts/a2-context-verifier-v1-004",
+            "ledger_path": "artifacts/a2-study-budget-v1-004.jsonl",
+            "lock_path": "artifacts/a2-study-budget-v1-004.lock",
+            "predecessor": copy.deepcopy(PREDECESSOR_FAMILY_001_002_003),
+        })
+        limits = dict(expected["limits"])
+        limits["disk_bytes"] = 1536 * 1024**2
+        expected["limits"] = limits
+        return expected
+    if study_id not in {STUDY_002_ID, STUDY_003_ID}:
         raise ValueError(f"unapproved A2 study identity: {study_id}")
     expected = copy.deepcopy(A2_CONFIG)
-    expected.update({
-        "study_id": STUDY_002_ID,
-        "study_output": "artifacts/a2-context-verifier-v1-002",
-        "ledger_path": "artifacts/a2-study-budget-v1-002.jsonl",
-        "lock_path": "artifacts/a2-study-budget-v1-002.lock",
-        "predecessor": copy.deepcopy(PREDECESSOR_001),
-    })
+    if study_id == STUDY_002_ID:
+        expected.update({
+            "study_id": STUDY_002_ID,
+            "study_output": "artifacts/a2-context-verifier-v1-002",
+            "ledger_path": "artifacts/a2-study-budget-v1-002.jsonl",
+            "lock_path": "artifacts/a2-study-budget-v1-002.lock",
+            "predecessor": copy.deepcopy(PREDECESSOR_001),
+        })
+    else:
+        expected.update({
+            "study_id": STUDY_003_ID,
+            "study_output": "artifacts/a2-context-verifier-v1-003",
+            "ledger_path": "artifacts/a2-study-budget-v1-003.jsonl",
+            "lock_path": "artifacts/a2-study-budget-v1-003.lock",
+            "predecessor": copy.deepcopy(PREDECESSOR_FAMILY_001_002),
+        })
+        limits = dict(expected["limits"])
+        limits.update({
+            "rss_absolute_bytes": 4 * 1024**3,
+            "rss_min_startup_available_bytes": 5 * 1024**3,
+        })
+        expected["limits"] = limits
     return expected
 
 
@@ -150,7 +263,12 @@ def validate_config(config: object, *, study_id: str = DEFAULT_STUDY_ID) -> dict
 
 def config_path(root: str | Path, study_id: str = DEFAULT_STUDY_ID) -> Path:
     expected_study_config(study_id)
-    filename = "a2-context-verifier-v1.json" if study_id == STUDY_001_ID else "a2-context-verifier-v1-002.json"
+    filename = {
+        STUDY_001_ID: "a2-context-verifier-v1.json",
+        STUDY_002_ID: "a2-context-verifier-v1-002.json",
+        STUDY_003_ID: "a2-context-verifier-v1-003.json",
+        STUDY_004_ID: "a2-context-verifier-v1-004.json",
+    }[study_id]
     return Path(root).resolve() / "configs" / filename
 
 
@@ -172,7 +290,12 @@ def study_output_path(root: str | Path, config: Mapping[str, object], *, study_i
     validate_config(dict(config), study_id=study_id)
     workspace = Path(root).resolve()
     path = (workspace / str(config["study_output"])).resolve()
-    expected = (workspace / ("artifacts/a2-context-verifier-v1-001" if study_id == STUDY_001_ID else "artifacts/a2-context-verifier-v1-002")).resolve()
+    expected = (workspace / {
+        STUDY_001_ID: "artifacts/a2-context-verifier-v1-001",
+        STUDY_002_ID: "artifacts/a2-context-verifier-v1-002",
+        STUDY_003_ID: "artifacts/a2-context-verifier-v1-003",
+        STUDY_004_ID: "artifacts/a2-context-verifier-v1-004",
+    }[study_id]).resolve()
     if path != expected:
         raise ValueError("A2 study output path differs from its fixed namespace")
     return path

@@ -7667,3 +7667,267 @@ Actual additional native suite inventory and separate installation consumers are
 |14 Stage/results|Route2 lawful Stage/results0/F1>=0.66OPEN; Route3v1-003 lawfulCOMPLETE/fourqualityFAIL/no rerun.|NOT_CLOSED|
 
 PREPARED_UNREVIEWED/APPLICATION_BLOCKED/NOT_APPROVAL_READY/FrozenAdmission=None continue. H1 APPROVED_UNSTARTED; H3/H4/H5 consumed failed partial/no retry/noH6. Original numeric/time/write/fee/scientific/GT contracts remain. Source review close advances the actual positive Windows production path; it does not close the goal or justify ending work before the integrated firstbuild/H1 route is ready. Next work continues from these exact source identities toward the complete evidence/dispatch/manifest/finish path and precise remaining guest/target/scientific objects.
+
+
+<a id="peer-origin-actual-six-path-git-delivery-20261030"></a>
+
+### Actual exact-path Git delivery; engineering gates unchanged
+
+Actual ordinary commit4c68acd53c3550746f576cf4a0025c29ef572d78 has parent14f58b82a4a9e8a73ca5b69020818a353f74123f and EXACTLY six paths: ledger/process/gauges plus these original three documents,1137insertions/50deletions. Pre-stage full preservation2026-10-30T17:22:00.649010UTC and staged readback17:22:30.123436 verified443 complete project identities, compact identity JSON digest69feb75b9347aba598d3c23459e79f6faefeee2f5b93d215efec72ac8ac3e9c6. Root index216/scoped211, original11 exact staged identities plus only6 task stages (17total); raw staged blobs equalled the reviewed working bytes. Git LF/CRLF warnings changed neither bytes nor staged identities. Default hook directory had no active non-sample hook and core.hooksPath was unset.
+
+Postcommit full preservation17:23:09.015423UTC matched443 identities, root216/scoped211 index LF-row digest8a2f49cd58a51e095141fa9a02f1fe69e79998a8b7d2de873b26e5e57bc74d2f, original11 staged only; all6 task paths clean and exact commit blobs equal working bytes. Only one original nonforce push session42765 was issued, then polled to exit0. Actual remote check2026-10-30T17:23:35.8696366Z returned feature4c68acd53c3550746f576cf4a0025c29ef572d78, main dd05aa128f8d62a85c20a83f8af72fe13fcfa27b unchanged. No reset/stash/add-A/force/main mutation, unrelated write or new handoff file occurred. This new append naturally makes the three authority docs dirty AFTER that clean six-path delivery; it is not falsely attributed to the commit.
+
+All14 individually retain the immediately preceding full table's NOT_CLOSED states after delivery:
+1 authority: uniqueH1/directStage conditional, no native epoch.
+2 science/interface: plain I/O dual0 only; exact remaining schema/time/matcher/eval/package/mapping missing.
+3 closure: complete immutable runtime/toolchain/input/guest/manifest not frozen.
+4 C00: scoped Windows only; exact guest/VM/cross-OS/terminal producers unresolved.
+5 source: final three-file origin SPEC/QUALITY0; complete entry/peer/resource/dispatcher/manifest/finish incomplete.
+6 BEFORE: complete static attempt BEFORE absent.
+7 build/install: no compile/link/load/install, exact extra fixture/installation manifest incomplete.
+8 resource/time: no applied proof or fitted whole invocation circuit.
+9 writers/target: readonly SOURCE, TARGET_NOT_PREPARED/no actual native target.
+10 guest: no WSL/installation/prebirth/appliedVM/same-original-FD facts.
+11 noGT: no runtime/harness/fault/noGT validation.
+12 stop/exit/fees: repaired SOURCE only; no deployed final safety/owned joins/flush/liveaccept/runner-exit evidence.
+13 formal freeze: fullFAIL retained/FrozenAdmission=None.
+14 results: Route2 lawfulStage/results0/F1>=0.66OPEN; Route3v1-003 lawfulCOMPLETE/fourqualityFAIL/no rerun.
+
+No engineering gate, numeric budget, scientific/GT permission or H1/H3/H4/H5 state changed merely by delivery. H1APPROVED_UNSTARTED; H3/H4/H5CONSUMED_FAILED_PARTIAL_NO_RETRY/noH6. Work continues on the complete exact-byte-echo evidence/profile/dispatcher contract and full first-entry dependencies; this is not task completion or an invitation to run a Windows-only H1 slice.
+
+
+<a id="windows-complete-resource-echo-profile-and-chain-contract-20261031"></a>
+
+### C00 exact complete-resource byte-echo profile and charged chain: pending scoped SPEC then different QUALITY
+
+Author root actual continuation FIRST2026-10-31 01:32:40UTC;900s cutoff01:47:40UTC. The completed candidate was supplied by a separate read-only design task FIRST2026-10-30 17:16:29/READ_STOP17:18:24/reported final STOP17:23:26UTC. Only Context7 documentation was read in that continuation, not project source or runtime. This appendix is the concrete INTERNAL C00 contract candidate for dual review. SPEC PENDING; DIFFERENT fresh QUALITY PENDING; no affected SOURCE changes until both close. It supersedes unselected hash/multipart resource proposals ONLY within the Windows global-resource/peer mechanism. Whole M1-M5 adoption, original budgets, scientific/GT contracts and all unresolved guest/target/terminal gates remain.
+
+Existing actual source delivery4c68acd53c3550746f576cf4a0025c29ef572d78/remote verified2026-10-30T17:23:35.8696366Z remains the basis, not a reset. Unchanged closed components are inherited. Root check2026-10-31T01:33:14.797829UTC reconstructed443 working identities and root216/scoped211 index/original11 stages from durable88155B/b19c1c2d... plus actual Git delta and the known3253B/31d09e53... receipt. The diagnostic's durable=40 field was a local variable overwritten by the later Git blob-ID loop; the preceding decode length/hash assertion actually checked88155B. It is not a40-byte replacement baseline. All working/index assertions passed; no current scan was adopted as baseline.
+
+#### A. Scope, alternatives and exact target class
+
+The prior full-duplication design costs approximately204 calls/cycle PER observer at one GPU before target work; it cannot fit continuous6000s inside aggregate4M. A generic64-device/128-instance multipart design preserves data but expands transaction/IPC costs and exact100ms assembly obligations. Select for scoped review the narrower all-reported-instance, single-frame profile2 ROOT_COMPLETE_D1_P4_L8_NAME63 with exact byte echoes. It reduces known producer cost while retaining actual rejection for an unsupported target, not promising native timing or whole-manifest throughput.
+
+Class predicates:
+- Exactly1 reported physical NVML device; one stable native processor group/N1..64.
+- At most4 contributing PhysicalDisk and8 contributing LogicalDisk instances, at least1 of each for this E-backed target. Each family may additionally contain one literal _Total.
+- Include EVERY reported instance in this class; no row/device omission, alias substitution, duplicate name, topology change or truncation. Names1..63 UTF-16 code units plus terminator; UUID1..95 bytes plus terminator. Outside-class facts cause terminal STOP before dependent work, not retry or automatic class widening.
+- At most12 contributing reservations/14 transported rows. Select root disk ceiling128/peers0, preserving aggregate128. _Total rows consume bounded parse/transport storage but never contribute exposure/reservation counts.
+- Actual machine fit is UNKNOWN until lawful H1. User hardware and environment24 are not native topology evidence.
+
+ROOT_ENTRY alone produces full native CPU/RAM/N, all physical NVML, both raw PDH families/clock conversion and held-E target evidence. Authenticated CONTROLLER/WATCHDOG/TRANSPORT produce their own CPU/RAM/group/N/root-liveness/STOP/deadline facts plus verify complete root evidence. This replaces ONLY the earlier INTERNAL peer NVML/PDH/E duplication and peer first-local NVML/PDH/baseline requirements. Pending/uncommitted contexts never obtain a profile. Existing proof-only admission/root constructor classification is authoritative; no caller role/profile flag.
+
+Peer Initialize-R2NativeClock and first CPU/RAM/N native+processing endpoints still consume SAME committed origin within100ms. ROOT first resources remain originalq0+100ms. Root continuously observes during peer cold startup/dictionary exchange; no compiler/dependent writer before all original required peers/local samples/full resource gates actually READY. A peer's absent local VRAM/PDH/E values are UNKNOWN_NOT_LOCAL, never0/VERIFIED; its local sample is SUPPLEMENTAL_PEER_LOCAL and cannot grant work.
+
+This complete GLOBAL frame is not owned-Job/PI/membership/CPU-limit/memory-limit/prep-TID proof. Every concrete slot grant additionally requires original fresh Job/PI/TID/limits/domain-counter/slot/target/phase predicates from their existing owners. Their calls/births/handles/bytes/observations remain separately counted. Resource ACK is supplemental, never FrozenAdmission or scientific/GT permission.
+
+#### B. Owners, fixed producer callpoints and private references
+
+|Owner|Exact internal interface / positive producer|
+|---|---|
+|ledger.ps1|New-R2ObservationProfile(Context) derives profile from committed ROOT_ENTRY/AUTHENTICATED_PEER_ADMISSION; returns original issuer-bound profile.|
+|ledger.ps1|Invoke-R2ObservationChainStep(Context,OriginalCycleLease) advances ONLY the fixed native table below; no API list, arbitrary arguments, callback/provider, success flag or caller time.|
+|gauges.ps1|Begin-R2ObservationCycle(Context,OriginalGaugeOwner,OriginalTargetOwner) issues the private cycle lease with same context/plan/profile/origin/current slot and canonical owned buffers. Assert-R2ObservationCycle validates SAME issuer/context/origin/binding/current generation; callers cannot construct a lease from fields.|
+|target.ps1|Begin-R2TargetFrameEvidence(Context,OriginalParentOwner,OriginalCycleLease) and Complete-R2TargetFrameEvidence(Context,OriginalPending) bind all six actual readonly native facts to that cycle/held owner before issuing original target evidence.|
+|resource_wire.ps1 NEW|New-R2ResourceTransportOwner(Context,OriginalGaugeOwner,OriginalTargetOwner) retains original baseline/target/plan/profile references and fixed arenas. Root requires original target owner; peer requires null local target and its original local gauge owner.|
+|resource_wire.ps1/process.ps1|Advance-R2ResourceDictionaryStep(Context,OriginalOwner,OriginalPeer), Advance-R2CompleteResourceStep(...) encode/send ONLY issuer-produced original evidence via the original channel.|
+|peer resource_wire.ps1/process.ps1|Accept-R2ResourceWireStep(Context,OriginalLocalPeer,OriginalReceivedFrame) consumes the actual complete native-received frame and issues private R2RemoteResourceEvidence after full verification.|
+|root resource_wire.ps1/process.ps1|Confirm-R2ResourceAckStep(Context,OriginalOwner,OriginalPeer) compares every echo byte with original retained transaction and issues a private peer receipt.|
+|root entry consumer|Assert-R2PeerResourceGate(Context,OriginalRootSample,OriginalPeerReceipts) combines same-context original current root sample with fresh authenticated original peer receipts BEFORE a concrete slot grant; does not manufacture any remaining Job/phase/admission predicate.|
+
+The NEW file is scripts/route2_guard_resource_wire.ps1, definitions only at top level, private issuer module created after originalq0; no initializer/import/native/crypto execution on file read. It owns layout encoding/decoding, transaction registry and original remote-evidence/receipt issuance. Existing process.ps1 remains the native channel/pending-I/O owner; ledger owns clock/call/ownership authority, gauges owns actual resource facts and original b0, target owns actual held-E identity/free facts. No raw decoded map becomes R2Sample/context/binding/work authority.
+
+Fixed direct component decoders are selected code paths, never caller callbacks. The chain validates each original buffer slice/opaque reference/component generation. Decode from original live native outputs into the reserved cycle arena before reuse; preserve actual raw return/error bits/QPC provenance. Any new fact accessor is bounded to that original lease, not a public bare pointer. Essential-copy/lease-generation/48calls/step limits continue. Do not invoke the old full native funnel from inside the chain and call the resulting extra clocks free.
+
+#### C. Native chain, exact operation table and accounting
+
+Fixed root cycle:
+1 GetSystemTimes;2 GetActiveProcessorGroupCount;3 GetActiveProcessorCount(group0);4 GlobalMemoryStatusEx;5 nvmlDeviceGetCount_v2;
+GPU-A nvmlDeviceGetUUID(original index0 device);GPU-B nvmlDeviceGetMemoryInfo_v2;
+6 PdhCollectQueryDataWithTime(original query);7/8 Physical raw size/data;9/10 Logical raw size/data;
+11 GetTimeZoneInformation(before);12 GetSystemTimePreciseAsFileTime;13 FileTimeToSystemTime;14 SystemTimeToTzSpecificLocalTime;15 SystemTimeToFileTime;16 GetTimeZoneInformation(after);
+17 GetFileInformationByHandleEx(FileIdInfo18);18 same(FileStandardInfo1);19 same(FileAttributeTagInfo9);20 GetFinalPathNameByHandleW;21 GetVolumeNameForVolumeMountPointW;22 GetDiskFreeSpaceExW(original current VolumeGUID).
+The target calls use the same original held parent/registered arena, actual complete strings and original immutable mapping, never a decoded pathname. Sixth free-space call is included, not silently cached or omitted.
+
+Exactly22 non-device+2 device=24 native observations. Root uses two steps of at most21 then3 native operations; normal bound2n+6 per step gives48+12=60 charged calls. Peer fixed local core has four native CPU/RAM/group/N calls,14charges; liveness/STOP waits, IPC and acceptance clocks are ADDITIONAL explicit costs, not included in14. Initialization, provider open/info/handle capture, arenas, type binding and target opening stay in original ordinary funnels, all charged separately.
+
+Each chain step reserves/checks ordinary entry/exit and processing endpoint headroom, charges BEFORE each native call, captures last-error immediately where defined, copies/decodes bounded output, then reads a fresh CHARGED QPC BEFORE another native observation. Apply original absolute deadline/slot/cadence/100ms/STOP checks at each endpoint and final return. Two step boundaries cannot restart cycle age. Partial evidence/resources remain registered on failure. No acquisition/birth/write/terminate/cleanup API enters this readonly table. Private native C observer12calls/step unchanged.
+
+Operation records below store the ACTUAL signed32 return bits (u16/u32 returns reinterpreted without losing bits) and native descriptor-defined status/error bits. BOOL failures/last-error versus direct PDH/NVML statuses retain their exact existing conventions. For the single VOID precise-time operation, rawReturn=0/statusBits=0 is a STRUCTURAL ABSENT-RETURN sentinel known from its fixed descriptor, never claimed as an observed native success value; its output bytes/bracket must still be valid. Size-only PDH calls require exact PDH_MORE_DATA; data calls require success; per-item CStatus0/1; type272696576 from original actual counter-info initialization remains mandatory. No GetLastError reinterpretation of direct statuses.
+
+6000s remains an outer ceiling, not a promised runtime: even(60+3*14)*60000=6120000 core calls exceeds4M, before IPC/scans/children. Exhaustion ends the attempt under original cleanup, no missing observations/refunds/borrowing. Original per-role/aggregate vouchers and stricter48/12 remain. Complete normal/failure phase vectors, thread scan cadence/rows/lifetime handle acquisitions, native helper/guest/child charges, review-wait/Stage and all writers still MUST fit before H1. This contract does not label the uninstantiated vector fitted.
+
+#### D. Common wire envelope, schema2 and source identity
+
+All integers little-endian; unaligned fields decoded explicitly; signed128 two's-complement. No unknown flags/versions/kinds/profiles/lengths/reserved bytes. Original ABI1 common64-byte header remains byte-for-byte: totalBytes0:u32,abi4:u16,kind6:u16,wire sequence8:u64,senderQpc16:i64,objectSerial24:u64,nonce32:byte[32]. Extend allowlist ONLY9 RESOURCE_DICTIONARY(root->peer),10 COMPLETE_RESOURCE(root->peer),11 RESOURCE_ACK(peer->root).
+
+Extension128, absolute offsets:
+64:u16 schema2;66:u16 profile2;68:u32 flags0;
+72:u64 resourceSequence(0 dictionary/dictionaryACK);
+80:u64 original root transport-owner issuer serial;
+88:u32 payloadBytes;92:u16 originalKind9/10;94:u16 ACKmode(0 root frame,1 dictionaryACK,2 resourceACK);
+96:u64 original root wire sequence(equal common sequence on root transmit);
+104..167:64 required-zero bytes, NOT hashes;
+168:i64 transactionBeginQpc;176:i64 actualPostSerializationQpc;184..191:8zero.
+totalBytes=192+payloadBytes<=4096 exactly; no trailing bytes. Common senderQpc equals that sender's actual postserialization endpoint, not an invented post-write timestamp.
+
+Actual original SID/PID/PI/creation/root-handle/channel identity, nonce/object serial and strictly increasing per-direction sequences remain mandatory. New kinds require original issuer-produced resource message references on send; generic old raw-payload callers cannot mint kind9-11 authority. Receive must be the existing private original complete-native-read frame, not caller bytes. ACK refers to the outstanding transaction on SAME peer/channel, not another peer's matching bytes. No reconnect/reissue/replay/gap.
+
+No runtime cryptography is added. PlanDigest is the original constructor's immutable pre-pinned literal source-plan identity, compared against the original local plan; a received digest never authenticates/mints a plan. Exact full-byte echo over authenticated original channel replaces the unselected runtime-SHA proposal. Context7 primary .NET4.8 documentation identified possible SHA256Managed FIPS redirection; no constructor/hash/FIPS switch/provider/configuration change or new crypto API is selected. [Primary .NET retargeting reference](https://learn.microsoft.com/en-us/dotnet/framework/migration-guide/retargeting/4.8.x).
+
+#### E. Shared512-byte metadata (payload-relative)
+
+0:byte[8] ASCII R2RES002;8:u16 schema2;10:u16 profile2;12:u16 bodyKind9/10 (unchanged in echo);14:u16 zero;
+16:byte[32] original nonce;48:byte[32] original PlanDigest;
+80:u64 current dictionary issuer serial;88:u64 previous dictionary serial(0 except version2 and subsequent resources);
+96:u64 original root observation-origin issuer serial;104:u64 original payload issuance serial;
+112:i64 original rootq0;120:i64 positive original frequency;128:u64 original root context serial;
+136:u32 original rootPID;140:u32 zero;144:u64 original root creation FILETIME;
+152:u32 dictionaryVersion1/2;156:u32 actual original transaction manifest-slot ID, not a new observation-origin slot;
+160:u64 resourceSequence(0 dictionary);168:u64 original b0 gauge sequence;176:i64 original b0QPC;
+184:u64 first E-binding gauge sequence(0 absent);192:i64 first E-binding boundaryQPC(0 absent);200:u64 original target binding serial(0 absent);
+208:i64 current transaction begin;216:i64 actual evidence/canonicalization endpoint before final serialization endpoint;
+224:u16 GPUcount1;226:u16 contributingPhysical1..4;228:u16 contributingLogical1..8;
+230:u16 physicalRawCount(physical+0/1_Total);232:u16 logicalRawCount(logical+0/1_Total);234:u16 E logical rowID(0xffff unbound);
+236:u32 flags BOUND1/EXCLUDED_AT_B0=2/CPU_PAIR_VALID4/CLEANUP_ONLY8;
+240:u16 fixedOpCount(0 dictionary,22 resource);242:u16 GPUrecordCount1;244:u16 diskRecordCount(rawPhysical+rawLogical);246:u16 nativeOpCount(0 dictionary,24 resource);
+248:u32 exactPayloadBytes;252:u32 actual verified PDH type272696576;
+256..383:dictionary original final-path UTF-16[64], resource zero;
+384..511:dictionary original VolumeGUID-path UTF-16[64], resource zero.
+
+Nonzero original issuer serials retain same plan/root/context identity. Dictionary CPU_PAIR_VALID must be0 (no current CPU block); resource requires a valid current CPU pair. Unbound dictionary paths/all binding fields are absent-zero with flags clear, not observed zeros. Bound dictionary strings contain complete original validated strings<=63codeUnits+terminator+zero padding. No truncation; current six-query producer compares complete actual strings with these originals before issuing target evidence. Body lengths and flags must agree with all fields; CLEANUP_ONLY does not erase original STOP.
+
+#### F. Canonical dictionary and original b0/late-E transition
+
+Rows: GPU index0; Physical ordinal name order then Logical ordinal name order, including literal_Total if present. Physical IDs0.., Logical IDs0x100... No changed ID/name/UUID/count/topology.
+
+GPU identity104:
+0:u16 index0;2:u16 UUIDlength1..95;4:i32 actualUUIDstatus0;8:byte[96] full terminated UUID/zero padding.
+
+Canonical raw PDH32 (packed wire, NOT native padding):
+0:u32 CStatus0/1;4:u64 positive timestamp<=Int64.MaxValue;12:i64 nonnegative FirstValue;20:i64 SecondValue verbatim;28:u32 MultiCount verbatim.
+
+Disk dictionary232:
+0:u16 rowID;2:u8 family1Physical/2Logical;3:u8 flags TOTAL1/BIND_SNAPSHOT_PRESENT2/BOUND_E4;
+4:u16 nameLength1..63;6:u16 zero;8:raw32 b0;40/48:i64 original b0 native begin/end;
+56:raw32 firstBinding or allzero absent;88/96:i64 original binding native begin/end or0;
+104:UTF-16[64] complete terminated name/zero padding.
+Absent binding flags govern interpretation even though zero CStatus is otherwise valid. Native brackets monotone and actual historical source facts; timestamps never made current by transmitting them later.
+Dictionary maximum512+104+14*232=3864 payload,4056 total.
+
+Version1 issued once from original b0. It may be bound or explicitly unbound. If E was validly excluded at b0, binding and baseline logical snapshots are the same original facts and version2 is forbidden. Otherwise allow EXACTLY one version2 upon first genuine original target binding; new serial names original version1 serial. Preserve original nonce/plan/root/origin/q0/F/b0/UUID/names/IDs/counts byte-for-byte. Only new issuance/transaction/active-slot/version/previousSerial/first-binding/target fields change as defined. All logical binding snapshots belong to SAME completed logical collection defining that boundary; physical binding snapshots remain absent. No arbitrary old/new mixed values.
+
+Retain both payloads. A peer receives/verifies/echoes version1 before version2; never skips prerequisite or replaces b0. Root suspends grants during transition, continually observes, waits every required original peer's exact dictionary echo. No dictionary alone grants READY. Root never issues a new dictionary/transition after STOP.
+
+For initially unbound E retain all earlier exposure:
+nonE=sum(allLogical(binding-b0))+sum(logicalExceptE(current-binding)).
+For E excluded at b0 retain the original b0 exclusion. _Total is never summed. All arithmetic checked/nonnegative/monotone; no deletion/peer startup/new dictionary refund. Current dictionary processing/transfer bounded by actual charged transaction clocks; historical baseline observations remain explicitly historical.
+
+#### G. Complete resource payload: exact layout
+
+Global2048:
+0..511 metadata;
+512..591 CPU80: ten consecutive64-bit values previousBegin:i64,previousEnd:i64,previousIdle:u64,previousKernel:u64,previousUser:u64,currentBegin:i64,currentEnd:i64,currentIdle:u64,currentKernel:u64,currentUser:u64;
+592..655 full actual MEMORYSTATUSEX64 (dwLength64, numeric fields decoded/validated, native-defined padding canonicalized);
+656..827 TIME_ZONE_INFORMATION172;
+828:u32 actual timezone result;
+832..959 clock128 below;
+960..1087 target128 below;
+1088..1615 exact22 operation records24 each;
+1616..2047 reserved432zero.
+
+Clock128:
+0/8:u64 current UTC/local FILETIME;16/24:i64 actual preciseUTC native begin/end;
+32/48:signedi128 current retained offset low/high;64/80:signedi128 previous retained low/high;
+96:i64 originalF;104/112:u64 previous UTC/local FILETIME;120:u32 timezoneID;124:u32 PREVIOUS_PRESENT1/INTERVAL_VALID2.
+Absent previous fields zero with bit clear. Checked exact numerator units offset=localFILETIME*F-QPC*10000000. For each rawtimestamp t at current q, entire age interval q*10000000+offset-t*F must lie in[0,F*1000000]. Empty intersection/regression/overflow/timezone change/stale raw frame STOP. Both actual timezone observations in fixed ops must agree with full original172byte structure; flags never substitute for source validation. This is reported-frame freshness, not underlying event/provider-generation freshness.
+
+Target128:
+0/8:u64 originalTargetOwner/currentValidation serial;
+16:u64 native volume serial;24:byte[16] original FileID;
+40:byte[16] VolumeGUID parsed in textual hexadecimal-byte order, not assumed nativeGUID endian layout;
+56/64:i64 currentEOF/currentAllocation;
+72/80/88:u64 actual availableToCaller/total/freeTotal;
+96/100/104:u32 currentlinkCount/attributes/reparseTag;
+108/109:u8 deletePending/directory each0/1;
+110:u16 matchedFinalPath1/matchedVolumePath2/matchedOriginalIdentity4/readonlyParent8 (resource requires15);
+112/120:i64 actual six-query validation begin/end.
+Strings compared against complete retained dictionary; free outputs actual CURRENT facts; no cached/absent floor serialized as observed. Native unsigned outputs are not silently signed/clamped. This E parent snapshot does not prepare a carrier or prove guest same-FD identity.
+
+Operation24:
+0:i32 raw-return bits;4:u32 immediate native status/error bits by fixed descriptor;8/16:i64 native begin/end. Exact fixed22 order is C above. Raw VOID sentinel and PDH-size rules in C apply; error is not forced0 on BOOL success merely because GetLastError is undefined then.
+
+GPU184:
+0:u16 index0;2:u16 flags0;4:i32 UUIDstatus;8:i32 memoryStatus;12:u32 expectedVersion0x02000028;
+16:UUID96;112:full native nvmlMemory_v2 bytes40;
+152/160:i64 UUIDbegin/end;168/176:i64 memoryBegin/end.
+Both actual statuses0; raw struct version must match; sumused includesreserved once, no double-add/substitute. Root count exactly1 and stable UUID; no per-process/WDDM fallback.
+
+Disk resource56:
+0:u16 rowID;2:u8 family;3:u8 TOTAL1/BOUND_E4;
+4:canonicalraw32;36/44:i64 actual array-call begin/end;52:u32 zero.
+All raw rows/types/statuses/timestamps/data and complete current topology must be present; names by ORIGINAL verified dictionary. Record bounds checked before reads.
+Maximum payload2048+184+14*56=3016; total3208.
+
+#### H. Exact echo ACK, local evidence and grant freshness
+
+Dictionary ACK payload is EVERY original dictionary byte unchanged (max3864,total4056), no local resource grant. Resource ACK payload=EVERY original resource payload byte unchanged + peerLocal256 (max3272,total3464). New common per-direction sequence is ACK's own; extension originalRootSequence refers to outstanding original root frame. Header/meta root identity is verified against admitted root, not reissued locally.
+
+PeerLocal256:
+0:u16 schema2;2:u16 role1Controller/2Watchdog/3Transport;
+4:u32 CPU_PAIR_VALID1/ROOT_LIVE2/STOP_CLEAR4/CLEANUP_ONLY8;
+8:u64 original local origin serial;16:i64 admissionQPC;24:u64 original local sample serial;
+32/40/48/56:i64 previousCPUbegin/end,currentCPUbegin/end;
+64/72/80:u64 previous idle/kernel/user;88/96/104:u64 current idle/kernel/user;
+112/120:u64 actual RAMtotal/available;128/130:u16 groupCount/N;132:u32zero;
+136/140:u32 actual root-processWait/STOP-eventWait result;
+144/152/160/168:i64 rootWait begin/end/STOPwait begin/end;
+176/184:i64 whole local observation begin/end;
+192:i64 actual verification+local-observation acceptance endpoint before ACK serialization;
+200/204:i32 actual CPU/RAM return bits;208/212:u32 actual group/N returns;
+216:i64 originalF;224/228:u32 originalRootPID/actualPeerPID;232:u64 original peer creation FILETIME;
+240:u64 echoed original root wire sequence;248..255:8zero.
+
+Work ACK flags exactly7, both wait results WAIT_TIMEOUT258, valid positive CPU delta/ratio and RAM/N; original retained channel/process/creation identities exact. Whole-local bracket covers every actual local native output and processing, and original conservative CPU previousBegin->currentEnd<=100ms remains additional. Existing original issuer verifies each native bracket before echo. Cleanup ACK may show signalledSTOP and CLEANUP_ONLY, never restore work eligibility.
+
+Root/peer produce actual postserializationQPC only AFTER payload bytes are complete, in common/extension endpoint. Payload canonicalization endpoint and peer acceptance endpoint occur earlier as specified. No timestamp asserts knowledge after its own native write/completion, and no hash/circular timestamp is claimed.
+
+Peer verifies COMPLETE native statuses/raw rows/topology/original dictionary/clock/target/thresholds/plan/context/channel before issuing private evidence. Earliest ROOT native bracket through peer verification/local observation/ACK serialization endpoint<=100ms; root final receipt comparison/grant endpoint ALSO checks that SAME original resource age and peer-local freshness. No pending transfer extends age. CPU/RAM/group observations independently satisfy their own original bounds, including previous CPU brackets; merely fitting the root span does not waive them.
+
+Root compares EVERY echoed byte against retained original bytes on the SAME original peer/channel/outstanding serial. Peer evidence/identity/sequence validated separately. Matching bytes alone are not sender authentication; original pipe identity/nonce/PI chain remain mandatory. ACK is a private supplemental receipt, never localR2Sample or standalone pass. Grants require original current root evidence and all original required peer receipts plus separate Job/TID/PI/limits/slot/phase predicates. Any root current resource violation STOPs even if an earlier still-fresh peer echo was below threshold.
+
+#### I. Fixed arenas, pending-I/O ownership and continuous observation
+
+Reserve wire arenas ONCE from EXISTING context bytes, not new budgets: root32768, each peer24576. Source static plan must include them with original bootstrap/gauge/process/target/retained-fact buffers under root524288/eachpeer174762/aggregate1MiB. No allocation if full composition exceeds those vouchers; no free/close/GC refund. These are explicit additional producer reservations within existing totals, not claims that stacks/TEBs/CLR/kernel fees are zero.
+
+Root arena offsets/lengths:
+D1(0,3864);D2(3864,3864);currentCanonical(7728,3016);retainedTx(10744,3016);
+peerACK1(13760,3272);ACK2(17032,3272);ACK3(20304,3272);scratch(23576,4096);remaining5096 zero/reserved.
+Peer:
+D1(0,3864);D2(3864,3864);receivedResource(7728,3016);outACK(10744,3272);scratch(14016,4096);localScratch(18112,256);remaining6208zero/reserved.
+All offsets8-aligned; actual base alignment/original buffer refs validated. Existing registered per-channel nativeRX/TX/OVERLAPPED/event owners remain separate and counted. Avoid per-frame unbounded byte-array copies: use bounded selected copy/read/write leaves into these original slices, never bare caller pointers or arbitrary array capacity. Actual managed object/CPU/GC costs remain under original process commitment/platform gauges, not falsely0.
+
+At most ONE outstanding resource transaction per peer and one common retained rootTx across required peers. Do not publish a successor until that rootTx's required original ACKs finish or terminal failure. Meanwhile root CONTINUES native collection into currentCanonical, bounded fresh cadence, replacing only unissued latest data. RetainedTx/dictionaries/pending buffers never overwritten while native I/O/ACK outstanding. Once barrier completes publish the latest complete valid original sample, not a fabricated refresh of old data. A peer not acknowledging before100ms triggers STOP, not an unbounded queue/drop/retry. Initial dictionaries likewise have finite one-time transactions with ordinary charged continuation, no blocking cold-start loop.
+
+Every native issue/completion/cancel/drain/poll/QPC, comparison/serialization observation and allocation is charged to original active slot/role/domain; no off-ledger background observer. Transfer lengths exact; no short write/read padding. Original EOF/cancel/pending ownership rules remain. Private received-frame references cannot outlive overwritten native receive storage without a bounded reserved copy.
+
+#### J. Failure, cleanup, first-entry source gate and execution plan
+
+STOP/new-work forbids every new dictionary/binding transition/slot/birth. Resource10/ACK11 may continue ONLY as selected cleanup observation under ORIGINAL cleanup voucher/c0/domain/deadline with CLEANUP_ONLY. They confer no grant; missing/unavailable complete resource evidence is an actual fault/UNKNOWN, never forced success. It MUST NOT prevent independently releasing registered pending I/O/providers/buffers under original cleanup. Existing historical admission/origin validation remains usable for cleanup despite mutable health. Cleanup state lookup cannot require a healthy READY frame/dictionary. If target never bound, close partial owners without inventing resource10.
+
+Actual cancel completion/drain precedes release of its buffers/events; once-close failure/residue retained. Primary failure first, secondary cleanup failures bounded. Never mint c0/new60/observation origin or resetq0/F/1800/6000 on fault/profile/phase/ACK/dictionary/update. No attempt retry/H6. Native C observer's separate12 and public48 local limits retained. Original final stop/ownedjoins/flush/liveaccept/runner-terminal endpoint and fees remain engineering obligations; resourcewire does not implement/waive them.
+
+This scoped contract authorizes SOURCE only AFTER independent SPEC then DIFFERENT fresh QUALITY0. One implementer owns all coupled ledger/gauges/target/process/resource_wire changes serially, stops writing, then changed-scope independent SPEC followed by different fresh QUALITY; evidencedP1/P2 fixes get targeted rechecks. Existing scripts' source pins remain4c68; no new code introduced by this document.
+
+Implementation units in dependency order:
+1 exact profile/lease/fixed dispatcher + original fact/clock/counter integration in ledger/gauges/target;
+2 exact codec/private transactions/echo/cleanup owners in resource_wire with native process send/receive allowlist integration;
+3 original peer/root resource gate callpoints, retaining all other missing entry predicates;
+4 actual complete finite64slot-or-fewer manifest/positive entry/controller/watchdog/transport/finish and C01-C03 integration once their exact prerequisites selected.
+No undefined guest/target/final producer or C04-C12 conditional assembly is implemented under this contract. Manifest fixture mapping/extra Windows+Linux suites/native install/guardfault cases/phase maxima, guest first pre-capped birth/appliedVM/cross-OS target and final safety/native exit envelope remain precisely open.59-64 stay RESERVED_NONEXECUTABLE; no Stage slot invented here.
+
+Validation now is only Parser.ParseFile/AST/hash/diff and adversarial static source review; no body/dot-source/import/Emit/build/link/load/native/test/harness/WSL/archive/GT/noGT execution. Later exact lawful-H1 fixtures must cover missing/extra row/device/name, raw timestamp/type/clock/topology failure, malformed lengths/padding/flags, replay/gap/wrong peer/payload mismatch, consumed/wrong issuer references, stale root/peer/ACK/processing endpoint, initial-unbound->bound no-refund, budget exhaustion, pending I/O cancel/drain, partial owner/provider close and STOP cleanup. These are prospective cases, no fixtures created/executed.
+
+All14 admission gates remain NOT_CLOSED; FrozenAdmission=None/full-reviewFAIL, PREPARED_UNREVIEWED/APPLICATION_BLOCKED/NOT_APPROVAL_READY. H1APPROVED_UNSTARTED/no native epoch/nonce; H3H4H5consumedfailedpartialno retry/noH6; Route2legalStage/results0/F1>=0.66OPEN; Route3v1-003lawfulCOMPLETE/fourqualityFAIL/no rerun.
+
+Workflow: RESEARCH/PARALLEL_SUBAGENT, actual collaboration backend, scoped manual checkpoints. Brainstorming/writing-plans design-before-code checks are applied inside already authorized M1-M5 engineering scope; user explicitly directs SOURCE+dualreview implementation without repeating generic approval. Their generic new approval/new-file guidance does not override that authorization or original-three-doc append-only rule. TDD's runtime red/green requirement cannot override user's prohibition on pre-H1 execution; retain static counterexamples/independent reviews and prospective admitted-H1 fixtures, never claim tests ran. No skill causes a new permission request or deletes preserved source. This is the complete internal resource ABI/profile/dispatcher review object, not a whole-H1 fit claim or renewed scientific/startup application.

@@ -1,0 +1,324 @@
+{
+  "schema_version": "formal_g1_temporal_representation_probe_v1",
+  "probe_name": "BOUNDED TEMPORAL REPRESENTATION PROBE",
+  "probe_spec_status": "FROZEN",
+  "preregistered_at": "2026-09-18",
+  "research_question": "Under the frozen Formal G1 failure, is the dominant limitation closer to FEATURE_REPRESENTATION or MODEL_DECISION_FUNCTION?",
+  "hypotheses": {
+    "H1": "FEATURE_REPRESENTATION limitation",
+    "H2": "MODEL_DECISION_FUNCTION limitation",
+    "H3": "MIXED feature representation and model decision function limitation",
+    "H4": "bounded temporal representation hypothesis unsupported"
+  },
+  "source_of_truth": {
+    "project_root": "E:\\bme_compitition\\.worktrees\\high-f1-event-stack-execution\\bme_compitition_next",
+    "review_report": {
+      "path": "artifacts/g1-model-temporal-representation-review-v1.json",
+      "sha256": "72e4a4659c22e83bdc861e55c823d48aab36838702d5a26462baa9f115b78bb3",
+      "identity": "MODEL_INFERENCE_TEMPORAL_REPRESENTATION_REVIEW",
+      "status": "Formal G1 failed; architecture frozen; full training blocked"
+    },
+    "aggregation_tournament_spec": {
+      "path": "configs/formal-g1-aggregation-tournament-v1.json",
+      "sha256": "fdf0ce511e7061064210d8a8f7b0c99e407cd63fb51fcde567b14fec89176de1"
+    },
+    "eligibility_artifact": {
+      "path": "artifacts/g1-participant-exclusion-eligibility-v3-final.json",
+      "sha256": "68c5cd8ec6fe12813f8b39c9d31000d4e18bd6ea732840b67428db643aef3a30",
+      "schema_version": "participant_eligibility_v3",
+      "eligibility_contract_version": "event_eligibility_v1",
+      "label_eligible_event_denominator_sha256": "6e7580a6dc4562ced645361b086a08143a2051516a0804d7031c964174438c6d"
+    },
+    "manifest_audit": {
+      "path": "artifacts/g1-processed-only-manifest-audit.json",
+      "sha256": "97ee66f6510b91f77918e93fc00b7d880e13c5498a8e2164ff73c8bdb5736da9",
+      "manifest_sha256": "dbc178582d1868758afb4241206e0c79011e666119b9814a4d81f9307f4942f5",
+      "processed_file_count": 1127,
+      "skipped_file_count": 34
+    },
+    "approved_cache": {
+      "path": "artifacts/g1-formal-cache-v3-final",
+      "cache_manifest_path": "artifacts/g1-candidate-coverage-v4/cache-manifest.json",
+      "cache_manifest_file_sha256": "dbcb03c4fa2e26baf4d0e0d7d9127eafc85bfca46a3e80cae0a7b5c0fba0bd3c",
+      "cache_manifest_sha256": "924b379fba4d701dc6420f2e0c0c4c89fc931098325fe15a7d26c62dc94d3be4",
+      "cache_provenance_path": "artifacts/g1-candidate-coverage-v4/cache-provenance.json",
+      "cache_provenance_file_sha256": "63d7456f5e527fe34e791a7ddf42386e8454a6ad9a37cc6d7ffa39b475b7521",
+      "cache_file_count": 1127,
+      "row_count": 632100,
+      "feature_schema": "imu_stats_v1",
+      "feature_width": 111,
+      "feature_dtype": "float32",
+      "label_counts": {
+        "positive": 35948,
+        "negative": 583145,
+        "ignore": 13007
+      }
+    },
+    "runtime_config": {
+      "path": "configs/example.local.yaml",
+      "sha256": "876ec520b437a3e82b106898ea401548d151c983f9ba850ee76f502b858f6090",
+      "raw_data_root": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized",
+      "metadata_root": "E:\\bme_compitition\\official_test_dataset\\Data\\01_dataset"
+    }
+  },
+  "approved_data_contract": {
+    "event_population": "training_eligibility=true in the frozen participant_eligibility_v3 event ledger",
+    "eligible_participants": 41,
+    "eligible_events": 234,
+    "window_seconds": 15.0,
+    "stride_seconds": 7.5,
+    "imu_grid_hz": 10,
+    "min_coverage": 0.8,
+    "max_gap_seconds": 2.0,
+    "positive_label": "window/event intersection >= 50 percent of the 15 s window",
+    "negative_label": "approved cache label == 0; cache label == -1 is excluded from all supervised tasks",
+    "ignore_label": -1,
+    "data_contract_identity": "APPROVED; no label, eligibility, window, stride, or production-architecture changes"
+  },
+  "outer_folds": {
+    "builder": "src/eating_event/evaluation.py::build_outer_folds",
+    "n_folds": 5,
+    "seed": 20260910,
+    "participant_disjoint": true,
+    "participants_are_the_41_cache_eligible_participants": true,
+    "validation_participants": {
+      "outer-0": ["HNU21001", "HNU21003", "HNU21011", "HNU21014", "HNU21016", "HNU21022", "HNU21028", "HNU21040", "hnu21033"],
+      "outer-1": ["HNU21006", "HNU21015", "HNU21024", "HNU21026", "HNU21035", "HNU21036", "HNU21041", "HNU212020"],
+      "outer-2": ["HNU 21013", "HNU21002", "HNU21005", "HNU21019", "HNU21023", "HNU21027", "HNU21032", "HNU21039"],
+      "outer-3": ["6C7", "HNU21007", "HNU21008", "HNU21010", "HNU21012", "HNU21017", "HNU21025", "HNU21031"],
+      "outer-4": ["HNU21004", "HNU21009", "HNU21021", "HNU21026j", "HNU21029", "HNU21034", "HNU21037", "HNU21038"]
+    },
+    "invariants": [
+      "every eligible participant occurs in exactly one validation set",
+      "validation sets are pairwise disjoint",
+      "training participants are the complement of the validation participants",
+      "no participant, session, event identity, or window from outer validation enters classifier fitting"
+    ]
+  },
+  "representations": {
+    "A": {
+      "name": "imu_stats_v1",
+      "role": "control",
+      "source": "approved cache/features only",
+      "definition": "existing src/eating_event/features.py::extract_imu_features output; unchanged 111-dimensional float32 vector",
+      "feature_count": 111,
+      "feature_selection": "none"
+    },
+    "B": {
+      "name": "imu_temporal_probe_v1",
+      "role": "diagnostic incremental representation",
+      "definition": "A concatenated with exactly the fixed temporal feature vector defined below; no A feature is removed or redefined",
+      "feature_selection": "none",
+      "source_window": "the same raw regularized 15 s window used to create its A row, located by the approved cache key and start/end timestamps",
+      "signals": {
+        "raw_channels": ["acc_x", "acc_y", "acc_z", "gyro_x", "gyro_y", "gyro_z"],
+        "derived_signals": {
+          "acc_mag": "sqrt(acc_x^2 + acc_y^2 + acc_z^2)",
+          "gyro_mag": "sqrt(gyro_x^2 + gyro_y^2 + gyro_z^2)",
+          "acc_diff_mag": "0 for the first sample, then Euclidean norm of successive ACC row differences",
+          "gyro_diff_mag": "0 for the first sample, then Euclidean norm of successive GYRO row differences"
+        },
+        "temporal_probe_signals": ["acc_mag", "gyro_mag", "acc_diff_mag", "gyro_diff_mag"]
+      },
+      "missing_value_policy": "A sample is usable only when approved valid_mask is true and the signal is finite. Empty summaries, undefined autocorrelations, and undefined burst statistics are 0.0. No imputation, interpolation, scaling, or feature-wise normalization is applied in extraction.",
+      "normalization_policy": "raw feature units are retained; classifier preprocessing is applied only inside each outer-train fit",
+      "feature_families": {
+        "coarse_temporal_subdivision": {
+          "partitions": "exact contiguous sample thirds of the 15 s, 10 Hz grid: indices [0,50), [50,100), [100,150); if the approved window grid differs, use floor/ceil boundaries that partition the exact ordered samples into three contiguous non-empty slices",
+          "signals": ["acc_mag", "gyro_mag", "acc_diff_mag", "gyro_diff_mag"],
+          "summaries_per_signal_per_slice": ["mean", "std_population", "rms", "mean_abs_successive_difference"],
+          "definitions": {
+            "mean": "arithmetic mean of usable samples",
+            "std_population": "population standard deviation of usable samples",
+            "rms": "sqrt(mean(square(usable samples)))",
+            "mean_abs_successive_difference": "mean(abs(x[i]-x[i-1])) over adjacent usable samples in original time order within the slice; 0 when fewer than two usable samples"
+          },
+          "feature_count": 48,
+          "units": "signal units; mean_abs_successive_difference is signal-units/sample"
+        },
+        "burst_structure": {
+          "signals": ["acc_diff_mag", "gyro_diff_mag"],
+          "threshold": "per signal and window, median(usable signal) + 2.0 * population_std(usable signal); threshold is 0.0 when no usable samples",
+          "active_sample": "usable signal strictly greater than its window threshold",
+          "minimum_burst_length": "2 consecutive active 10 Hz samples (0.2 s); shorter runs are inactive",
+          "features_per_signal": ["burst_occupancy_fraction", "burst_count", "longest_burst_duration_seconds", "peak_temporal_position"],
+          "peak_temporal_position": "index of the earliest maximum usable signal divided by max(1, sample_count-1), in [0,1]; 0.0 when no usable sample",
+          "feature_count": 8,
+          "units": "fraction, count, seconds, unitless"
+        },
+        "bounded_autocorrelation": {
+          "signals": ["acc_mag", "gyro_mag"],
+          "lags_seconds": [1.0, 2.0],
+          "lags_samples": [10, 20],
+          "definition": "for each fixed lag, use pairs (t-lag,t) within the same contiguous usable run; center both values by the mean of all values participating in the pairs and divide their dot product by the product of their Euclidean norms",
+          "undefined_policy": "0.0 if fewer than two pairs or either centered norm is zero",
+          "feature_count": 4,
+          "units": "unitless"
+        },
+        "transition_contrast": {
+          "signals": ["acc_mag", "gyro_mag", "acc_diff_mag", "gyro_diff_mag"],
+          "pairs": ["early_minus_middle", "middle_minus_late", "early_minus_late"],
+          "definition": "difference of slice means for the named ordered pair; use the same three contiguous thirds and usable-sample rule as coarse subdivision",
+          "feature_count": 12,
+          "units": "signal units"
+        }
+      },
+      "additional_feature_count": 72,
+      "feature_count": 183,
+      "shape_and_finiteness_contract": "B is [n,183] float32/float64-compatible with exactly 72 appended temporal columns and all finite values"
+    }
+  },
+  "diagnostic_classifiers": {
+    "L": {
+      "pipeline": ["StandardScaler", "LogisticRegression"],
+      "standard_scaler": "fit_transform outer-train only; transform outer-validation only",
+      "logistic_regression": {
+        "class_weight": "balanced",
+        "C": 1.0,
+        "max_iter": 300,
+        "random_state": 20260910,
+        "other_parameters": "library defaults; no tuning"
+      }
+    },
+    "N": {
+      "estimator": "HistGradientBoostingClassifier",
+      "parameters": {
+        "max_iter": 100,
+        "max_leaf_nodes": 7,
+        "min_samples_leaf": 20,
+        "learning_rate": 0.05,
+        "l2_regularization": 0.001,
+        "random_state": 20260910
+      },
+      "class_imbalance": "pass sklearn compute_sample_weight(class_weight='balanced', y=outer_train_labels) to fit; weights are computed from outer-train labels only; no resampling and no other weighting",
+      "early_stopping": "library default; not tuned"
+    },
+    "fixed_combinations": ["A-L", "A-N", "B-L", "B-N"],
+    "score_semantics": "predict_proba[:,1] for LogisticRegression and HistGradientBoostingClassifier; scores are diagnostic ranking scores only and do not define a production threshold"
+  },
+  "hard_negative_control": {
+    "source": "frozen production CandidateModel outer-fold OOF score protocol, using existing fit_candidate_model configuration and the frozen Formal G1 outer folds",
+    "production_candidate_parameters": {
+      "positive_weight": 3.0,
+      "max_iter": 100,
+      "max_leaf_nodes": 31,
+      "min_samples_leaf": 1,
+      "learning_rate": 0.05,
+      "l2_regularization": 0.001,
+      "random_state": 20260910
+    },
+    "population": "supervised negative cache rows (label == 0) in an outer-validation participant, scored by the model fit on outer-train participants only",
+    "hard_negative_rule": "production OOF score >= 0.5; this fixed score cutoff is applied before fitting any diagnostic classifier and never depends on diagnostic scores",
+    "easy_negative_rule": "for the optional control, select the same number of negative rows as hard negatives from the lowest frozen production OOF scores within the same outer-validation population, ties broken by stable row key (participant_id, start_ms, end_ms, cache_key)",
+    "sampling": "use all rows satisfying the hard-negative rule; no post-hoc rebalancing; if an outer fold has no hard negatives, report unavailable and do not substitute a diagnostic-defined subgroup",
+    "circularity_guard": "hard/easy membership is fixed from the frozen production OOF score and is never selected from A/B/L/N outputs"
+  },
+  "tasks": {
+    "task_1_missing_positive_vs_hard_negative": {
+      "positive_population": "all supervised positive cache rows whose window intersects one of the 27 non-COVERED Formal G1 MissingEvent identities in review_report.event_audit.rows; MissingEvent taxonomy is AGGREGATION_FIRST or SCORE_THRESHOLD_FIRST",
+      "negative_population": "hard_negative_control hard negatives",
+      "fit_protocol": "fit one diagnostic classifier on outer-train participants only, using the same task population definition restricted to outer-train participants; score outer-validation participants only",
+      "reports": ["AUROC", "AUPRC", "positive_score_distribution", "hard_negative_score_distribution", "per_fold", "participant_level"]
+    },
+    "task_2_all_positive_vs_all_supervised_negative": {
+      "positive_population": "all cache rows with label == 1",
+      "negative_population": "all cache rows with label == 0",
+      "fit_protocol": "same participant-disjoint outer protocol as Task 1",
+      "reports": ["pooled_AUROC", "pooled_AUPRC", "per_fold_AUROC_AUPRC", "positive_score_distribution", "negative_score_distribution", "hard_negative_behavior", "false_positive_tendency_proxy"],
+      "production_threshold_claim": "none"
+    },
+    "task_3_participant_level_generalization": {
+      "population": "Task 2 held-out participant rows, with hard-negative rows identified by the frozen control",
+      "reports_per_participant_and_combination": ["positive_count", "negative_count", "AUROC", "AUPRC", "positive_score_median", "positive_score_P90", "hard_negative_score_median", "hard_negative_score_P90"],
+      "diagnostic_threshold": "none; threshold-free metrics only"
+    }
+  },
+  "missing_event_audit": {
+    "source": "review_report.event_audit.rows",
+    "selection_rule": "taxonomy != COVERED",
+    "expected_count": 27,
+    "expected_taxonomy_counts": {
+      "SCORE_THRESHOLD_FIRST": 4,
+      "AGGREGATION_FIRST": 23
+    },
+    "subgroups": {
+      "short_events": "gt_duration_s < 180",
+      "positive_windows_lt_10": "positive_windows < 10",
+      "low_recall_participants": "participant in review_report.participant_audit.low_recall_participants",
+      "score_threshold_first": "taxonomy == SCORE_THRESHOLD_FIRST",
+      "aggregation_first": "taxonomy == AGGREGATION_FIRST"
+    },
+    "analysis": "for every subgroup report A-L, A-N, B-L, B-N score distributions and threshold-free separability; do not rerun or modify production aggregation"
+  },
+  "metrics_and_stability": {
+    "primary_metrics": ["AUROC", "AUPRC"],
+    "pooled_metrics": "compute on concatenated held-out outer-validation rows only",
+    "per_fold_metrics": "compute independently in each outer fold",
+    "participant_metrics": "compute independently for each held-out participant when both classes are present; otherwise report null with the reason",
+    "score_summaries": ["count", "min", "median", "P90", "max"],
+    "fold_delta": "comparison minus the matched A/L baseline in the same outer fold and task",
+    "participant_delta": "comparison minus the matched A/L baseline for the same participant and task",
+    "stable_improvement": {
+      "fold_direction": "at least 4 of 5 finite fold deltas > 0",
+      "median_fold_delta": "> 0",
+      "participant_direction": "at least 60 percent of comparable held-out participants have delta > 0 and improved_count > degraded_count",
+      "worst_fold_tolerance": "minimum finite fold delta >= -0.02",
+      "hard_negative_guard": "hard-negative AUROC delta must be >= -0.03 and hard-negative P90 score increase alone is not evidence of improvement",
+      "single_participant_guard": "no stable claim when the pooled change is attributable to one participant"
+    },
+    "no_raw_score_increase_claim": "if missing-positive scores increase while hard-negative scores increase approximately equally, classify the change as non-discriminative; ranking metrics and hard-negative deltas govern"
+  },
+  "comparison_logic": {
+    "representation_effect": ["B-L vs A-L", "B-N vs A-N"],
+    "decision_function_effect": ["A-N vs A-L", "B-N vs B-L"],
+    "case_1": "B-L and B-N both show stable improvement with hard-negative controls -> FEATURE_REPRESENTATION STRENGTHENED",
+    "case_2": "A-N shows stable strong improvement while B-L is approximately A-L and B-N is approximately A-N -> MODEL_DECISION_FUNCTION STRENGTHENED",
+    "case_3": "B-L improves, A-N improves, and B-N provides an additional stable benefit -> MIXED",
+    "case_4": "none of the four combinations shows stable participant-disjoint improvement -> BOUNDED_TEMPORAL_REPRESENTATION_HYPOTHESIS UNSUPPORTED",
+    "inconclusive": "if the cases conflict or stability criteria cannot be evaluated, report PROBE_RESULT=INCONCLUSIVE and stop"
+  },
+  "architecture_escalation": {
+    "architecture_before_probe": "FROZEN",
+    "architecture_design_review_justified_only_if": [
+      "multiple outer folds improve",
+      "multiple held-out participants improve",
+      "Missing-positive discrimination improves",
+      "hard-negative discrimination does not materially worsen",
+      "improvement is not driven by one participant",
+      "B beats A in at least one matched classifier comparison",
+      "direction is reasonably stable under participant-disjoint evaluation"
+    ],
+    "authorization": "ARCHITECTURE DESIGN REVIEW only; no production change, no replacement of imu_stats_v1, no full training",
+    "otherwise": "ARCHITECTURE remains FROZEN"
+  },
+  "verification": {
+    "required": [
+      "spec SHA-256 matches formal-g1-temporal-representation-probe-v1.sha256",
+      "deterministic fold assignment and participant-disjoint invariant",
+      "no train/validation leakage",
+      "A width=111 and B width=183",
+      "finite temporal features",
+      "deterministic temporal feature generation",
+      "deterministic evaluation for fixed estimators",
+      "production artifacts and production behavior unchanged",
+      "existing relevant tests pass"
+    ],
+    "diagnostic_outputs": "new files only under artifacts/g1-temporal-representation-probe-v1 and diagnostic code/tests only"
+  },
+  "stopping_rule": {
+    "run_exactly": "2 representations x 2 classifiers x 3 tasks",
+    "after_outer_evaluation": "do not add temporal families, classifiers, parameters, sampling policies, participants, or thresholds",
+    "if_inconclusive": "write PROBE_RESULT=INCONCLUSIVE and stop",
+    "if_unsupported": "write BOUNDED_TEMPORAL_REPRESENTATION_HYPOTHESIS=UNSUPPORTED and return to root-cause review",
+    "production_isolation": "diagnostic result is never written into production code or cache"
+  },
+  "expected_final_status_fields": [
+    "PROBE_SPEC",
+    "REPRESENTATION_PROBE",
+    "FEATURE_REPRESENTATION",
+    "MODEL_DECISION_FUNCTION",
+    "ARCHITECTURE_DESIGN_REVIEW",
+    "ARCHITECTURE",
+    "FULL_TRAINING"
+  ]
+}

@@ -1,0 +1,186 @@
+{
+  "schema_version": "formal_g1_a_baseline_reconstruction_v1",
+  "reconstruction_id": "decision-probe-A-7.5s-reconstruction-v1",
+  "status": "FROZEN_BEFORE_FIT",
+  "purpose": "Reconstruct the decision-function-probe A baseline with one authorized outer fit per participant-disjoint fold, verify model loadability, reproduce the saved 7.5 s A score array by stable window ID, and create a new event replay reference without running 3 s inference.",
+  "source_of_truth": {
+    "stride_diagnostic_spec": {
+      "path": "configs/formal-g1-frozen-model-stride-transfer-diagnostic-v1.json",
+      "sha256": "4b822a91791da359fa3d817b1b6ec8a7fbac351bf49a90968824519c1548b38f"
+    },
+    "target_lineage": "decision-function-probe A; the model-review artifact is not the target because it has no raw score array or event-prediction artifact",
+    "target_probe_spec": {
+      "path": "configs/formal-g1-decision-function-probe-v1.json",
+      "sha256": "005fbfec81f92b16d06fd1220dd823eec06b9ef5e2fedd8eb2d604c974794352"
+    },
+    "target_report": {
+      "path": "artifacts/g1-decision-function-probe-v1/report.json",
+      "sha256": "f2a5b493cb063bcb7683fa9e8daac3b0f8772ad6a1670820fd2e86200cfb4073"
+    },
+    "target_scores": {
+      "path": "artifacts/g1-decision-function-probe-v1/scores.npz",
+      "sha256": "08401cd7d34e5d6f61483128071159c53983974c8a2d40d2f8f7770b395d61d0",
+      "key": "baseline_scores",
+      "shape": [632100],
+      "lineage_binding": "The frozen probe implementation writes global_scores[A] in the exact feature-table row order. The NPZ itself has no embedded IDs; this reconstruction binds the target array to feature-table row_keys through that hashed implementation and verifies alignment by row_key maps, not by an unverified arbitrary array position."
+    },
+    "historical_model_review": {
+      "path": "artifacts/g1-model-temporal-representation-review-v1.json",
+      "sha256": "72e4a4659c22e83bdc861e55c823d48aab36838702d5a26462baa9f115b78bb3",
+      "use": "lineage comparison only; not mixed with target scores, thresholds, or event outcomes"
+    }
+  },
+  "target_selection": {
+    "selected_target": "decision-function-probe A",
+    "selection_reason": "It is the only lineage with a frozen A definition, frozen feature table, participant-disjoint outer mapping, raw 632100-row A score array, and fold-specific q/threshold records in one report.",
+    "not_targeted": [
+      "model-review A event summaries",
+      "historical 207/234 event result as a reproduction target",
+      "any old production/full-training model"
+    ],
+    "event_reference_status": "The target decision-function probe explicitly recorded event_level_replay=NOT_RUN_WINDOW_EFFECT_NOT_REPRODUCED. Any event replay in this reconstruction is a newly established diagnostic reference, not a reproduction of 207/234."
+  },
+  "authorization_and_circuit_breaker": {
+    "authorized_fit": "A only; exactly one outer fit per outer fold",
+    "maximum_outer_A_fits": 5,
+    "inner_selection_fits": 0,
+    "inner_fit_reason": "All five selected q values and final numeric thresholds are present in the target report; no inner search is rerun.",
+    "forbidden": [
+      "N reconstruction",
+      "classifier comparison",
+      "parameter or seed changes",
+      "new features or weighting",
+      "3 s feature generation or inference",
+      "production overwrite",
+      "full training",
+      "outer-result-driven retry or threshold selection"
+    ]
+  },
+  "dataset_and_stable_window_ids": {
+    "feature_table_path": "artifacts/g1-temporal-representation-probe-v1/feature-table.npz",
+    "feature_table_sha256": "c4d547b51beb8bab0c8f8de0e5d840243239d1636d6b23041a5d854a16882b53",
+    "representation": "imu_stats_v1",
+    "feature_width": 111,
+    "window_seconds": 15.0,
+    "stride_seconds": 7.5,
+    "rows": 632100,
+    "label_counts": {"-1": 13007, "0": 583145, "1": 35948},
+    "row_id_field": "row_keys",
+    "row_id_contract": "record_path|window_start_ms|window_end_ms|within_record_index",
+    "row_keys_sha256": "70ee0625477b0bfa64e97ad5a95f40413164862330b8b4b1621a43cb4c15a194",
+    "row_keys_unique_count": 632100,
+    "labels_sha256": "26fd554fee6351100303f1d15a46fcdc70dc822927c9d08d971ff71892b09ed5",
+    "participants_sha256": "ca11ec4c56da39731f0c82808276b657692a02fd707446edc56b19f43eb14da1",
+    "starts_sha256": "6e9a5a890434eed0369c9581f77c541620e496948466ff793ef6f22080db00f6",
+    "ends_sha256": "7027a238c67048fca23d91ab4e1416cda7eb04afbae788400316cb37e98ec05f",
+    "alignment_rule": "Build target and reconstructed score maps keyed by row_keys; compare only matching unique IDs. Report missing/extra/duplicate IDs before any numeric comparison."
+  },
+  "participant_disjoint_outer_protocol": {
+    "builder": "src/eating_event/evaluation.py::build_outer_folds",
+    "seed": 20260910,
+    "outer_folds": 5,
+    "folds": {
+      "outer-0": ["HNU21001", "HNU21003", "HNU21011", "HNU21014", "HNU21016", "HNU21022", "HNU21028", "HNU21040", "hnu21033"],
+      "outer-1": ["HNU21006", "HNU21015", "HNU21024", "HNU21026", "HNU21035", "HNU21036", "HNU21041", "HNU212020"],
+      "outer-2": ["HNU 21013", "HNU21002", "HNU21005", "HNU21019", "HNU21023", "HNU21027", "HNU21032", "HNU21039"],
+      "outer-3": ["6C7", "HNU21007", "HNU21008", "HNU21010", "HNU21012", "HNU21017", "HNU21025", "HNU21031"],
+      "outer-4": ["HNU21004", "HNU21009", "HNU21021", "HNU21026j", "HNU21029", "HNU21034", "HNU21037", "HNU21038"]
+    },
+    "fit_rule": "train only on the complementary participant set; score each validation participant with that fold model; no participant leakage"
+  },
+  "labels_and_weights": {
+    "positive": "label == 1",
+    "negative": "label == 0",
+    "unsupervised": "label == -1; excluded from fit and scoring",
+    "sample_weight": {"negative": 1.0, "positive": 3.0},
+    "weight_source": "src/eating_event/candidates.py::fit_candidate_model",
+    "no_resampling": true
+  },
+  "estimator": {
+    "implementation": "src/eating_event/candidates.py::fit_candidate_model",
+    "implementation_sha256": "d389e914bebfa0fe723c697ecd04dc324e874df1c0f208322d79620665fdcd21",
+    "class": "sklearn.ensemble.HistGradientBoostingClassifier",
+    "parameters": {
+      "learning_rate": 0.05,
+      "max_iter": 100,
+      "min_samples_leaf": 1,
+      "max_leaf_nodes": 31,
+      "l2_regularization": 0.001,
+      "random_state": 20260910,
+      "early_stopping": "library default"
+    },
+    "score_semantics": "predict_proba(features)[:,1]",
+    "preprocessing": "raw finite imu_stats_v1; no scaler, feature selection, or fitted transform"
+  },
+  "threshold_reconstruction": {
+    "policy": "existing_formal_fold_fit_score_quantile_selection",
+    "source": "target decision-function report score_selection.A",
+    "selected_quantile_by_fold": {"outer-0": 0.9, "outer-1": 0.9, "outer-2": 0.9, "outer-3": 0.9, "outer-4": 0.9},
+    "numeric_threshold_by_fold": {
+      "outer-0": 0.32291220845742846,
+      "outer-1": 0.3196925907471078,
+      "outer-2": 0.31558241564406125,
+      "outer-3": 0.34298794421486767,
+      "outer-4": 0.3238893930240527
+    },
+    "recompute_threshold": false,
+    "outer_label_selection": false,
+    "future_A_B_rule": "Use the same numeric threshold for the same fold; do not recompute it on 3 s data."
+  },
+  "eventizer": {
+    "implementation": "src/eating_event/candidates.py::eventize_windows",
+    "implementation_sha256": "d389e914bebfa0fe723c697ecd04dc324e874df1c0f208322d79620665fdcd21",
+    "formal_g1_implementation": "scripts/run_candidate_coverage.py",
+    "formal_g1_implementation_sha256": "01eda3f3fb7d3d3337392ce82bea6560175c1b64a6579f2f9dc8cbdaa75c86ec",
+    "selected_rule": "score >= saved fold threshold",
+    "per_record_context": true,
+    "min_duration_ms": 1,
+    "fuse_gap_ms": 300000,
+    "iou_threshold": 0.25,
+    "approved_skip_rule": "preserve existing eligibility/processed-record contract; do not fabricate skipped recordings"
+  },
+  "environment": {
+    "python": "3.10.11",
+    "numpy": "2.2.6",
+    "scikit_learn": "1.7.2",
+    "joblib": "1.6.0",
+    "verification_rule": "record actual runtime versions in the report and reject loadability if saved estimator cannot be loaded in this environment"
+  },
+  "comparison_tolerances": {
+    "score_absolute_tolerance": 1e-12,
+    "score_relative_tolerance": 1e-12,
+    "reason": "The target and reconstruction use the same frozen feature bytes, estimator parameters, seed, and runtime contract; a near-machine-precision tolerance tests identity rather than AUROC similarity.",
+    "selected_state_comparison": "exact boolean equality of score >= saved threshold",
+    "window_id_comparison": "exact string equality after unique row_key validation"
+  },
+  "outputs": {
+    "diagnostic_directory": "artifacts/g1-a-baseline-reconstruction-v1",
+    "estimators": "models/outer-{fold}.joblib",
+    "fold_manifest": "fold-manifest.json",
+    "score_comparison": "score-comparison.json",
+    "event_replay": "event-replay.json",
+    "report": "report.json",
+    "no_production_overwrite": true
+  },
+  "resource_budget": {
+    "wall_time_seconds": 7200,
+    "memory_gib": 16,
+    "diagnostic_disk_gib": 10,
+    "fit_order": ["outer-0", "outer-1", "outer-2", "outer-3", "outer-4"],
+    "retry_policy": "no retry, seed change, parameter change, or outer-result-driven refit"
+  },
+  "stop_conditions": {
+    "after_A_validation": true,
+    "run_3s": false,
+    "run_N": false,
+    "modify_production": false,
+    "preserve_historical_status": {
+      "DECISION_FUNCTION_EFFECT": "UNSUPPORTED",
+      "FORMAL_G1_BASELINE": "FAIL",
+      "CANDIDATE_MODEL_DESIGN_REVIEW": "NOT_JUSTIFIED",
+      "ARCHITECTURE": "FROZEN",
+      "FULL_TRAINING": "BLOCKED",
+      "PRODUCTION_STRIDE": "UNCHANGED"
+    }
+  }
+}

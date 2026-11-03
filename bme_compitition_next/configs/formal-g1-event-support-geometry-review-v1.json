@@ -1,0 +1,117 @@
+{
+  "schema_version": "formal_g1_event_support_geometry_review_v1",
+  "status": "PREREGISTERED_READ_ONLY",
+  "purpose": "Diagnose why short and low-window-support events fail Formal G1 without training or changing production behavior.",
+  "source_of_truth": {
+    "eligibility": "artifacts/g1-candidate-coverage-v4/eligibility.json",
+    "formal_g1_coverage": "artifacts/g1-candidate-coverage-v4/coverage.json",
+    "approved_cache": "artifacts/g1-formal-cache-v3-final",
+    "model_review": "artifacts/g1-model-temporal-representation-review-v1.json",
+    "temporal_probe_report": "artifacts/g1-temporal-representation-probe-v1/report.json",
+    "decision_function_probe_report": "artifacts/g1-decision-function-probe-v1/report.json",
+    "aggregation_spec": "configs/formal-g1-aggregation-tournament-v1.json",
+    "candidate_model": "src/eating_event/candidates.py",
+    "formal_g1_runner": "scripts/run_candidate_coverage.py",
+    "window_construction": "src/eating_event/data/windows.py",
+    "label_contract": "src/eating_event/data/labels.py"
+  },
+  "frozen_population": {
+    "event_population": "all 234 training_eligibility=true events from approved eligibility artifact",
+    "participants": "participant identities and outer folds from existing Formal G1 artifacts",
+    "representation": "production imu_stats_v1",
+    "window_seconds": 15.0,
+    "production_stride_seconds": 7.5,
+    "positive_overlap": 0.5,
+    "negative_distance_seconds": 300.0,
+    "labels": "existing labels only; no relabeling",
+    "scores": "existing production participant-disjoint OOF/outer-validation scores only"
+  },
+  "geometry_metrics": {
+    "dense_window_count": "authoritative event audit / eligibility count",
+    "positive_window_count": "authoritative event audit count",
+    "ignored_window_count": "dense_window_count - positive_window_count when verified by existing event audit",
+    "positive_window_temporal_positions": "existing window start offsets relative to GT start when available without rebuilding production artifacts",
+    "selected_window_count": "existing production score >= existing fold threshold",
+    "selected_fraction": "selected_window_count / dense_window_count",
+    "selected_temporal_coverage": "existing event-audit metric",
+    "first_last_selected_offset": "existing selected windows relative to GT interval; undefined when no selected window",
+    "longest_unsupported_interval": "existing event-audit metric where available",
+    "best_prediction_iou": "existing Formal G1/event-review metric",
+    "failure_taxonomy": "existing taxonomy only"
+  },
+  "fixed_groups": {
+    "duration_seconds": ["<300", "300-600", "600-1200", ">1200"],
+    "positive_window_count": ["<10", "10-24", "25-49", ">=50"]
+  },
+  "short_event_audit": {
+    "classification_labels": [
+      "A_INSUFFICIENT_POSITIVE_WINDOW_OPPORTUNITY",
+      "B_NO_WINDOW_ABOVE_THRESHOLD",
+      "C_SPARSE_OR_DISCONTINUOUS_SELECTED_SUPPORT",
+      "D_AGGREGATION_OR_BOUNDARY",
+      "E_PARTICIPANT_WEAK_RANKING",
+      "F_MIXED"
+    ],
+    "rule": "Use the earliest supported failure mechanism in the frozen pipeline; do not classify from final IoU alone. Multiple mechanisms may be reported as F_MIXED."
+  },
+  "descriptive_methods": {
+    "summaries": ["counts", "medians", "P10/P90", "rank correlations", "stratified covered-versus-missing comparisons"],
+    "participant_awareness": "report within participant/fold where existing artifacts support it; no causal inference",
+    "logistic_models": "not required; if used, descriptive only, no search or selection",
+    "multiple_testing": "none; no hypothesis search or post-hoc production cutoff"
+  },
+  "geometry_only_counterfactual": {
+    "A": {
+      "window_seconds": 15.0,
+      "stride_seconds": 7.5,
+      "scores": "observed production scores only"
+    },
+    "B": {
+      "window_seconds": 15.0,
+      "stride_seconds": 3.0,
+      "scores": "not generated and not inferred",
+      "support_definition": "count hypothetical regular-grid window opportunities over the same approved representable raw-support spans/session boundaries used by the current eligibility/cache evidence",
+      "label_definition": "apply frozen existing overlap/ignore rule arithmetically only",
+      "modeling": "no feature extraction, no CandidateModel fit, no thresholding, no eventization"
+    },
+    "interpretation": "The B result is geometry/label opportunity only. It cannot establish improved score support, eventization, or Formal G1 recall."
+  },
+  "geometry_fragility": {
+    "definition": "For an observed event, remove the lowest-support selected evidence in arithmetic diagnostics and report whether the event's selected temporal coverage or qualifying interval support would disappear; do not alter production predictions.",
+    "reports": ["one-window loss", "two-window loss", "short consecutive selected-run loss"],
+    "interpretation": "Fragility is descriptive evidence of support sensitivity, not a production simulation or causal estimate."
+  },
+  "interpretation_criteria": {
+    "WINDOW_GEOMETRY_PROBE_JUSTIFIED": "Only if geometry-only evidence shows current 7.5 s stride materially limits opportunities for failing events and 3 s could increase label-support opportunities without changing labels; no model benefit may be claimed.",
+    "WINDOW_GEOMETRY_PROBE_NOT_JUSTIFIED": "If failures persist despite adequate opportunities, or the 3 s result is only theoretical without a defensible support-span basis.",
+    "reopen_closed_branches": "false unless new evidence directly contradicts frozen reviews"
+  },
+  "prohibitions": [
+    "no model fitting",
+    "no production cache regeneration",
+    "no production stride/window change",
+    "no new score inference",
+    "no threshold tuning",
+    "no aggregation change",
+    "no label change",
+    "no architecture change",
+    "no full training"
+  ],
+  "terminal_state": {
+    "architecture": "FROZEN",
+    "full_training": "BLOCKED",
+    "kill_criterion": "NOT_TRIGGERED"
+  },
+  "input_hashes_at_freeze": {
+    "eligibility_sha256": "68c5cd8ec6fe12813f8b39c9d31000d4e18bd6ea732840b67428db643aef3a30",
+    "formal_g1_coverage_sha256": "aed31f7313b5f45a63ffbc8aaff05ba3385a884db51388ec7cc992a4877c2e40",
+    "model_review_sha256": "72e4a4659c22e83bdc861e55c823d48aab36838702d5a26462baa9f115b78bb3",
+    "temporal_probe_report_sha256": "08885199be35403444d3772393cab4337a0665bde6406fece7b8fb005a0188d4",
+    "decision_function_probe_report_sha256": "f2a5b493cb063bcb7683fa9e8daac3b0f8772ad6a1670820fd2e86200cfb4073",
+    "temporal_feature_table_sha256": "c4d547b51beb8bab0c8f8de0e5d840243239d1636d6b23041a5d854a16882b53",
+    "temporal_scores_sha256": "62f29d031dfc78df67d7e95607922d8ef991c47ec76d22716ea703caa67cf714",
+    "aggregation_spec_sha256": "fdf0ce511e7061064210d8a8f7b0c99e407cd63fb51cfde567b14fec89176de1",
+    "decision_function_spec_sha256": "005fbfec81f92b16d06fd1220dd823eec06b9ef5e2fedd8eb2d604c974794352",
+    "temporal_spec_sha256": "2e6a24dab52ba27cd0424329925190d222e5659930feb10b77bb4c41a6df45ce"
+  }
+}

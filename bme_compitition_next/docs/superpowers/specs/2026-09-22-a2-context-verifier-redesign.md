@@ -1,5 +1,9 @@
 # A2 事件上下文验证器 redesign
 
+> **2026-09-23 A2-001 结果与后续权限更新：**原 `001` 来源审计以 `INVALID` 终止，0 次拟合且无性能结果；详见[002 身份契约修订决定](../../decisions/2026-09-23-a2-002-identity-contract-recovery-decision.md)。用户随后只授权按新[002 执行计划](../plans/2026-09-23-a2-002-identity-contract-recovery-implementation.md)完成一次独立编号、预算承接的恢复验证。以下原稿和先前更新均保留为历史，不得把 `001` 重新运行。
+
+> **2026-09-23 审查更新：**本稿原有 `DESIGN_DRAFT / NOT_EXECUTION_AUTHORIZED` 是写作时状态。用户现已允许在另一对话中按[设计审查与条件授权](../../decisions/2026-09-23-a2-context-verifier-design-review-and-authorization.md)和[执行文档](../plans/2026-09-23-a2-context-verifier-validation-implementation.md)进行一次固定的 A2 开发验证；两份新文档中的身份、标签、嵌套角色、资源与结果解释修订优先。本稿以下历史措辞保留供审计，不代表已开始运行，也不改变 A1 关闭、Formal G1 失败、full training 阻断或 production 未变状态。
+
 日期：2026-09-22
 状态：`DESIGN_DRAFT / NOT_EXECUTION_AUTHORIZED`
 前置决定：A1 完整五折运行已关闭被测协议；本文件仅定义下一种可证伪设计，不重开 A1 参数搜索。

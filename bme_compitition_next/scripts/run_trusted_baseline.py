@@ -6,7 +6,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from eating_event.candidates import split_participants
 from eating_event.config import load_config
@@ -46,6 +46,7 @@ def build_trusted_baseline_artifact(
     expected_event_f1: float,
     config_hash: str | None = None,
     audited_manifest_hash: str | None = None,
+    eligibility_contract: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     """Write and return the fixed target-only M0 contract."""
 
@@ -106,6 +107,20 @@ def build_trusted_baseline_artifact(
         "split": split_summary,
         "metric": metric,
     }
+    if eligibility_contract is not None:
+        metrics["eligibility"] = {
+            key: eligibility_contract[key]
+            for key in (
+                "schema_version",
+                "manifest_sha256",
+                "denominator_sha256",
+                "event_denominator_sha256",
+                "source_audit_sha256",
+                "eligible_participant_count",
+                "effective_valid_event_count",
+            )
+            if key in eligibility_contract
+        }
     metrics_path = output / "metrics.json"
     _write_json(metrics_path, metrics)
     manifest = {
@@ -120,6 +135,8 @@ def build_trusted_baseline_artifact(
         "external_data_references": [],
         "result": "pass",
     }
+    if eligibility_contract is not None:
+        manifest["eligibility"] = dict(metrics["eligibility"])
     _write_json(output / "manifest.json", manifest)
     return metrics
 
@@ -141,10 +158,33 @@ def _participants_from_audit(audit_path: Path) -> tuple[str, ...]:
     return tuple(sorted(participants))
 
 
+def _participants_from_eligibility(eligibility_path: Path) -> tuple[str, ...]:
+    payload = json.loads(eligibility_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, Mapping) or payload.get("schema_version") not in {
+        "participant_eligibility_v1",
+        "participant_eligibility_v2",
+    }:
+        raise ValueError("eligibility artifact has an unsupported schema")
+    participant_rows = payload.get("participant_eligibility")
+    if not isinstance(participant_rows, Mapping):
+        raise ValueError("eligibility artifact lacks participant_eligibility")
+    participants = tuple(
+        sorted(
+            str(participant)
+            for participant, details in participant_rows.items()
+            if isinstance(details, Mapping) and details.get("participant_status") == "eligible"
+        )
+    )
+    if not participants:
+        raise ValueError("eligibility artifact contains no eligible participants")
+    return participants
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--audit", type=Path, required=True)
+    parser.add_argument("--eligibility", type=Path, default=None)
     parser.add_argument("--baseline-id", required=True)
     parser.add_argument("--split-seed", type=int, required=True)
     parser.add_argument("--valid-fraction", type=float, required=True)
@@ -157,15 +197,28 @@ def main() -> None:
     audit_payload = json.loads(audit_path.read_text(encoding="utf-8"))
     if args.strict and audit_payload.get("diagnostic_only") is not True:
         raise SystemExit("strict trusted baseline requires a diagnostic audit artifact")
+    eligibility_contract = None
+    audited_participants = _participants_from_audit(audit_path)
+    if args.eligibility is not None:
+        eligibility_path = args.eligibility.expanduser().resolve()
+        eligibility_payload = json.loads(eligibility_path.read_text(encoding="utf-8"))
+        if not isinstance(eligibility_payload, Mapping):
+            raise SystemExit("eligibility artifact must be a JSON object")
+        eligible_participants = _participants_from_eligibility(eligibility_path)
+        if eligible_participants != audited_participants:
+            raise SystemExit("eligibility participant set does not match processed audit participant set")
+        eligibility_contract = dict(eligibility_payload)
+        eligibility_contract["artifact_sha256"] = _sha256_file(eligibility_path)
     artifact = build_trusted_baseline_artifact(
         output_dir=args.output_dir,
-        audited_target_participants=_participants_from_audit(audit_path),
+        audited_target_participants=audited_participants,
         baseline_id=args.baseline_id,
         split_seed=args.split_seed,
         valid_fraction=args.valid_fraction,
         expected_event_f1=args.expected_event_f1,
         config_hash=_sha256_file(args.config.expanduser().resolve()),
         audited_manifest_hash=_sha256_file(audit_path),
+        eligibility_contract=eligibility_contract,
     )
     manifest_path = args.output_dir.expanduser().resolve() / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

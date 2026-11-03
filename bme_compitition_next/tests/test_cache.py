@@ -5,6 +5,7 @@ from eating_event.cache import build_cache_key, load_candidate_table, save_candi
 from eating_event.candidates import CandidateTable
 from eating_event.data.labels import WindowLabel, WindowLabelResult
 from eating_event.data.windows import WindowRecord, WindowSpec
+from scripts.run_candidate_baseline import _load_table
 
 
 def _table() -> CandidateTable:
@@ -65,3 +66,18 @@ def test_candidate_cache_rejects_metadata_mismatch(tmp_path):
 
     with pytest.raises(ValueError, match="metadata"):
         load_candidate_table(path, expected_metadata={**metadata, "step_seconds": 15.0})
+
+
+def test_candidate_consumer_passes_expected_metadata_to_cache_loader(tmp_path):
+    metadata = {
+        "source_fingerprint": "abc",
+        "window_seconds": 15.0,
+        "step_seconds": 7.5,
+        "feature_schema_version": "imu_stats_v1",
+        "label_schema_version": "labels_v1",
+    }
+    path = tmp_path / "candidate.npz"
+    save_candidate_table(path, _table(), metadata=metadata)
+
+    with pytest.raises(ValueError, match="metadata"):
+        _load_table(path, expected_metadata={**metadata, "step_seconds": 15.0})

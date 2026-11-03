@@ -1,0 +1,169 @@
+{
+  "schema_version": "formal_g1_window_geometry_diagnostic_v1",
+  "status": "FROZEN_READ_ONLY",
+  "purpose": "Exact bounded geometry-only comparison of 15 s windows at 7.5 s versus 3 s stride; no model scores, fitting, production changes, or Formal G1 replay.",
+  "source_of_truth": {
+    "previous_spec": "configs/formal-g1-event-support-geometry-review-v1.json",
+    "previous_spec_sha256": "84a5b07fc5680e901c3e6b4be7ce367bd4583033db9598166a51f96a4c2d410e",
+    "eligibility": "artifacts/g1-candidate-coverage-v4/eligibility.json",
+    "approved_cache": "artifacts/g1-formal-cache-v3-final",
+    "cache_provenance": "artifacts/g1-candidate-coverage-v4/coverage.json",
+    "raw_manifest_audit": "artifacts/g1-processed-only-manifest-audit.json",
+    "config": "configs/example.local.yaml",
+    "raw_reader": "src/eating_event/data/raw.py",
+    "timebase": "src/eating_event/data/timebase.py",
+    "window_builder": "src/eating_event/data/windows.py",
+    "label_contract": "src/eating_event/data/labels.py",
+    "manifest": "src/eating_event/data/manifest.py",
+    "production_builder_reference": "scripts/run_candidate_baseline.py"
+  },
+  "input_identity_at_freeze": {
+    "raw_data_root": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized",
+    "raw_manifest_audit_sha256": "dbc178582d1868758afb4241206e0c79011e666119b9814a4d81f9307f4942f5",
+    "eligibility_sha256": "68c5cd8ec6fe12813f8b39c9d31000d4e18bd6ea732840b67428db643aef3a30",
+    "approved_cache_manifest_sha256": "924b379fba4d701dc6420f2e0c0c4c89fc931098325fe15a7d26c62dc94d3be4",
+    "label_contract_hash": "d3ce760da8998c9daf416da2bf22a13c3cccb45071c53e18ea6c0d82c919293f",
+    "implementation_sha256": {
+      "src/eating_event/data/raw.py": "30b7108b727f71936fdf3670c453ff986d817d85b424dbcc3564df4017588676",
+      "src/eating_event/data/timebase.py": "a756dd17e5ab7a12ac9055f4e6d38577fa1c4ff60f44c893880cb5a5daf52e52",
+      "src/eating_event/data/windows.py": "ba87db77211a82c8d99541b6f869859cac1fa49a3878e7b05e9cc596482a15a5",
+      "src/eating_event/data/labels.py": "eaa9e8c846290cd31e470f64c7c9ebdaf6202a32a3fc628b6f155d5108294d22",
+      "src/eating_event/data/manifest.py": "43dab80ce1aabb01a5f3a929e57e4e8f43f54f5f2dcf7c80eeca3533cfdf296e",
+      "scripts/run_candidate_baseline.py": "c491ec6a62699ee6ad7fadc1eafab14212f01d43905bc9ab0f506d10205e863c",
+      "configs/example.local.yaml": "876ec520b437a3e82b106898ea401548d151c983f9ba850ee76f502b858f6090"
+    }
+  },
+  "frozen_population": {
+    "primary_denominator": "the same 234 training_eligibility=true events from the approved eligibility artifact",
+    "event_identity": "participant_id:start_ms-end_ms",
+    "duration_groups": ["<300s", "300-600s", "600-1200s", ">1200s"],
+    "original_support_groups": ["<10", "10-24", "25-49", ">=50"],
+    "historical_covered_missing": "read-only stratification label from the previous review; never rebuilt from current scores",
+    "new_or_lost_eligibility": "report separately and do not replace the primary denominator"
+  },
+  "participant_disjoint_outer_folds": {
+    "algorithm": "build_outer_folds(participants, n_folds=5, seed=20260910)",
+    "folds": [
+      {"fold_id": "outer-0", "valid_participants": ["HNU 21013", "HNU21006", "HNU21014", "HNU21019", "HNU21023", "HNU21025", "HNU21029", "HNU21031"]},
+      {"fold_id": "outer-1", "valid_participants": ["HNU21008", "HNU21011", "HNU21015", "HNU21026j", "HNU21028", "HNU21036", "HNU21041", "HNU212020"]},
+      {"fold_id": "outer-2", "valid_participants": ["HNU21009", "HNU21010", "HNU21016", "HNU21017", "HNU21022", "HNU21034", "HNU21038", "HNU21039"]},
+      {"fold_id": "outer-3", "valid_participants": ["HNU21001", "HNU21002", "HNU21004", "HNU21012", "HNU21021", "HNU21024", "HNU21027", "hnu21033"]},
+      {"fold_id": "outer-4", "valid_participants": ["HNU21003", "HNU21005", "HNU21026", "HNU21032", "HNU21035", "HNU21037", "HNU21040"]}
+    ]
+  },
+  "pipeline_semantics": {
+    "preprocessing": "read approved raw ACC/GYRO TSV with the production parser; aggregate duplicate timestamps by NaN-safe mean; drop non-positive timestamps; regularize each stream independently; combine ACC/GYRO valid masks; do not read local event-only slices",
+    "grid_hz": 10,
+    "grid_origin": "per recording: min(first valid ACC timestamp, first valid GYRO timestamp), exactly as regularize_imu",
+    "grid_end": "per recording: max(last valid ACC timestamp, last valid GYRO timestamp), exactly as regularize_imu",
+    "window_seconds": 15.0,
+    "window_points": 150,
+    "A_stride_seconds": 7.5,
+    "A_step_points": 75,
+    "B_stride_seconds": 3.0,
+    "B_step_points": 30,
+    "window_endpoint": "[start, start + 15000 ms), end_ms=round(start + 15000)",
+    "valid_window": "coverage >= 0.8; longest invalid run <= floor(2.0*10)=20 points; no hard gap; no negative segment id; no crossing of multiple regularized segments",
+    "positive_label": "overlap_fraction >= 0.5, where overlap is normalized by window duration",
+    "ignore_label": "not positive and nearest event distance < 300000 ms",
+    "negative_label": "nearest event distance >= 300000 ms",
+    "event_association": "same frozen participant event intervals; a window is associated to an event when its half-open interval overlaps that event",
+    "event_eligibility": "no re-selection; retain all 234 original eligible events"
+  },
+  "grid_comparison": {
+    "paired_recording": "same raw recording and same fully regularized series for A and B",
+    "common_start_definition": "same regularized grid timestamp emitted at indices divisible by lcm(75,30)=150",
+    "A_only_start_definition": "A grid starts not present in B",
+    "B_only_start_definition": "B grid starts not present in A",
+    "interpretation": "the comparison includes density and start-position changes; pure density effect is not separately identified",
+    "primary_metrics": [
+      "valid_dense_window_count",
+      "positive_window_count",
+      "ignore_window_count",
+      "positive_window_interval_union_coverage_inside_gt",
+      "unsupported_duration_inside_gt",
+      "longest_unsupported_gap_inside_gt",
+      "leading_unsupported_duration",
+      "trailing_unsupported_duration",
+      "positive_overlap_sum_divided_by_positive_interval_union_coverage"
+    ],
+    "secondary_metrics": [
+      "new_support_intervals_B_minus_A",
+      "lost_support_intervals_A_minus_B",
+      "paired_delta_per_event",
+      "improved_unchanged_worsened_counts",
+      "participant_and_outer_fold_distribution"
+    ],
+    "window_count_warning": "window-count ratios are reported separately and are not treated as information gain"
+  },
+  "fragility_definition_clarification": {
+    "primary_mode": "exactly_k",
+    "exactly_k_denominator": "events with at least k selected/support units applicable to that diagnostic; inapplicable events are reported as NA and excluded from that denominator, never counted as zero",
+    "up_to_k_secondary_mode": "if reported, k=1..3 removal losses are computed on the same event and must be monotone non-decreasing; violations are flagged rather than silently averaged",
+    "coverage_loss_denominator": "the event's frozen GT duration",
+    "adjacency": "consecutive selected/support windows in chronological window-start order with no intervening window start from the same grid",
+    "insufficient_units": "if fewer than k units exist, exact-k is NA; no imputation",
+    "scope": "descriptive geometry audit only; no production predictions or eventizer changes"
+  },
+  "pilot": {
+    "purpose": "verify exact equivalence and estimate cost before any expansion decision",
+    "fixed_events": [
+      "HNU21010:1784678811000-1784679595000",
+      "HNU21022:1784648540000-1784648569000",
+      "HNU21022:1784800342197-1784800357569",
+      "HNU21027:1785043459000-1785043512000",
+      "HNU21029:1785152183000-1785152333000",
+      "HNU21035:1784973236000-1784973372000",
+      "HNU21037:1784888903000-1784888975000",
+      "HNU21037:1785112844000-1785112879000"
+    ],
+    "fixed_recording_count": 9,
+    "recordings": [
+      {"participant": "HNU21010", "session": "sensorData-1784744197519-2d76382105d64395a00ef9ea64395b2d", "path": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized\\HNU21010\\sensorData-1784744197519-2d76382105d64395a00ef9ea64395b2d\\collect_data14_1784646725_1784680634.txt", "size": 85496736, "mtime_ns": 1784744266000000000, "source_fingerprint": "843557a26db80628bbe12b448d1bc15edf3669ad0cbdaaa881614b033f292935"},
+      {"participant": "HNU21022", "session": "sensorData-1784737651615-eafa124158f44108938eb0166e96f532", "path": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized\\HNU21022\\sensorData-1784737651615-eafa124158f44108938eb0166e96f532\\collect_data0_1784648190_1784702098.txt", "size": 85376705, "mtime_ns": 1784737734000000000, "source_fingerprint": "fbba6cdd2a82e89d7ce7f84a7251c2f85a9d2319c922a7e6831e7e6ed1b97495"},
+      {"participant": "HNU21022", "session": "sensorData-1784818477202-18a84b1a63724b43ad7d0e78848032df", "path": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized\\HNU21022\\sensorData-1784818477202-18a84b1a63724b43ad7d0e78848032df\\collect_data15_1784797016_1784803045.txt", "size": 85148951, "mtime_ns": 1784818514000000000, "source_fingerprint": "68d542eb51bb9e0575402cd9ce6ee01986887522a93672316c8b9e382875017e"},
+      {"participant": "HNU21027", "session": "sensorData-1785129992035-269c538607da40f5973743a47b3b4dcf", "path": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized\\HNU21027\\sensorData-1785129992035-269c538607da40f5973743a47b3b4dcf\\collect_data20_1785039086_1785043477.txt", "size": 85158193, "mtime_ns": 1785130040000000000, "source_fingerprint": "13a931c77a8e01871d52451d8aebc4a632c0d70fd9338980e215117f6b156a23"},
+      {"participant": "HNU21027", "session": "sensorData-1785129730535-df0f4bb681424bc19c3e9d28f0f5f80e", "path": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized\\HNU21027\\sensorData-1785129730535-df0f4bb681424bc19c3e9d28f0f5f80e\\collect_data21_1785043477_1785047988.txt", "size": 85671719, "mtime_ns": 1785129790000000000, "source_fingerprint": "586aec3b59cddccc95231f432cd839f74d7a31a58747a74a5f1b7946096fbce1"},
+      {"participant": "HNU21029", "session": "sensorData-1785152460067-443da0786d1b41e9ac27f316272bc4f0", "path": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized\\HNU21029\\sensorData-1785152460067-443da0786d1b41e9ac27f316272bc4f0\\collect_data37_1785150921_1785152251.txt", "size": 25605038, "mtime_ns": 1785152464000000000, "source_fingerprint": "278f791e59212a9e15244c3bbf0fd2d3b015eb7efec415c322b9aaeefccefc0e"},
+      {"participant": "HNU21035", "session": "sensorData-1784993725207-fda46e7fc1e143cb87559c71345985f8", "path": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized\\HNU21035\\sensorData-1784993725207-fda46e7fc1e143cb87559c71345985f8\\collect_data7_1784971386_1784976355.txt", "size": 84791170, "mtime_ns": 1784993796000000000, "source_fingerprint": "c27fc3ed7c58522662b802a9c2b39b8fd99dc02baf90d12f2f888eba1818b730"},
+      {"participant": "HNU21037", "session": "sensorData-1785142218488-10a366d8516b4418929987b08d975130", "path": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized\\HNU21037\\sensorData-1785142218488-10a366d8516b4418929987b08d975130\\collect_data0_1784886866_1784891869.txt", "size": 85358655, "mtime_ns": 1785142270000000000, "source_fingerprint": "bae7e034258d7c4cb3732a2984c5def5ebaee6fc4afd0ea92ec21f8fe492ffa7"},
+      {"participant": "HNU21037", "session": "sensorData-1785130940426-34abe6a626434604a134fbf7edd76855", "path": "E:\\bme_compitition\\official_test_dataset\\Data\\02_traindataset\\organized\\HNU21037\\sensorData-1785130940426-34abe6a626434604a134fbf7edd76855\\collect_data23_1785067545_1785113234.txt", "size": 86475049, "mtime_ns": 1785131028000000000, "source_fingerprint": "3d9216d94090db73e24fc7e9fa4e246afe5ddcb23102a704a8dad6bc0938c003"}
+    ]
+  },
+  "resource_budget": {
+    "pilot_wall_seconds": 1800,
+    "pilot_memory_gb": 8,
+    "pilot_output_disk_gb": 2,
+    "full_expansion_wall_seconds": 14400,
+    "full_expansion_memory_gb": 12,
+    "full_expansion_output_disk_gb": 8,
+    "stop_conditions": ["wall budget exceeded", "memory budget at risk", "output budget exceeded", "raw/prod equivalence check fails"],
+    "expansion_rule": "expand to all 234 events only from cost estimate and equivalence evidence, never from favorable geometry results; no automatic expansion"
+  },
+  "outputs": {
+    "diagnostic_root": "artifacts/g1-window-geometry-diagnostic-v1",
+    "pilot_geometry": "artifacts/g1-window-geometry-diagnostic-v1/pilot-paired-geometry.jsonl",
+    "full_geometry": "artifacts/g1-window-geometry-diagnostic-v1/full-paired-geometry.jsonl",
+    "stratified_summary": "artifacts/g1-window-geometry-diagnostic-v1/stratified-summary.json",
+    "equivalence": "artifacts/g1-window-geometry-diagnostic-v1/equivalence.json",
+    "resource_log": "artifacts/g1-window-geometry-diagnostic-v1/resource-log.json",
+    "fragility_clarification": "artifacts/g1-window-geometry-diagnostic-v1/fragility-definition.json",
+    "report": "artifacts/g1-window-geometry-diagnostic-v1/report.json"
+  },
+  "optional_oracle": {
+    "enabled": false,
+    "definition": "If run later within budget, select all positive windows only, use the unchanged frozen eventizer in full recording context, and report as label-support oracle rather than model performance",
+    "prohibitions": ["no best-subset search", "no eventizer tuning", "no local-event crop", "no claim of Formal G1 performance"]
+  },
+  "analysis_and_stop_rules": {
+    "paired_primary_denominator": "events successfully represented in both A and B under the frozen pipeline; separately report any eligibility changes",
+    "significance_testing": "none; windows are not independent samples",
+    "classification": ["COUNTS_ONLY_INCREASE", "TEMPORAL_SUPPORT_CHANGE_OBSERVED", "FROZEN_EVENTIZER_ORACLE_CHANGE_OBSERVED", "PARTIAL_INCONCLUSIVE"],
+    "no_model_claim": "exact B geometry cannot establish score support, eventization, or Formal G1 improvement",
+    "terminal_state": {
+      "architecture": "FROZEN",
+      "full_training": "BLOCKED",
+      "production_stride": "UNCHANGED"
+    }
+  }
+}

@@ -21,11 +21,16 @@ from eating_event.candidates import (
     split_participants,
 )
 from eating_event.config import ProjectConfig, load_config
+from eating_event.data.contract import (
+    eligibility_contract_identity,
+    label_contract_identity,
+)
 from eating_event.data.labels import WindowLabel, WindowLabelResult
 from eating_event.data.manifest import (
     RawFileRecord,
     discover_raw_files,
     events_for_record,
+    filter_meal_events_by_ledger,
     load_meal_events,
 )
 from eating_event.data.raw import RawFileFormatError, read_imu_tsv, regularize_imu
@@ -33,17 +38,35 @@ from eating_event.data.windows import WindowRecord, WindowSpec, generate_dense_w
 from eating_event.metrics import EventInterval, evaluate_events
 
 
-def _cache_metadata(record: RawFileRecord, config: ProjectConfig) -> dict[str, object]:
+def _cache_metadata(
+    record: RawFileRecord,
+    config: ProjectConfig,
+    *,
+    eligibility_artifact_sha256: str | None = None,
+) -> dict[str, object]:
     stat = record.path.stat()
     source_fingerprint = hashlib.sha256(
         "|".join([str(record.path), str(stat.st_size), str(stat.st_mtime_ns)]).encode("utf-8")
     ).hexdigest()
+    default_eligibility_version, default_eligibility_hash = eligibility_contract_identity()
+    label_version, label_hash = label_contract_identity(
+        window_seconds=config.window_seconds,
+        step_seconds=config.step_seconds,
+        positive_overlap=config.positive_overlap,
+    )
+    eligibility_version = config.eligibility_contract_version or default_eligibility_version
+    eligibility_hash = eligibility_artifact_sha256 or default_eligibility_hash
     cache_key = build_cache_key(
         source_fingerprint,
         config.window_seconds,
         config.step_seconds,
         config.feature_schema_version,
         config.label_schema_version,
+        eligibility_contract_version=eligibility_version,
+        eligibility_contract_hash=eligibility_hash,
+        label_contract_version=config.label_contract_version or label_version,
+        label_contract_hash=label_hash,
+        eligibility_artifact_sha256=eligibility_artifact_sha256 or "",
     )
     return {
         "cache_key": cache_key,
@@ -52,20 +75,40 @@ def _cache_metadata(record: RawFileRecord, config: ProjectConfig) -> dict[str, o
         "step_seconds": config.step_seconds,
         "feature_schema_version": config.feature_schema_version,
         "label_schema_version": config.label_schema_version,
+        "eligibility_contract_version": eligibility_version,
+        "eligibility_contract_hash": eligibility_hash,
+        "eligibility_artifact_sha256": eligibility_artifact_sha256 or "",
+        "label_contract_version": config.label_contract_version or label_version,
+        "label_contract_hash": label_hash,
         "imu_grid_hz": config.imu_grid_hz,
         "min_coverage": config.min_coverage,
         "max_gap_seconds": config.max_gap_seconds,
     }
 
 
-def _cache_key(record: RawFileRecord, config: ProjectConfig) -> str:
+def _cache_key(
+    record: RawFileRecord,
+    config: ProjectConfig,
+    *,
+    eligibility_artifact_sha256: str | None = None,
+) -> str:
     """Compatibility helper used by the existing candidate runner variants."""
 
-    return str(_cache_metadata(record, config)["cache_key"])
+    return str(
+        _cache_metadata(
+            record,
+            config,
+            eligibility_artifact_sha256=eligibility_artifact_sha256,
+        )["cache_key"]
+    )
 
 
-def _load_table(path: Path) -> CandidateTable:
-    return load_candidate_table(path)
+def _load_table(
+    path: Path,
+    *,
+    expected_metadata: dict[str, object] | None = None,
+) -> CandidateTable:
+    return load_candidate_table(path, expected_metadata=expected_metadata)
 
 
 def _build_table(
@@ -73,8 +116,10 @@ def _build_table(
     config: ProjectConfig,
     truths: tuple[EventInterval, ...],
     cache_dir: Path,
+    *,
+    eligibility_artifact_sha256: str | None = None,
 ) -> CandidateTable:
-    metadata = _cache_metadata(record, config)
+    metadata = _cache_metadata(record, config, eligibility_artifact_sha256=eligibility_artifact_sha256)
     cache_path = cache_dir / f"{metadata['cache_key']}.npz"
     if cache_path.is_file():
         return load_candidate_table(cache_path, expected_metadata=metadata)
@@ -91,6 +136,7 @@ def _build_table(
         hard_gap_mask=series.hard_gap_mask,
         segment_id=series.segment_id,
         truths=truths,
+        positive_overlap=config.positive_overlap,
     )
     table = build_candidate_table(series, windows, participant_id=record.participant_id)
     save_candidate_table(cache_path, table, metadata=metadata)
@@ -128,6 +174,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--step-seconds", type=float, default=None)
     parser.add_argument("--run-id", default="candidate-baseline")
     parser.add_argument("--diagnostic-only", action="store_true")
+    parser.add_argument("--eligibility", type=Path, default=None)
     return parser.parse_args()
 
 
@@ -181,6 +228,24 @@ def main() -> None:
         if config.window_seconds <= 0 or config.step_seconds <= 0 or config.step_seconds > config.window_seconds:
             raise ValueError("window/step overrides must be positive and step <= window")
     meal_events = load_meal_events(config.metadata_root / "t_zsstnnrj_mealinfo_puadqog70826_1857.csv")
+    eligibility_payload = None
+    eligibility_artifact_sha256 = None
+    if args.eligibility is not None:
+        eligibility_path = args.eligibility.expanduser().resolve()
+        eligibility_bytes = eligibility_path.read_bytes()
+        eligibility_payload = json.loads(eligibility_bytes.decode("utf-8"))
+        if not isinstance(eligibility_payload, dict):
+            raise ValueError("eligibility artifact must be a JSON object")
+        meal_events = filter_meal_events_by_ledger(
+            meal_events, eligibility_payload, eligibility_field="training_eligibility"
+        )
+        eligibility_artifact_sha256 = str(
+            eligibility_payload.get("label_eligible_event_denominator_sha256", "")
+        )
+        if not eligibility_artifact_sha256:
+            raise ValueError("eligibility artifact lacks stable label-eligible ledger hash")
+    elif not args.diagnostic_only:
+        raise ValueError("candidate baseline requires the approved v3 eligibility artifact")
     records = discover_raw_files(config.raw_data_root)
     if args.participants:
         selected = set(args.participants)
@@ -209,7 +274,13 @@ def main() -> None:
     for index, record in enumerate(records, start=1):
         truths = events_for_record(record, meal_events)
         try:
-            table = _build_table(record, config, truths, args.cache_dir)
+            table = _build_table(
+                record,
+                config,
+                truths,
+                args.cache_dir,
+                eligibility_artifact_sha256=eligibility_artifact_sha256,
+            )
         except RawFileFormatError as exc:
             skipped_files[str(record.path)] = str(exc)
             print(f"skipped={record.path.name} reason={exc}")

@@ -11,6 +11,7 @@ from eating_event.data.labels import WindowLabel
 from eating_event.data.timebase import RegularizedSeries
 from eating_event.data.windows import WindowRecord
 from eating_event.features import extract_imu_features
+from eating_event.short_fixture import build_fixture_oof_folds
 
 
 @dataclass(frozen=True)
@@ -205,10 +206,7 @@ def participant_oof_candidate_scores(
             fallback_model = fit_candidate_model(all_features, all_labels, random_state=random_state, max_iter=max_iter)
         return fallback_model
 
-    fold_count = min(n_folds, len(participants))
-    rng = np.random.default_rng(random_state)
-    shuffled = [participants[index] for index in rng.permutation(len(participants))]
-    folds = [tuple(shuffled[index::fold_count]) for index in range(fold_count)]
+    folds = build_fixture_oof_folds(participants, n_folds=n_folds, seed=random_state)
     scores_by_participant: dict[str, tuple[np.ndarray, ...]] = {}
     fallback_participants: list[str] = []
 

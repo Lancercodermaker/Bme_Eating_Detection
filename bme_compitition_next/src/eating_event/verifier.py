@@ -12,6 +12,20 @@ from eating_event.data.windows import WindowRecord
 from eating_event.metrics import EventInterval, interval_iou
 
 
+class CandidateGenerationFailure(ValueError):
+    """The candidate generator did not produce a trainable binary label set."""
+
+
+def validate_candidate_labels(labels: Sequence[int] | np.ndarray) -> None:
+    """Fail before verifier fitting when candidate generation lacks a class."""
+
+    values = np.asarray(labels, dtype=np.int8)
+    if values.size == 0 or set(values.tolist()) != {0, 1}:
+        raise CandidateGenerationFailure(
+            "candidate-generation failure: EventVerifier candidates must contain both 0 and 1 labels"
+        )
+
+
 @dataclass(frozen=True)
 class EventCandidate:
     interval: EventInterval

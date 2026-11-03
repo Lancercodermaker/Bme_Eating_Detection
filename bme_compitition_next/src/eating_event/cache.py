@@ -20,6 +20,12 @@ def build_cache_key(
     step_seconds: float,
     feature_schema_version: str,
     label_schema_version: str,
+    *,
+    eligibility_contract_version: str = "",
+    eligibility_contract_hash: str = "",
+    label_contract_version: str = "",
+    label_contract_hash: str = "",
+    eligibility_artifact_sha256: str = "",
 ) -> str:
     return hashlib.sha256(
         "|".join(
@@ -29,6 +35,11 @@ def build_cache_key(
                 str(step_seconds),
                 feature_schema_version,
                 label_schema_version,
+                eligibility_contract_version,
+                eligibility_contract_hash,
+                label_contract_version,
+                label_contract_hash,
+                eligibility_artifact_sha256,
             ]
         ).encode("utf-8")
     ).hexdigest()

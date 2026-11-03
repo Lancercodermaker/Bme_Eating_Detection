@@ -1,0 +1,195 @@
+{
+  "schema_version": "formal_g1_event_balanced_candidate_objective_probe_v1",
+  "probe_id": "g1-event-balanced-candidate-objective-probe-v1",
+  "status": "FROZEN_BEFORE_FIT",
+  "authorization": {
+    "basis": "explicit candidate-layer design review authorization",
+    "scope": "one-shot diagnostic comparison of uniform-positive HGB A and fixed event-balanced HGB E",
+    "production_change": false,
+    "full_training": false,
+    "architecture_replacement": false,
+    "independent_confirmation": false
+  },
+  "source_of_truth": {
+    "current_A_lineage": {
+      "lineage": "formal G1 candidate coverage v4 contract; A is rerun under the same nested protocol because the complete A estimator/threshold package is not the preserved production artifact",
+      "coverage_report": "artifacts/g1-candidate-coverage-v4/coverage.json",
+      "coverage_report_sha256": "aed31f7313b5f45a63ffbc8aaff05ba3385a884db51388ec7cc992a4877c2e40",
+      "not_mixed_with": [
+        "artifacts/g1-model-temporal-representation-review-v1.json",
+        "artifacts/g1-decision-function-probe-v1",
+        "artifacts/g1-a-baseline-reconstruction-v1"
+      ]
+    },
+    "files": [
+      {"path": "src/eating_event/candidates.py", "sha256": "d389e914bebfa0fe723c697ecd04dc324e874df1c0f208322d79620665fdcd21"},
+      {"path": "src/eating_event/coverage.py", "sha256": "872d8f65d2977d27c5970d42ea347255e122a67ebd570a28793c75fddefe81d0"},
+      {"path": "src/eating_event/evaluation.py", "sha256": "4c56e383c203a557eb59a2127e8183a9d0d8900010b5e1d8372f2e9ca5716110"},
+      {"path": "src/eating_event/cache.py", "sha256": "6831cdabedbb9719ebcda3cf5e19aaa5bdeb8ee3f26458ddafd019b45650fe3b"},
+      {"path": "src/eating_event/diagnostic_event_balanced.py", "sha256": "046290bab974b5130d1c39f35d593c38d4f17213d5c1accac352d7baa4210fe2"},
+      {"path": "scripts/run_candidate_coverage.py", "sha256": "01eda3f3fb7d3d3337392ce82bea6560175c1b64a6579f2f9dc8cbdaa75c86ec"},
+      {"path": "scripts/run_event_balanced_candidate_probe.py", "sha256": "d1b2fb88235a4c87e3b1a4dc440ae769ca977c3212d510cce9d005e84a2e206c"},
+      {"path": "configs/example.local.yaml", "sha256": "876ec520b437a3e82b106898ea401548d151c983f9ba850ee76f502b858f6090"},
+      {"path": "artifacts/g1-temporal-representation-probe-v1/feature-table.npz", "sha256": "c4d547b51beb8bab0c8f8de0e5d840243239d1636d6b23041a5d854a16882b53"},
+      {"path": "artifacts/g1-candidate-coverage-v4/cache-manifest.json", "sha256": "dbcb03c4fa2e26baf4d0e0d7d9127eafc85bfca46a3e80cae0a7b5c0fba0bd3c"},
+      {"path": "artifacts/g1-candidate-coverage-v4/eligibility.json", "sha256": "68c5cd8ec6fe12813f8b39c9d31000d4e18bd6ea732840b67428db643aef3a30"},
+      {"path": "artifacts/g1-candidate-coverage-v4/manifest-audit.json", "sha256": "f8682c8632b78c29ea3cc78b13e81b3e40b5e8c8c1fd48b6253a68baff34ffb8"},
+      {"path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/positive-row-event-map.jsonl", "sha256": "23e66ab48222ae873984668d17973db15dfec78d039a13ea7aeab10afb6e0911"},
+      {"path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/prefit-label-audit.json", "sha256": "68fc57b8b2b3a664bdc778ba8a90053baf50f3dd86a2282ac0c17468998a9de6"}
+    ]
+  },
+  "inputs": {
+    "feature_table_path": "artifacts/g1-temporal-representation-probe-v1/feature-table.npz",
+    "representation": "imu_stats_v1",
+    "feature_width": 111,
+    "rows": 632100,
+    "positive_rows": 35948,
+    "negative_rows": 583145,
+    "ignore_rows": 13007,
+    "cache_manifest_path": "artifacts/g1-candidate-coverage-v4/cache-manifest.json",
+    "eligibility_path": "artifacts/g1-candidate-coverage-v4/eligibility.json",
+    "event_cohort": 234,
+    "cohort_rule": "training_eligibility=true in the frozen participant_eligibility_v3 artifact; no eligibility change",
+    "row_id_contract": "record_path|window_start_ms|window_end_ms|within_record_index",
+    "row_event_sidecar_contract": "independent JSONL mapping every positive row_key to exactly one participant:start_ms:end_ms event_id"
+  },
+  "row_event_sidecar": {
+    "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/positive-row-event-map.jsonl",
+    "sha256": "23e66ab48222ae873984668d17973db15dfec78d039a13ea7aeab10afb6e0911",
+    "positive_row_count": 35948
+  },
+  "frozen_scope": {
+    "window_seconds": 15.0,
+    "stride_seconds": 7.5,
+    "outer_folds": 5,
+    "inner_folds": 4,
+    "participant_disjoint": true,
+    "test_isolated": true,
+    "labels": {"positive": 1, "negative": 0, "ignore": -1},
+    "ignore_excluded_from_fit_and_score": true,
+    "iou_threshold": 0.25,
+    "formal_g1_numeric_criterion": "all 5 outer-fold pooled candidate coverage recalls >= 0.90",
+    "eventizer": {
+      "implementation": "src/eating_event/candidates.py::eventize_windows",
+      "threshold_rule": "score >= fold numeric threshold",
+      "min_duration_ms": 1,
+      "fuse_gap_ms": 300000,
+      "complete_recording_context": true,
+      "background_windows_included": true
+    },
+    "prohibited": [
+      "second event-weight formula",
+      "weight clipping or sweep",
+      "classifier, feature, stride, or aggregation change",
+      "outer-result-driven parameter/model/threshold choice",
+      "threshold compensation",
+      "full training",
+      "production modification"
+    ]
+  },
+  "models": {
+    "A": {
+      "definition": "current production CandidateModel objective under the frozen formal G1 nested protocol",
+      "class": "sklearn.ensemble.HistGradientBoostingClassifier",
+      "parameters": {
+        "learning_rate": 0.05,
+        "max_iter": 100,
+        "min_samples_leaf": 1,
+        "max_leaf_nodes": 31,
+        "l2_regularization": 0.001,
+        "random_state": 20260910,
+        "early_stopping": "library default"
+      },
+      "sample_weights": {"negative": 1.0, "positive": 3.0, "ignore": 0.0},
+      "score_semantics": "predict_proba(features)[:,1]"
+    },
+    "E": {
+      "definition": "same HGB estimator and parameters as A with one frozen event-balanced positive-weight formula",
+      "inherits": "A",
+      "sample_weight_formula": "w_e = 3*N_pos/(E_fit*k_e)",
+      "fit_local_quantities": {
+        "E_fit": "number of events with at least one positive row in this fit subset",
+        "N_pos": "positive row count in this fit subset",
+        "k_e": "positive row count uniquely owned by event e in this fit subset"
+      },
+      "negative_weight": 1.0,
+      "ignore_weight": 0.0,
+      "no_validation_or_outer_labels_in_weight_calculation": true
+    }
+  },
+  "event_ownership_validation": {
+    "rule": "half-open interval overlap between a positive window and eligible event",
+    "sidecar_path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/positive-row-event-map.jsonl",
+    "sidecar_sha256": "23e66ab48222ae873984668d17973db15dfec78d039a13ea7aeab10afb6e0911",
+    "prefit_result": "PASS",
+    "positive_rows": 35948,
+    "zero_owner": 0,
+    "multi_owner": 0,
+    "max_owner": 1,
+    "weight_audit_numeric_tolerance": {"rtol": 1e-12, "atol": 1e-8},
+    "per_fit_assertions": [
+      "every positive row has exactly one event id",
+      "every included event has k_e > 0",
+      "positive total weight equals 3*N_pos",
+      "all included events receive equal total positive weight",
+      "negative and IGNORE weights remain 1 and 0",
+      "fit uses only the fit subset's labels and sidecar ownership"
+    ]
+  },
+  "participant_disjoint_protocol": {
+    "outer_builder": "src/eating_event/evaluation.py::build_outer_folds",
+    "inner_builder": "src/eating_event/evaluation.py::build_inner_folds",
+    "seed": 20260910,
+    "outer_fold_count": 5,
+    "inner_fold_count_per_outer": 4,
+    "fit_order": ["A", "E"],
+    "validation_rule": "each outer validation participant is scored only by its complementary outer-train model"
+  },
+  "threshold_selection": {
+    "algorithm": "current formal G1 inner selection",
+    "quantile_grid": [0.7, 0.8, 0.9],
+    "inner_fit_score_threshold": "np.quantile(scores from the same fit subset, q)",
+    "selection_key": "max(pooled_recall_mean, worst_participant_recall, -candidate_count, q)",
+    "outer_threshold": "selected q applied to scores from that outer-train fit only",
+    "A_and_E_independent_thresholds": true,
+    "outer_labels_not_used_for_selection": true,
+    "no_absolute_threshold_reuse": true
+  },
+  "fit_budget": {
+    "inner_fits_per_variant": 60,
+    "outer_fits_per_variant": 5,
+    "fits_per_variant": 65,
+    "total_fits": 130,
+    "formula": "5 outer folds * 3 quantiles * 4 inner folds + 5 outer refits, for each of A and E",
+    "retry_policy": "no retry, seed change, parameter change, or outer-result-driven refit"
+  },
+  "resource_budget": {
+    "wall_time_seconds": 14400,
+    "memory_gib": 16,
+    "diagnostic_disk_gib": 10,
+    "measurement": "process RSS after each fit and recursive diagnostic output size",
+    "stop_on_budget_exceedance": true
+  },
+  "outputs": {
+    "diagnostic_directory": "artifacts/g1-event-balanced-candidate-objective-probe-v1",
+    "models": "models/{A,E}/{inner,outer}/*.joblib",
+    "thresholds": "thresholds.json",
+    "fold_manifest": "fold-manifest.json",
+    "inner_selection": "inner-selection/{A,E}/outer-*.json",
+    "oof_scores": "oof-scores/{A,E}/outer-*.npz",
+    "report": "report.json",
+    "production_overwrite": false
+  },
+  "decision_rules": {
+    "report_separately": ["G1_NUMERIC_CRITERION_MET", "RESOURCE_STATUS", "DIAGNOSTIC_LIMITATIONS"],
+    "if_E_fails": "close this fixed event-balanced formula; do not run weight sweep, threshold compensation, or aggregation experiment",
+    "if_E_passes": "submit formal integration and acceptance steps only; do not enter verifier, M5, or M6 automatically",
+    "diagnostic_status": "reuse of analyzed outer folds is diagnostic candidate evidence, not independent confirmation and does not rewrite formal G1",
+    "no_new_gate": "candidate count and false-positive metrics are reported costs, not additional G1 pass conditions"
+  },
+  "preserved_status": {
+    "PRODUCTION": "UNCHANGED",
+    "FULL_TRAINING": "BLOCKED",
+    "ARCHITECTURE_REPLACEMENT": "NOT_AUTHORIZED"
+  }
+}

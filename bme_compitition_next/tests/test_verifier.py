@@ -4,7 +4,12 @@ import pytest
 from eating_event.data.labels import WindowLabel, WindowLabelResult
 from eating_event.data.windows import WindowRecord, WindowSpec
 from eating_event.metrics import EventInterval
-from eating_event.verifier import build_event_candidates, fit_event_verifier
+from eating_event.verifier import (
+    CandidateGenerationFailure,
+    build_event_candidates,
+    fit_event_verifier,
+    validate_candidate_labels,
+)
 from scripts.run_event_verifier import _event_coverage_recall, _long_false_positive_fraction
 
 
@@ -61,3 +66,12 @@ def test_event_coverage_recall_counts_truths_with_any_matching_candidate() -> No
     candidates = [EventInterval(0, 1_000), EventInterval(20_000, 21_000)]
 
     assert _event_coverage_recall(candidates, truths) == 0.5
+
+
+def test_candidate_label_gate_reports_candidate_generation_failure() -> None:
+    with pytest.raises(CandidateGenerationFailure, match="candidate-generation failure"):
+        validate_candidate_labels(np.zeros(4, dtype=np.int8))
+
+
+def test_candidate_label_gate_accepts_both_classes() -> None:
+    validate_candidate_labels(np.array([0, 1, 0, 1], dtype=np.int8))

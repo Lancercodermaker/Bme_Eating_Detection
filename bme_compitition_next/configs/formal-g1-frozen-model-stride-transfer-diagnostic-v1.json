@@ -1,0 +1,204 @@
+{
+  "schema_version": "formal_g1_frozen_model_stride_transfer_diagnostic_v1",
+  "diagnostic_id": "bounded-frozen-model-stride-transfer-v1",
+  "status": "FROZEN_GATE_AUDIT",
+  "purpose": "Determine whether the same frozen participant-disjoint model can transfer from the 15 s / 7.5 s inference grid to the 15 s / 3 s inference grid without training, recalibration, threshold tuning, eventizer changes, or production changes.",
+  "source_of_truth": {
+    "previous_spec": {
+      "path": "configs/formal-g1-window-geometry-diagnostic-v1.json",
+      "sha256": "9b34bcdad1887e1dedd0a6e7c6b52e28080b5f55c3ebc6636215368aa5aac342"
+    },
+    "previous_outputs": [
+      "artifacts/g1-window-geometry-diagnostic-v1/report.json",
+      "artifacts/g1-window-geometry-diagnostic-v1/full-paired-geometry.jsonl",
+      "artifacts/g1-window-geometry-diagnostic-v1/stratified-summary.json",
+      "artifacts/g1-window-geometry-diagnostic-v1/full-equivalence.json"
+    ],
+    "model_review": "artifacts/g1-model-temporal-representation-review-v1.json",
+    "current_decision_function_probe": {
+      "spec": "configs/formal-g1-decision-function-probe-v1.json",
+      "sha256": "005fbfec81f92b16d06fd1220dd823eec06b9ef5e2fedd8eb2d604c974794352",
+      "report": "artifacts/g1-decision-function-probe-v1/report.json",
+      "scores": "artifacts/g1-decision-function-probe-v1/scores.npz"
+    },
+    "current_formal_g1_contract": "configs/formal-g1-aggregation-tournament-v1.json"
+  },
+  "previous_denominator_contract": {
+    "fixed_cohort_events": 234,
+    "exact_complete_events": 232,
+    "incomplete_events": 2,
+    "incomplete_event_ids": [
+      "HNU21012:1784723920000-1784728154000",
+      "HNU21035:1785042527000-1785043718000"
+    ],
+    "approved_undecodable_skip_meaning": "The frozen eligibility/raw-input contract explicitly skips an undecodable recording. The event remains in the fixed 234-event denominator with its existing A/B geometry result range, but it is excluded from the 232 exact-complete denominator. No missing support is imputed or repaired.",
+    "support_change_counts_on_fixed_234": {
+      "improved": 107,
+      "unchanged": 117,
+      "worsened": 10,
+      "rule": "B minus A union coverage delta in milliseconds: positive improves, zero unchanged, negative worsens; no post-hoc minimum-effect threshold."
+    },
+    "support_change_counts_on_exact_complete_232": {
+      "improved": 107,
+      "unchanged": 115,
+      "worsened": 10
+    }
+  },
+  "scope": {
+    "representation": "imu_stats_v1",
+    "feature_width": 111,
+    "window_seconds": 15.0,
+    "grid_A_stride_seconds": 7.5,
+    "grid_B_stride_seconds": 3.0,
+    "grid_origin": "preserve the existing recording/grid origin contract from the previous geometry diagnostic",
+    "time_interval_convention": "existing half-open millisecond window convention",
+    "inference_population": "all valid dense windows in the complete recording context, including background windows",
+    "labels": "evaluation and stratification only; never used to choose windows or control inference eventization",
+    "not_in_scope": [
+      "temporal feature expansion",
+      "CNN/RNN/Transformer or learned sequence encoder",
+      "training or refitting",
+      "recalibration",
+      "threshold tuning against outer validation",
+      "aggregation tuning",
+      "feature selection",
+      "grid-phase scan",
+      "additional strides",
+      "production stride modification",
+      "Formal G1 acceptance"
+    ]
+  },
+  "frozen_models": {
+    "A": {
+      "name": "A_current_production_CandidateModel",
+      "implementation": "src/eating_event/candidates.py::fit_candidate_model",
+      "estimator": "sklearn.ensemble.HistGradientBoostingClassifier",
+      "parameters": {
+        "learning_rate": 0.05,
+        "max_iter": 100,
+        "min_samples_leaf": 1,
+        "max_leaf_nodes": 31,
+        "l2_regularization": 0.001,
+        "random_state": 20260910,
+        "early_stopping": "library default"
+      },
+      "class_balancing": "explicit sample_weight: negative 1.0, positive 3.0; unsupervised rows excluded",
+      "preprocessing": "raw finite imu_stats_v1 feature units; no scaler, selection, or resampling",
+      "score_semantics": "estimator.predict_proba(features)[:,1]",
+      "probability_semantics": "model-local probability-like ranking score; not assumed calibrated across estimators"
+    },
+    "N": {
+      "name": "N_temporal_probe_preregistered_bounded_nonlinear",
+      "source": "configs/formal-g1-temporal-representation-probe-v1.json diagnostic_classifiers.N",
+      "estimator": "sklearn.ensemble.HistGradientBoostingClassifier",
+      "parameters": {
+        "learning_rate": 0.05,
+        "max_iter": 100,
+        "min_samples_leaf": 20,
+        "max_leaf_nodes": 7,
+        "l2_regularization": 0.001,
+        "random_state": 20260910,
+        "early_stopping": "library default"
+      },
+      "class_balancing": "compute_sample_weight(class_weight='balanced', y=outer_train_labels); outer-train labels only",
+      "preprocessing": "raw finite imu_stats_v1 feature units; no scaler, selection, or resampling",
+      "score_semantics": "estimator.predict_proba(features)[:,1]",
+      "probability_semantics": "model-local probability-like ranking score; not assumed calibrated across estimators",
+      "circuit_breaker": "no N2, no parameter changes"
+    }
+  },
+  "participant_disjoint_mapping": {
+    "outer_fold_count": 5,
+    "seed": 20260910,
+    "folds": {
+      "outer-0": ["HNU21001", "HNU21003", "HNU21011", "HNU21014", "HNU21016", "HNU21022", "HNU21028", "HNU21040", "hnu21033"],
+      "outer-1": ["HNU21006", "HNU21015", "HNU21024", "HNU21026", "HNU21035", "HNU21036", "HNU21041", "HNU212020"],
+      "outer-2": ["HNU 21013", "HNU21002", "HNU21005", "HNU21019", "HNU21023", "HNU21027", "HNU21032", "HNU21039"],
+      "outer-3": ["6C7", "HNU21007", "HNU21008", "HNU21010", "HNU21012", "HNU21017", "HNU21025", "HNU21031"],
+      "outer-4": ["HNU21004", "HNU21009", "HNU21021", "HNU21026j", "HNU21029", "HNU21034", "HNU21037", "HNU21038"]
+    },
+    "model_binding": "Each outer fold requires its already-trained model for the complementary training participants; no checkpoint or binding manifest is present in the worktree. This missing binding is a blocking condition."
+  },
+  "score_selection_policy": {
+    "policy": "existing_formal_fold_fit_score_quantile_selection",
+    "absolute_probability_threshold": false,
+    "quantile_grid": [0.7, 0.8, 0.9],
+    "inner_folds": "participant-disjoint, min(4, outer-train participant count), seed 20260910",
+    "outer_threshold": "fit-derived outer-train score quantile at the selected q; never selected using outer validation",
+    "frozen_A_thresholds_by_fold": {
+      "outer-0": 0.32291220845742846,
+      "outer-1": 0.3196925907471078,
+      "outer-2": 0.31558241564406125,
+      "outer-3": 0.34298794421486767,
+      "outer-4": 0.3238893930240527
+    },
+    "frozen_N_thresholds_by_fold": {
+      "outer-0": 0.7170660526548492,
+      "outer-1": 0.7072941726704126,
+      "outer-2": 0.7087943412335642,
+      "outer-3": 0.7143611357304402,
+      "outer-4": 0.7121014481779481
+    },
+    "threshold_provenance": "embedded in the frozen decision-function probe report; these values are not sufficient to produce new B scores without the corresponding estimators"
+  },
+  "eventization_and_g1": {
+    "implementation": "src/eating_event/candidates.py::eventize_windows plus Formal G1 coverage evaluator",
+    "selected_window_rule": "score >= model-specific frozen outer-train-derived threshold",
+    "record_boundary_respected": true,
+    "minimum_event_duration_ms": 1,
+    "fuse_gap_ms": 300000,
+    "matching": "truth covered when any predicted interval for its participant has interval IoU > 0.25",
+    "formal_gate": "all five outer-fold pooled event recalls >= 0.90",
+    "aggregation": "frozen; no changes permitted"
+  },
+  "diagnostics_if_gate_passed": {
+    "primary_comparison": "same fold model and same fold policy on A and B grids; A is replayed first",
+    "window_metrics": ["AUROC", "AUPRC", "per-fold", "participant-level", "positive score distribution", "negative score distribution", "hard-negative behavior"],
+    "event_metrics": ["positive window count", "positive score median/P90/max", "above-threshold count/fraction", "selected union coverage", "longest unsupported gap", "best prediction IoU", "covered/missing", "predicted count", "false-event metrics", "duration ratio", "boundary behavior"],
+    "required_event_transitions": ["A missing -> B covered", "A covered -> B missing", "both covered", "both missing"],
+    "strata": ["positive windows <10", "10-24", "25-49", ">=50", "duration <300s", "duration >1200s", "historical covered/missing", "participant", "fold"],
+    "stopping_rule": "run only A and B over the precommitted complete cohort in deterministic order; stop after the paired comparison"
+  },
+  "resource_budget": {
+    "wall_time_seconds": 7200,
+    "memory_gib": 16,
+    "diagnostic_disk_gib": 20,
+    "deterministic_order": "all 232 exact-complete events with full recording context, then no expansion; the gate is checked before inference",
+    "partial_result_rule": "If resources fail after a valid gate, mark PARTIAL and never select more events based on observed improvement. Current gate failure prevents any inference."
+  },
+  "artifact_binding": {
+    "feature_schema": {
+      "name": "imu_stats_v1",
+      "feature_table": "artifacts/g1-temporal-representation-probe-v1/feature-table.npz",
+      "feature_table_sha256": "c4d547b51beb8bab0c8f8de0e5d840243239d1636d6b23041a5d854a16882b53",
+      "implementation": "src/eating_event/features.py",
+      "implementation_sha256": "73080fde517b02218b07a811972ba4595dabce8ffb6ce906d6a69d47e9030a9f"
+    },
+    "model_checkpoints": {
+      "status": "MISSING",
+      "required": ["A outer-0 through outer-4 estimator", "N outer-0 through outer-4 estimator", "fold-to-participant binding manifest", "loadability/version provenance"],
+      "discovered_matching_files": []
+    },
+    "threshold_policy_source_sha256": "005fbfec81f92b16d06fd1220dd823eec06b9ef5e2fedd8eb2d604c974794352",
+    "eventizer_source_hashes": {
+      "src/eating_event/candidates.py": "d389e914bebfa0fe723c697ecd04dc324e874df1c0f208322d79620665fdcd21",
+      "src/eating_event/coverage.py": "872d8f65d2977d27c5970d42ea347255e122a67ebd570a28793c75fddefe81d0",
+      "src/eating_event/metrics.py": "3033f62a59ea59f2647c7c2e0dce298b80834dc4a62697853f95dd6f4b73b972",
+      "scripts/run_candidate_coverage.py": "01eda3f3fb7d3d3337392ce82bea6560175c1b64a6579f2f9dc8cbdaa75c86ec"
+    }
+  },
+  "gate_and_stop": {
+    "model_availability_gate": "FAIL",
+    "decision": "BLOCKED_MISSING_MATCHED_FROZEN_ARTIFACTS",
+    "reason": "Only historical 7.5 s scores and reports are available. New 3 s scores require calling the estimator, and no matched frozen fold estimators are serialized. Re-fitting would violate this diagnostic contract.",
+    "permitted_outputs_after_failure": ["previous denominator clarification", "artifact availability audit", "frozen spec/hash", "blocked report"],
+    "forbidden_after_failure": ["A replay", "B inference", "event-level replay", "Formal G1 interpretation", "model reconstruction by fit", "threshold reuse without model semantics"]
+  },
+  "production_isolation": {
+    "production_cache_overwrite": false,
+    "production_model_replacement": false,
+    "production_stride": "UNCHANGED",
+    "architecture": "FROZEN",
+    "full_training": "BLOCKED"
+  }
+}

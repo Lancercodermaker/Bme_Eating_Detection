@@ -1,0 +1,299 @@
+{
+  "schema_version": "formal_g1_frozen_a_3s_stride_transfer_diagnostic_v1",
+  "diagnostic_id": "bounded-frozen-a-3s-stride-transfer-diagnostic-v1",
+  "status": "FROZEN",
+  "purpose": "Measure how the same frozen participant-disjoint A model responds when the 15 s inference grid changes from 7.5 s to 3 s, including score evidence and event replay. This is a bounded diagnostic, not production stride approval and not a new Formal G1 acceptance run.",
+  "scope_and_circuit_breaker": {
+    "architecture": "FROZEN",
+    "full_training": "BLOCKED",
+    "production_stride": "UNCHANGED",
+    "production_model_replacement": false,
+    "fit_or_retrain": false,
+    "threshold_reselection": false,
+    "recalibration": false,
+    "candidate_model_comparison": false,
+    "new_features": false,
+    "additional_stride_scan": false,
+    "grid_phase_scan": false,
+    "aggregation_tuning": false,
+    "feature_selection": false,
+    "outer_result_driven_selection": false,
+    "stop_after_this_comparison": true
+  },
+  "source_of_truth": {
+    "previous_geometry_spec": {
+      "path": "configs/formal-g1-window-geometry-diagnostic-v1.json",
+      "sha256": "9b34bcdad1887e1dedd0a6e7c6b52e28080b5f55c3ebc6636215368aa5aac342"
+    },
+    "previous_geometry_report": {
+      "path": "artifacts/g1-window-geometry-diagnostic-v1/report.json",
+      "sha256": "db07053072c5cadb4c2ebffd3c35fb2173a21826c36248d61da7147d1175961c"
+    },
+    "a_reconstruction_spec": {
+      "path": "configs/formal-g1-a-baseline-reconstruction-v1.json",
+      "sha256": "97eb56a28332d7f568808b7d3518f5a4c314e970f3f56e42c9748d9423bb5a5c"
+    },
+    "a_reconstruction_fold_manifest": {
+      "path": "artifacts/g1-a-baseline-reconstruction-v1/fold-manifest.json",
+      "sha256": "7a97548e2b8ceba09b5abf32c8a8724a1b6c317c57943154b6f63c8eb168c8d2"
+    },
+    "a_reconstruction_scores": {
+      "path": "artifacts/g1-a-baseline-reconstruction-v1/scores.npz",
+      "sha256": "aecaa1c9ba4977504ac5eb51eb240cf590730b3bb0ed3e2cf7151807b0cb4225",
+      "use": "reuse A scores and A row/window identity; no A refit"
+    },
+    "a_reconstruction_event_reference": {
+      "path": "artifacts/g1-a-baseline-reconstruction-v1/event-replay.json",
+      "sha256": "2fb74aa0141fab0c369d11e8cbb70532f14d4fd86a00c668455f6d13f9f53edb",
+      "use": "reference only; new A/B replay reports corrected prediction-level matching semantics"
+    },
+    "approved_feature_table": {
+      "path": "artifacts/g1-temporal-representation-probe-v1/feature-table.npz",
+      "sha256": "c4d547b51beb8bab0c8f8de0e5d840243239d1636d6b23041a5d854a16882b53",
+      "representation": "imu_stats_v1",
+      "width": 111,
+      "rows": 632100,
+      "source_files": 1127
+    },
+    "eligibility": {
+      "path": "artifacts/g1-candidate-coverage-v4/eligibility.json",
+      "sha256": "68c5cd8ec6fe12813f8b39c9d31000d4e18bd6ea732840b67428db643aef3a30",
+      "event_denominator_sha256": "6e7580a6dc4562ced645361b086a08143a2051516a0804d7031c964174438c6d"
+    },
+    "raw_manifest_audit": {
+      "path": "artifacts/g1-processed-only-manifest-audit.json",
+      "sha256": "97ee66f6510b91f77918e93fc00b7d880e13c5498a8e2164ff73c8bdb5736da9"
+    },
+    "approved_cache": {
+      "path": "artifacts/g1-formal-cache-v3-final",
+      "manifest_sha256": "924b379fba4d701dc6420f2e0c0c4c89fc931098325fe15a7d26c62dc94d3be4",
+      "contract": "15 s / 7.5 s / imu_stats_v1 / approved eligibility and label contracts"
+    },
+    "implementation": {
+      "candidate_model": {
+        "path": "src/eating_event/candidates.py",
+        "sha256": "d389e914bebfa0fe723c697ecd04dc324e874df1c0f208322d79620665fdcd21"
+      },
+      "feature_extractor": {
+        "path": "src/eating_event/features.py",
+        "sha256": "73080fde517b02218b07a811972ba4595dabce8ffb6ce906d6a69d47e9030a9f"
+      },
+      "timebase": {
+        "path": "src/eating_event/data/timebase.py",
+        "sha256": "a756dd17e5ab7a12ac9055f4e6d38577fa1c4ff60f44c893880cb5a5daf52e52"
+      },
+      "window_builder": {
+        "path": "src/eating_event/data/windows.py",
+        "sha256": "ba87db77211a82c8d99541b6f869859cac1fa49a3878e7b05e9cc596482a15a5"
+      },
+      "eventizer": {
+        "path": "src/eating_event/candidates.py",
+        "sha256": "d389e914bebfa0fe723c697ecd04dc324e874df1c0f208322d79620665fdcd21"
+      },
+      "formal_metric": {
+        "path": "src/eating_event/metrics.py",
+        "sha256": "3033f62a59ea59f2647c7c2e0dce298b80834dc4a62697853f95dd6f4b73b972"
+      },
+      "formal_coverage_runner": {
+        "path": "scripts/run_candidate_coverage.py",
+        "sha256": "01eda3f3fb7d3d3337392ce82bea6560175c1b64a6579f2f9dc8cbdaa75c86ec"
+      },
+      "local_config": {
+        "path": "configs/example.local.yaml",
+        "sha256": "876ec520b437a3e82b106898ea401548d151c983f9ba850ee76f502b858f6090"
+      }
+    }
+  },
+  "frozen_population": {
+    "fixed_cohort_count": 234,
+    "fixed_cohort_source": "eligibility.event_eligibility where training_eligibility=true",
+    "fixed_cohort_event_id_contract": "participant_id:start_ms-end_ms",
+    "fixed_cohort_event_ids_sha256": "8535cb6305d449633fef482ac30998a0b829a58d581c1e763157f93701731b29",
+    "exact_complete_count": 232,
+    "exact_complete_definition": "fixed cohort excluding only the two approved raw-undecodable event contexts below",
+    "approved_raw_undecodable_incomplete_events": [
+      {
+        "event_id": "HNU21012:1784723920000-1784728154000",
+        "reason": "approved raw recording is undecodable",
+        "recording": "HNU21012/sensorData-1784864012692-7abd340693a34144afdeeefd67b6ea74/collect_data23_1784721958_1784726326.txt"
+      },
+      {
+        "event_id": "HNU21035:1785042527000-1785043718000",
+        "reason": "approved raw recording is undecodable",
+        "recording": "HNU21035/sensorData-1785079358000-23d230aac2cd41a5928d9ceef0174bfd/collect_data13_1785038340_1785042876.txt"
+      }
+    ],
+    "denominator_use": {
+      "234_fixed_context": "all prediction-level replay and unmatched-prediction descriptive statistics; incomplete GT is retained when valid context exists",
+      "232_exact_complete": "event recall and exact-complete stratification only",
+      "no_substitution": true,
+      "no_missing_support_imputation": true
+    },
+    "historical_support_annotation": "read-only previous geometry/model-review annotation; not used to choose windows, scores, thresholds, events, or model versions",
+    "historical_missing_count": 27,
+    "historical_missing_taxonomy": {
+      "AGGREGATION_FIRST": 23,
+      "SCORE_THRESHOLD_FIRST": 4
+    }
+  },
+  "frozen_models_and_policy": {
+    "model_source": "artifacts/g1-a-baseline-reconstruction-v1/models/outer-{fold}.joblib",
+    "model_count": 5,
+    "participant_disjoint_binding": "fold manifest valid participants; each participant scored only by the complementary outer-train model",
+    "estimator": "sklearn.ensemble.HistGradientBoostingClassifier",
+    "parameters": {
+      "learning_rate": 0.05,
+      "max_iter": 100,
+      "min_samples_leaf": 1,
+      "max_leaf_nodes": 31,
+      "l2_regularization": 0.001,
+      "random_state": 20260910,
+      "early_stopping": "library default"
+    },
+    "training_objective": "binary log-loss classifier",
+    "class_balancing": {
+      "negative_weight": 1.0,
+      "positive_weight": 3.0,
+      "unsupervised_label_minus_1": "excluded from training"
+    },
+    "preprocessing": "raw finite imu_stats_v1; no scaler, selection, resampling, or fitted transform",
+    "score_semantics": "predict_proba(features)[:,1]",
+    "fold_thresholds": {
+      "outer-0": 0.32291220845742846,
+      "outer-1": 0.3196925907471078,
+      "outer-2": 0.31558241564406125,
+      "outer-3": 0.34298794421486767,
+      "outer-4": 0.3238893930240527
+    },
+    "threshold_policy": {
+      "source": "saved A reconstruction fold thresholds",
+      "selected_quantile": 0.9,
+      "reselect": false,
+      "reuse_on_B": true,
+      "absolute_probability_threshold_across_models": false
+    },
+    "eventizer": {
+      "implementation": "eventize_windows",
+      "selected_rule": "score >= same numeric fold threshold",
+      "min_duration_ms": 1,
+      "fuse_gap_ms": 300000,
+      "per_record_context": true,
+      "iou_threshold": 0.25,
+      "approved_skip_rule": "preserve processed-record and raw-undecodable skip contract; never fabricate a recording"
+    }
+  },
+  "grid_and_input_contract": {
+    "representation": "imu_stats_v1",
+    "feature_width": 111,
+    "window_seconds": 15.0,
+    "window_points": 150,
+    "A_stride_seconds": 7.5,
+    "A_step_points": 75,
+    "B_stride_seconds": 3.0,
+    "B_step_points": 30,
+    "grid_origin": "per recording regularize_imu origin: first valid ACC/GYRO timestamp minimum",
+    "grid_end": "per recording regularize_imu end: last valid ACC/GYRO timestamp maximum",
+    "window_endpoint": "[start,start+15000ms), end_ms=round(start+15000)",
+    "valid_window": "coverage >= 0.8; longest invalid run <= floor(2.0*10)=20 points; no hard gap; no negative segment; no segment crossing",
+    "labels": "same frozen event labels for diagnostics only; labels never control window generation or inference",
+    "inference_context": "all valid dense windows in every processed recording, including background windows",
+    "A_common_start_check": "same stable window IDs and same A scores as reconstructed A artifact",
+    "B_feature_generation": "independent diagnostic directory; no interpolation or copying of A scores to B",
+    "only_A_or_B_starts": "retained and explicitly tagged; common starts are descriptive paired checks only",
+    "raw_preprocessing": "approved parser/aggregation/regularize_imu path with approved malformed-row skip details"
+  },
+  "metric_contract": {
+    "window_level": [
+      "AUROC",
+      "AUPRC",
+      "per-fold AUROC/AUPRC",
+      "participant-level AUROC/AUPRC",
+      "positive score median/P90/max",
+      "negative score median/P90/max",
+      "hard-negative score and ranking behavior"
+    ],
+    "event_level_per_event": [
+      "positive window count",
+      "positive score median/P90/max",
+      "above-threshold window count and fraction",
+      "selected-window union coverage",
+      "longest unsupported gap",
+      "best prediction IoU",
+      "covered/missing",
+      "participant",
+      "duration",
+      "historical failure annotation"
+    ],
+    "event_level_replay": [
+      "covered/total by fixed234 and exact232",
+      "per-fold coverage and recall",
+      "participant recall",
+      "predicted event count",
+      "matched prediction count",
+      "unmatched prediction count",
+      "duplicate/extra detection count relative to coverage",
+      "precision/F1 only when evaluator semantics support them",
+      "duration ratio",
+      "boundary behavior",
+      "A_missing_to_B_covered",
+      "A_covered_to_B_missing",
+      "both_covered",
+      "both_missing"
+    ],
+    "prediction_matching_semantics": {
+      "coverage": "GT event has any prediction with IoU > 0.25; independent of one-to-one matching",
+      "one_to_one": "existing evaluate_events greedy one-to-one matching by descending IoU",
+      "matched_prediction_count": "number of one-to-one matched prediction indices",
+      "unmatched_prediction_count": "predictions not used in one-to-one matches, descriptive only",
+      "duplicate_or_extra_relative_to_coverage": "matched_prediction_count - covered_gt_count, reported signed and nonnegative extra count when positive",
+      "incomplete_gt_rule": "prediction-level statistics use fixed234 truth context; exact232 recall exclusion cannot turn its associated predictions into confirmed false positives",
+      "per_hour_fp": "not reported without a valid monitored-time denominator",
+      "false_positive_language": "unmatched predictions are not asserted to be confirmed false positives under incomplete label coverage"
+    },
+    "support_and_event_change": "separately identify label-support, score/selected-support, and event-outcome changes",
+    "no_new_matching_rule": true,
+    "no_formal_g1_pass_claim": true
+  },
+  "comparison_and_stopping": {
+    "A_reproduction_gate": "A row/window identity, score reuse, threshold, and eventizer contract must pass before B interpretation",
+    "A_score_identity_tolerance": {
+      "absolute": 1e-12,
+      "relative": 1e-12,
+      "selected_state": "exact boolean equality"
+    },
+    "improve_worsen_rule": "predeclared sign comparison; tolerance is absolute 1 ms for duration/gap quantities and 1e-12 for floating score/ratio quantities; values within tolerance are unchanged",
+    "decision_labels": [
+      "FROZEN_MODEL_STRIDE_TRANSFER_SUPPORTED",
+      "NO_CLEAR_EVENT_BENEFIT",
+      "MIXED_EVENT_EFFECT",
+      "PARTIAL_INCONCLUSIVE",
+      "BLOCKED_MISSING_MATCHED_FROZEN_ARTIFACTS"
+    ],
+    "stop_if": [
+      "A replay cannot be verified against stable IDs and the frozen A score source",
+      "matched frozen model/threshold/eventizer artifacts are missing",
+      "raw/preprocessing equivalence fails",
+      "wall, memory, or diagnostic disk budget is exceeded"
+    ],
+    "no_automatic_followup": true
+  },
+  "resource_budget": {
+    "wall_time_seconds": 14400,
+    "memory_gib": 12,
+    "diagnostic_disk_gib": 8,
+    "deterministic_record_order": "discover_raw_files order, cache-present processed records only",
+    "partial_rule": "if budget stops execution, report PARTIAL and do not expand based on favorable results"
+  },
+  "outputs": {
+    "diagnostic_root": "artifacts/g1-frozen-a-3s-stride-transfer-diagnostic-v1",
+    "spec": "configs/formal-g1-frozen-a-3s-stride-transfer-diagnostic-v1.json",
+    "hash": "configs/formal-g1-frozen-a-3s-stride-transfer-diagnostic-v1.sha256",
+    "A_replay": "a-replay.json",
+    "B_window_table": "b-window-table.npz",
+    "B_scores": "b-scores.npz",
+    "event_rows": "event-paired-results.jsonl",
+    "report": "report.json",
+    "resource_log": "resource-log.json",
+    "production_overwrite": false
+  }
+}

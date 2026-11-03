@@ -1,0 +1,266 @@
+{
+  "probe_id": "g1-bounded-proposal-set-feasibility-probe-v1",
+  "status": "FROZEN_BEFORE_EVALUATION",
+  "purpose": "One-shot proposal-only feasibility evaluation using the already saved participant-disjoint A score lineage.",
+  "authorization": {
+    "new_model_fit_count": 0,
+    "new_scorer_training": false,
+    "verifier_training": false,
+    "threshold_sweep": false,
+    "weight_sweep": false,
+    "stride_sweep": false,
+    "aggregation_sweep": false,
+    "production_interface_replacement": false,
+    "full_training": false,
+    "test_access": false
+  },
+  "fixed_contract": {
+    "cohort_event_count": 234,
+    "auxiliary_exact_complete_event_count": 232,
+    "outer_fold_count": 5,
+    "participant_disjoint": true,
+    "feature_schema": "imu_stats_v1",
+    "feature_width": 111,
+    "window_ms": 15000,
+    "stride_ms": 7500,
+    "iou_threshold_strictly_greater_than": 0.25,
+    "formal_g1": "all five participant-disjoint outer-fold coverage recalls >= 0.90",
+    "production_stride": "7.5s",
+    "approved_raw_skip_rule": "inherited unchanged from cache and eligibility contract",
+    "gt_role": "evaluation only; never proposal generation"
+  },
+  "lineage": {
+    "description": "Latest complete event-balanced probe A lineage; used as a diagnostic baseline only, not as the closed E variant.",
+    "a_report_path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/report.json",
+    "thresholds_path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/thresholds.json",
+    "fold_manifest_path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/fold-manifest.json",
+    "cache_manifest_path": "artifacts/g1-candidate-coverage-v4/cache-manifest.json",
+    "eligibility_path": "artifacts/g1-candidate-coverage-v4/eligibility.json",
+    "oof_paths": {
+      "outer-0": "artifacts/g1-event-balanced-candidate-objective-probe-v1/oof-scores/A/outer-0.npz",
+      "outer-1": "artifacts/g1-event-balanced-candidate-objective-probe-v1/oof-scores/A/outer-1.npz",
+      "outer-2": "artifacts/g1-event-balanced-candidate-objective-probe-v1/oof-scores/A/outer-2.npz",
+      "outer-3": "artifacts/g1-event-balanced-candidate-objective-probe-v1/oof-scores/A/outer-3.npz",
+      "outer-4": "artifacts/g1-event-balanced-candidate-objective-probe-v1/oof-scores/A/outer-4.npz"
+    },
+    "model_paths": {
+      "outer-0": "artifacts/g1-event-balanced-candidate-objective-probe-v1/models/A/outer/outer-0.joblib",
+      "outer-1": "artifacts/g1-event-balanced-candidate-objective-probe-v1/models/A/outer/outer-1.joblib",
+      "outer-2": "artifacts/g1-event-balanced-candidate-objective-probe-v1/models/A/outer/outer-2.joblib",
+      "outer-3": "artifacts/g1-event-balanced-candidate-objective-probe-v1/models/A/outer/outer-3.joblib",
+      "outer-4": "artifacts/g1-event-balanced-candidate-objective-probe-v1/models/A/outer/outer-4.joblib"
+    },
+    "a_eventizer": {
+      "implementation": "src/eating_event/candidates.py::eventize_windows semantics",
+      "min_duration_ms": 1,
+      "fuse_gap_ms": 300000,
+      "threshold_source": "saved same-fold A threshold; no re-selection"
+    }
+  },
+  "baseline_reproduction": {
+    "required_before_extra_evaluation": true,
+    "expected_by_fold": {
+      "outer-0": {
+        "candidate_count": 870,
+        "covered": 46,
+        "total": 50
+      },
+      "outer-1": {
+        "candidate_count": 854,
+        "covered": 46,
+        "total": 49
+      },
+      "outer-2": {
+        "candidate_count": 843,
+        "covered": 45,
+        "total": 53
+      },
+      "outer-3": {
+        "candidate_count": 630,
+        "covered": 30,
+        "total": 35
+      },
+      "outer-4": {
+        "candidate_count": 706,
+        "covered": 40,
+        "total": 47
+      }
+    },
+    "mismatch_action": "stop before proposal interpretation and report A_LINEAGE_MISMATCH"
+  },
+  "proposal_rule": {
+    "name": "bounded_score_support_three_boundary_variants_v1",
+    "stride_ms": 7500,
+    "min_support_windows": 2,
+    "max_extra_per_recording": 24,
+    "max_extra_per_hour": 16,
+    "p_new": "P_A union P_extra",
+    "p_a_preservation": "Every A interval and its record binding is retained; no A interval enters a cap, NMS, merge, sort truncation, or budget eviction. Exact interval equality is the only union deduplication.",
+    "support_threshold": {
+      "definition": "For each outer fold, score every outer-train recording with that fold's already saved A estimator, including background and IGNORE rows, then use the fixed 0.70 quantile of those scores.",
+      "quantile": 0.7,
+      "source": "outer-train model scores only; no outer-valid labels or event identities; not a final event threshold and not a threshold compensation",
+      "no_fit": true
+    },
+    "active_support": "A window is active iff its score is greater than or equal to the fold support threshold.",
+    "segment_rule": "Within one recording only, begin a new segment when local window indices are not consecutive, when the next start is after the previous end, or when either adjacent window is marked crosses_hard_gap. A hard-gap window is isolated. No session, recording, segment, or raw gap is crossed.",
+    "support_region_rule": "A support region is a maximal run of active windows inside one gap-safe segment, with at least 2 active windows. Inactive windows terminate a region.",
+    "boundary_variants": {
+      "count_per_region": 3,
+      "variants": [
+        "support_core = [first_active.start, last_active.end)",
+        "peak_window = the full window interval of the highest-score active window; ties use earliest local index",
+        "boundary_expanded = support_core expanded by one 7.5s stride on both sides and clipped to the containing gap-safe segment"
+      ],
+      "variant_deduplication": "Exact (recording, start_ms, end_ms) duplicates merge provenance only; overlapping but non-identical intervals remain.",
+      "ranking_for_extra_only_cap": "(-support_max, -support_mean, boundary_variant_name lexicographically, start_ms, end_ms)",
+      "baseline_intervals_in_ranking": false
+    },
+    "budgets": {
+      "max_extra_per_recording": 24,
+      "max_extra_per_hour": 16,
+      "effective_recording_cap": "min(24, max(1, ceil(recording_span_hours * 16)))",
+      "over_cap_action": "rank and truncate P_extra only; never truncate P_A",
+      "cross_recording_budget": "none; each recording applies its own deterministic cap"
+    },
+    "provenance": [
+      "fold_id",
+      "record_path",
+      "session_id via record binding",
+      "segment_id",
+      "region_id",
+      "source_window_indices",
+      "support_max",
+      "support_mean",
+      "boundary_variants"
+    ],
+    "generator_input_contract": "record-bound window intervals, scores, and crosses_hard_gap only; no labels, GT events, event IDs, or outer-valid metadata"
+  },
+  "evaluation": {
+    "context": "all valid 15s/7.5s windows for each outer-valid recording, including background and IGNORE rows",
+    "baseline": "saved A score stream and saved same-fold A threshold eventization",
+    "variants": ["A", "extra_only", "A_union_extra"],
+    "coverage": "an eligible event is covered iff any proposal in its participant has strict IoU > 0.25",
+    "prediction_metrics": "official one-to-one evaluate_events at strict IoU > 0.25; report TP, FP, FN, precision, recall, F1 and boundary MAE",
+    "required_outputs": [
+      "per-fold A/new covered and total",
+      "recovered events",
+      "newly lost events",
+      "participant results",
+      "candidate counts and candidates per recording hour",
+      "candidate duration and overlap statistics",
+      "per-event contributing extra candidate types",
+      "resource use",
+      "downstream 16D candidate-feature compatibility status"
+    ],
+    "formal_gate_use": "diagnostic proposal feasibility only; never changes the existing Formal G1 status"
+  },
+  "formal_gate": {
+    "coverage_recall_min": 0.9,
+    "outer_fold_count": 5,
+    "denominator": "234 eligible events; 232 exact-complete is auxiliary only"
+  },
+  "resource_budget": {
+    "wall_time_seconds": 3600,
+    "memory_gib": 8,
+    "diagnostic_disk_gib": 2,
+    "expected_model_fit_count": 0,
+    "resource_failure_action": "PARTIAL/RESOURCE_BLOCKED; do not claim a complete negative result"
+  },
+  "stop_rules": [
+    "Stop before extra interpretation if A baseline reproduction mismatches any frozen fold count.",
+    "Stop immediately on source/spec hash mismatch.",
+    "Stop at the first frozen resource budget violation.",
+    "After this one run, do not sweep caps, support quantiles, thresholds, boundaries, stride, aggregation, or classifiers."
+  ],
+  "source_artifacts": [
+    {
+      "path": "docs/decisions/2026-09-19-candidate-architecture-feasibility-decision.md",
+      "sha256": "38b715b0fae47f1def28c383cce4d9d7be634e6e2d717c9534bd702b752153ea"
+    },
+    {
+      "path": "configs/formal-g1-event-balanced-candidate-objective-probe-v1.json",
+      "sha256": "31526488339438a910ed70b1693ad9e5f41368fbeea338de2b7435438873c489"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/report.json",
+      "sha256": "8e439a4f7eafec46b4001f596ba45aa7b33b8fde217c894e86c4a9592da5a049"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/thresholds.json",
+      "sha256": "922434f577838182344a35b9c1ddb2aff835c5beb9e5e5199b51772675e18f6b"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/fold-manifest.json",
+      "sha256": "bce57f5cc41be47b1327ded5b85c6d94b9007fccfacd706fd784b78a3a722912"
+    },
+    {
+      "path": "artifacts/g1-candidate-coverage-v4/cache-manifest.json",
+      "sha256": "dbcb03c4fa2e26baf4d0e0d7d9127eafc85bfca46a3e80cae0a7b5c0fba0bd3c"
+    },
+    {
+      "path": "artifacts/g1-candidate-coverage-v4/eligibility.json",
+      "sha256": "68c5cd8ec6fe12813f8b39c9d31000d4e18bd6ea732840b67428db643aef3a30"
+    },
+    {
+      "path": "configs/formal-g1-aggregation-tournament-v1.json",
+      "sha256": "fdf0ce511e7061064210d8a8f7b0c99e407cd63fb51cfde567b14fec89176de1"
+    },
+    {
+      "path": "src/eating_event/candidates.py",
+      "sha256": "d389e914bebfa0fe723c697ecd04dc324e874df1c0f208322d79620665fdcd21"
+    },
+    {
+      "path": "src/eating_event/cache.py",
+      "sha256": "6831cdabedbb9719ebcda3cf5e19aaa5bdeb8ee3f26458ddafd019b45650fe3b"
+    },
+    {
+      "path": "src/eating_event/diagnostic_bounded_proposal.py",
+      "sha256": "417f3470333e366ce967ac04e0bea908f1fed03cba5741390b03218d70012101"
+    },
+    {
+      "path": "scripts/run_bounded_proposal_set_probe.py",
+      "sha256": "a2c5a1f4e88806801c037459371fdbfbca66f884a008471f6914cc4f748a8e8b"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/oof-scores/A/outer-0.npz",
+      "sha256": "6e18e2035c6bff4f9a288441dc5c0344f67f773c84d8a3894b96714b74d714c7"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/oof-scores/A/outer-1.npz",
+      "sha256": "fc3864753f0ca8f56e20833f1f919a20f561f21f6e95842edfd122eec9aae1c7"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/oof-scores/A/outer-2.npz",
+      "sha256": "857abb565ac322e8f1ff930c565b04faa00df91e3114ad1bcb1a9c6495875e08"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/oof-scores/A/outer-3.npz",
+      "sha256": "56ba9431bada202d656055c0e84e69c2ac7aa9f9ff6cfbd754dbea4e8f9d350a"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/oof-scores/A/outer-4.npz",
+      "sha256": "c3113493afe8d52249c139d19fc7337fe82a7556fcd626bd148ecd375cf7a067"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/models/A/outer/outer-0.joblib",
+      "sha256": "e8a67a881c91327e05cda6bc5b6d1b1331c0b54b300cee3149fb200ac9215172"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/models/A/outer/outer-1.joblib",
+      "sha256": "95248fe200074f3ff16fba5ee11af2e5b2ce8fe36245d51e5636d77c51f4175a"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/models/A/outer/outer-2.joblib",
+      "sha256": "ca5f30311a68e9f0deddc833a2209acda524edd734c069b53b6bc348f7859935"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/models/A/outer/outer-3.joblib",
+      "sha256": "553b18d6d8808f980ea3a347512d1efeed2c8f504d11346ea8dd23b65b93540f"
+    },
+    {
+      "path": "artifacts/g1-event-balanced-candidate-objective-probe-v1/models/A/outer/outer-4.joblib",
+      "sha256": "683602895af8712b46c6f5fc2bb899cea739482f0c13a7d0c200991fe13fc11a"
+    }
+  ]
+}

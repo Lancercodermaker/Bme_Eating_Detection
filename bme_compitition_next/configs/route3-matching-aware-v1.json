@@ -1,0 +1,107 @@
+{
+  "schema": "route3_matching_aware_config_v1",
+  "study_id": "route3-matching-aware-v1-001",
+  "study_output": "artifacts/route3-matching-aware-v1-001",
+  "ledger_path": "artifacts/route3-matching-aware-v1-budget.jsonl",
+  "lock_path": "artifacts/route3-matching-aware-v1-budget.lock",
+  "source_a2": {
+    "study_id": "a2-context-verifier-v1-004",
+    "study_output": "artifacts/a2-context-verifier-v1-004",
+    "config_sha256": "233c88d156386dade979301f65a86a189921d77b9330f05594edd48939e00043",
+    "audit_ready_sha256": "bf4e9a10a34e5f17b36d3632356cf8e50cdc1cdb60125fe1d78a9b4e4baabeb4",
+    "feature_schema": "a2_event_context_v1",
+    "feature_dim": 26
+  },
+  "target": {
+    "method": "candidate_selected_by_existing_participant_greedy_one_to_one_matcher",
+    "construction_scope": "each_non_outer_candidate_role_using_only_its_scored_participants_eligible_gt",
+    "iou_threshold": 0.25,
+    "comparison": "strictly_greater_than",
+    "tie_break": {
+      "candidate_order": "candidate_id_ascending",
+      "truth_order": "event_id_ascending",
+      "edge_order": "iou_descending_then_candidate_index_then_truth_index"
+    },
+    "outer_labels": null,
+    "candidate_intervals": "frozen_a2_004_post_300_second_fusion",
+    "training_label_stage": "before_verifier_threshold_and_final_decoder"
+  },
+  "verifier": {
+    "family": "sklearn.ensemble.HistGradientBoostingClassifier",
+    "seed": 20260910,
+    "positive_weight": 3.0,
+    "fit_attempts": 25,
+    "score_calls": 25,
+    "hgb": {
+      "learning_rate": 0.05,
+      "max_iter": 100,
+      "max_leaf_nodes": 15,
+      "max_depth": null,
+      "min_samples_leaf": 1,
+      "l2_regularization": 0.001,
+      "max_features": 1.0,
+      "max_bins": 255,
+      "categorical_features": null,
+      "monotonic_cst": null,
+      "interaction_cst": null,
+      "warm_start": false,
+      "early_stopping": false,
+      "scoring": "loss",
+      "validation_fraction": null,
+      "n_iter_no_change": 10,
+      "tol": 0.0000001,
+      "verbose": 0,
+      "random_state": 20260910,
+      "class_weight": null
+    }
+  },
+  "thresholds": [0.1, 0.25, 0.5],
+  "decoder": {
+    "candidate_fuse_ms": 300000,
+    "final_fuse_ms": 600000,
+    "minimum_duration_ms": 180000,
+    "long_fp_ms": 600000
+  },
+  "evaluator": {
+    "strict_iou": 0.25,
+    "participants": 41,
+    "eligible_ground_truth": 234,
+    "outer_folds": 5,
+    "inner_folds": 4,
+    "subinner_folds": 4,
+    "candidate_roles": 105,
+    "verifier_roles": 25,
+    "outer_candidate_counts": [946, 892, 929, 653, 763],
+    "outer_candidate_rows": 4183,
+    "inner_threshold_decodes": 60,
+    "outer_decodes": 5,
+    "outer_evaluations": 5
+  },
+  "limits": {
+    "candidate_fits": 0,
+    "candidate_predicts": 0,
+    "verifier_fit_attempts": 25,
+    "verifier_score_calls": 25,
+    "active_wall_seconds": 900,
+    "fit_wall_seconds": 600,
+    "threads": 2,
+    "disk_bytes": 536870912,
+    "rss_absolute_bytes": 3221225472,
+    "rss_startup_fraction": 0.5
+  },
+  "environment": {
+    "python": "3.10.11",
+    "numpy": "2.2.6",
+    "scipy": "1.15.3",
+    "scikit_learn": "1.7.2",
+    "threadpoolctl": "3.6.0",
+    "psutil": "7.2.2"
+  },
+  "resource_comparator_only": {
+    "a2_004_active_wall_seconds": 314.266,
+    "a2_004_fit_wall_seconds": 2.971,
+    "a2_004_run_rss_bytes": 238301184,
+    "a2_004_audit_rss_bytes": 799109120,
+    "route3_caps_inherited_from_a2": false
+  }
+}

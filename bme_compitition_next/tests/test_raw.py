@@ -132,6 +132,60 @@ def test_non_numeric_sensor_row_is_reported_as_unreadable(tmp_path: Path) -> Non
         read_imu_tsv(path)
 
 
+def test_binary_failure_maps_to_canonical_malformed_skip(tmp_path: Path) -> None:
+    path = tmp_path / "binary.txt"
+    path.write_bytes(bytes([0xD2, 0x3B, 0x00, 0xDB, 0xCA, 0x3B, 0x00]))
+
+    with pytest.raises(RawFileFormatError) as caught:
+        read_imu_tsv(path)
+
+    classify = getattr(__import__("eating_event.data.raw", fromlist=["classify_raw_failure"]), "classify_raw_failure", None)
+    assert callable(classify)
+    classification = classify(caught.value)
+    assert classification.status == "skipped_malformed"
+    assert classification.reason == "undecodable"
+
+
+def test_large_binary_failure_maps_to_canonical_malformed_skip(tmp_path: Path) -> None:
+    path = tmp_path / "large-binary.txt"
+    path.write_bytes(bytes([0xD2, 0x3B, 0x00, 0xDB, 0xCA, 0x3B, 0x00]) * 200_000)
+    assert path.stat().st_size > 1_000_000
+
+    with pytest.raises(RawFileFormatError) as caught:
+        read_imu_tsv(path)
+
+    classify = getattr(__import__("eating_event.data.raw", fromlist=["classify_raw_failure"]), "classify_raw_failure", None)
+    assert callable(classify)
+    classification = classify(caught.value)
+    assert classification.status == "skipped_malformed"
+    assert classification.reason == "undecodable"
+
+
+def test_missing_gyro_failure_maps_to_required_imu_skip(tmp_path: Path) -> None:
+    path = tmp_path / "missing-gyro.txt"
+    path.write_text(
+        "ACC_TIME\tGYRO_TIME\tACC_X\tACC_Y\tACC_Z\tGYRO_X\tGYRO_Y\tGYRO_Z\n"
+        "1000\t0\t1\t2\t3\t4\t5\t6\n"
+        "2000\t0\t2\t3\t4\t5\t6\t7\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RawFileFormatError) as caught:
+        read_imu_tsv(path)
+
+    classify = getattr(__import__("eating_event.data.raw", fromlist=["classify_raw_failure"]), "classify_raw_failure", None)
+    assert callable(classify)
+    classification = classify(caught.value)
+    assert classification.status == "skipped_missing_required_imu"
+    assert classification.reason == "missing_valid_gyro_timestamp"
+
+
+def test_unexpected_parser_error_has_no_approved_skip_class() -> None:
+    classify = getattr(__import__("eating_event.data.raw", fromlist=["classify_raw_failure"]), "classify_raw_failure", None)
+    assert callable(classify)
+    assert classify(RuntimeError("unexpected parser failure")) is None
+
+
 def test_malformed_sensor_row_is_counted(tmp_path: Path) -> None:
     path = tmp_path / "mixed-rows.txt"
     path.write_text(

@@ -1,0 +1,101 @@
+{
+  "schema_version": "short_e2e_fixture_v1",
+  "fixture_id": "short-e2e-v1",
+  "selection_seed": 20260910,
+  "oof_folds": 5,
+  "candidate_threshold": 0.35,
+  "candidate_threshold_provenance": "legacy smoke-test constant; production-contract status unresolved; retained unchanged for this harness",
+  "selection_support": {
+    "HNU 21013": {"record_count": 10, "positive_windows": 250, "negative_windows": 5483, "ignore_windows": 105},
+    "HNU21001": {"record_count": 10, "positive_windows": 349, "negative_windows": 5311, "ignore_windows": 164},
+    "HNU21002": {"record_count": 10, "positive_windows": 319, "negative_windows": 5340, "ignore_windows": 164},
+    "HNU21003": {"record_count": 10, "positive_windows": 275, "negative_windows": 5413, "ignore_windows": 100},
+    "HNU21004": {"record_count": 10, "positive_windows": 267, "negative_windows": 5456, "ignore_windows": 86},
+    "HNU21005": {"record_count": 10, "positive_windows": 367, "negative_windows": 4713, "ignore_windows": 174}
+  },
+  "training_participants": [
+    "HNU 21013",
+    "HNU21001",
+    "HNU21002",
+    "HNU21003",
+    "HNU21004"
+  ],
+  "validation_participants": [
+    "HNU21005"
+  ],
+  "selected_sessions": {
+    "HNU 21013": [
+      "sensorData-1784560736016-e4a8881fd404493296e55de342ad0feb",
+      "sensorData-1784560997983-1ffe1571d7b74099a1655bbd19a54191",
+      "sensorData-1784561283855-20d2079f36e04c699b5dcec2c7ad4374",
+      "sensorData-1784561533783-9cab73c1ea3f471d9434af5bab8e9bb4",
+      "sensorData-1784643447246-3b18d582eedb4382be34d52dd2bc2f43",
+      "sensorData-1784650679900-5845f33cbddf4f20bb88df8251addc37",
+      "sensorData-1784650948547-494d2b5ba270487b8c81c5a11e3d0ebb",
+      "sensorData-1784651233251-06e522c4672043f788741bd4c075d31b",
+      "sensorData-1784692638117-e706ef3df7ef4551ba3b0df32b317a7f",
+      "sensorData-1784692891974-a6177e9df59a4c839d4b8b5773a7ab51"
+    ],
+    "HNU21001": [
+      "sensorData-1784557420727-0d3173bc005b4fc2ace0e8975005334a",
+      "sensorData-1784557646927-5ae9115492564be5a6811ddf0a71a002",
+      "sensorData-1784557836996-554d163b3e7a4b9a91f34b9d34d56a04",
+      "sensorData-1784558059233-d8357c9a9ed348aaafaa5f52f6d32f85",
+      "sensorData-1784558238298-829d5bae3c7943cf8e8c13902ca667e5",
+      "sensorData-1784643109648-978263418a19451eb24d7fd2b6073b24",
+      "sensorData-1784643318957-0dd20230d092408e8f19eb57abff1ec6",
+      "sensorData-1784643519450-40061b32d0304863a330f0cc6e57d1e3",
+      "sensorData-1784643715605-09d3ba1b609d44ae9ca0f77eda4e1eb4",
+      "sensorData-1784643912288-ca9be9687d574f7190f1109a10c198c6"
+    ],
+    "HNU21002": [
+      "sensorData-1784557509702-1b232c6ef58e47b1a88a641ccb298322",
+      "sensorData-1784557693483-00f4c85af3dc4b1fa4e745661d472c8e",
+      "sensorData-1784557876964-97236e0d0dda409f90e8088c128caa77",
+      "sensorData-1784558064464-7f00cbf31fed4976947ed183a7dbd732",
+      "sensorData-1784640110473-327331aa6e7a4233860fe278923940c5",
+      "sensorData-1784640344440-055f884f15b24dfd86a1b1e9ea8976ed",
+      "sensorData-1784640571451-e264b5ee5adf4d50ae753bc39dc3dcad",
+      "sensorData-1784640766094-721e3df555e747de9faae16121d91e98",
+      "sensorData-1784640953669-750fb147430a45a5bb73bd2996bc3837",
+      "sensorData-1784641141930-1b34d1ad075b43d28f3db7715d4b1803"
+    ],
+    "HNU21003": [
+      "sensorData-1784557893629-3d00f9218b844046963251ff74dd3f00",
+      "sensorData-1784558343039-5af8f0248fe04ca588d398216c5ed81d",
+      "sensorData-1784558795352-7129486ba5f7464db908469b12881e57",
+      "sensorData-1784559243716-f1583a21a914450d8a7dbe5ff9bed9f3",
+      "sensorData-1784640486184-56d1c3438dff4b59be5cd8e6429ee91c",
+      "sensorData-1784640958235-cdd7d21a588d45dfbecd28b90cd50d38",
+      "sensorData-1784641423835-071579d8872f4f288c754aaf2d309fe9",
+      "sensorData-1784641883554-2ca36a9a677741a3adc8ce924481e389",
+      "sensorData-1784642337087-9651822e75ef4c7596b375147a136c66",
+      "sensorData-1784642807367-469e9e16a37b41068f11a015fdb6f3d7"
+    ],
+    "HNU21004": [
+      "sensorData-1784554680419-3cb39636dea84faeb5e8accc68a3991c",
+      "sensorData-1784554980507-f48962ad96554b55900e93e73672e803",
+      "sensorData-1784555315601-539a8c024e96427a98597987cd3ca1e6",
+      "sensorData-1784558698582-a77406a6eea340079817f1ff2cbcdcff",
+      "sensorData-1784620711822-ded22c2ad97e4b4f8ff349c00ae4780e",
+      "sensorData-1784621010283-559ef916e1974832948299967bd88a0b",
+      "sensorData-1784621315934-6713b6b00f8c428bb5f3258b3f2ecfb6",
+      "sensorData-1784621636603-fd35718579e44ec189cc9cf67aca2799",
+      "sensorData-1784621943195-ea5037bc2a0a41d79d0c78726bf9bf07",
+      "sensorData-1784629973912-8df825a7bdfc472e8020983d6f8feeb0"
+    ],
+    "HNU21005": [
+      "sensorData-1784639884958-dbb4bbe815f54584b17959c796d75962",
+      "sensorData-1784640098080-a30e6e9ad9614c0a98d6274dfb370b29",
+      "sensorData-1784640368324-7ad603c206de4f8db201ebf71d75bf3b",
+      "sensorData-1784640647354-b993c645718444db8aaf224a68b08ab8",
+      "sensorData-1784640922885-c22dd382d51f41039afbb063139bf2d9",
+      "sensorData-1784641149983-728e73a00aed4117a86ca6446192928a",
+      "sensorData-1784641384995-8bc570f6d6db44708bda1fb82450508d",
+      "sensorData-1784641624819-a63db5209d324428abc8776f7c58e35f",
+      "sensorData-1784641849826-bdd7781cbdb04d0ca04a5d3505f70796",
+      "sensorData-1784732355650-8796c4f44baf47448f839768c3f97bd8"
+    ]
+  },
+  "selection_rationale": "Frozen deterministic selection: use the approved training-eligible participant ledger; sort participants lexicographically; retain participants with at least 100 POSITIVE and 4000 NEGATIVE supervised windows across the first 10 lexicographically sorted raw sessions; choose the first six eligible participants; assign the first five to training and the sixth to validation. Session selection is the first 10 lexicographically sorted raw session folders per participant. No post-hoc participant replacement is allowed."
+}

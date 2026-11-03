@@ -14,6 +14,9 @@ coarse_step_seconds: 15.0
 use_coarse_context: false
 feature_schema_version: imu_stats_v1
 label_schema_version: window_event_labels_v1
+positive_overlap: 0.5
+eligibility_contract_version: event_eligibility_v1
+label_contract_version: window_event_overlap_v1
 raw_chunk_size: 200000
 host_memory_fraction: 0.60
 gpu_memory_limit_gb: 7.0

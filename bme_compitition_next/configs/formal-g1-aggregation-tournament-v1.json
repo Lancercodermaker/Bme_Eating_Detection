@@ -1,0 +1,107 @@
+{
+  "schema_version": "formal_g1_aggregation_tournament_v1",
+  "tournament_id": "formal-g1-boundary-aware-eventization-v1",
+  "status": "PREREGISTERED",
+  "frozen_inputs": {
+    "window_seconds": 15.0,
+    "step_seconds": 7.5,
+    "candidate_score_threshold_policy": "existing_formal_fold_fit_score_p90",
+    "candidate_model": "frozen",
+    "label_contract": "frozen",
+    "fusion_gap_seconds": 300.0,
+    "minimum_event_duration_ms": 1,
+    "outer_folds": 5,
+    "selection_seed": 20260910,
+    "inner_fold_count": "min(4, outer_train_participant_count)"
+  },
+  "families": {
+    "A_baseline": {
+      "description": "Raw score threshold followed by current fixed-gap eventization.",
+      "parameters": {
+        "mode": ["baseline"]
+      },
+      "complexity_rank": 0
+    },
+    "B_hysteresis": {
+      "description": "High score starts an event; a lower score maintains it; sustained weak evidence terminates it.",
+      "parameters": {
+        "maintain_threshold_multiplier": [0.5, 0.7, 0.85],
+        "termination_patience_windows": [1, 2, 4]
+      },
+      "fixed_behavior": {
+        "start_threshold": "unchanged_formal_fold_threshold",
+        "record_boundary_respected": true,
+        "no_additional_gap_fusion": true
+      },
+      "complexity_rank": 1
+    },
+    "C_score_supported_island_fusion": {
+      "description": "High-threshold islands connect only when temporal proximity and inter-island score support both hold.",
+      "parameters": {
+        "bridge_support_threshold_multiplier": [0.5, 0.75, 0.9]
+      },
+      "fixed_behavior": {
+        "maximum_bridge_gap_seconds": 300.0,
+        "minimum_inter_island_support_windows": 1,
+        "record_boundary_respected": true
+      },
+      "complexity_rank": 1
+    },
+    "D_temporal_smoothing": {
+      "description": "Bounded local mean smoothing of window scores before applying the unchanged threshold and eventization.",
+      "parameters": {
+        "smoothing_radius_windows": [1, 2]
+      },
+      "fixed_behavior": {
+        "operator": "centered_mean",
+        "threshold": "unchanged_formal_fold_threshold",
+        "fusion_gap_seconds": 300.0,
+        "record_boundary_respected": true
+      },
+      "complexity_rank": 2
+    }
+  },
+  "selection": {
+    "primary_metric": "worst_inner_fold_pooled_event_recall",
+    "recall_guard_absolute": 0.02,
+    "secondary_metrics_in_order": [
+      "p90_prediction_to_gt_duration_ratio",
+      "false_event_rate",
+      "median_prediction_to_gt_duration_ratio",
+      "negative_boundary_extension_seconds_p90",
+      "fragmentation_rate",
+      "mean_inner_fold_gt_temporal_coverage"
+    ],
+    "tie_break_rules": [
+      "prefer_lower_complexity_rank",
+      "prefer_lexicographically_smaller_family_id",
+      "prefer_lexicographically_smaller_parameter_tuple"
+    ],
+    "pooled_recall_only_selection": false,
+    "held_out_outer_results_may_influence_selection": false
+  },
+  "safety_metrics": {
+    "report": [
+      "participant_level_recall",
+      "predicted_event_count",
+      "false_event_count",
+      "false_event_rate",
+      "prediction_duration_median_p90",
+      "prediction_to_gt_duration_ratio_median_p90",
+      "gt_temporal_coverage",
+      "fragmentation_rate",
+      "boundary_extension_median_p90"
+    ],
+    "degeneracy_flags": {
+      "p90_duration_ratio_gt": 10.0,
+      "predicted_to_gt_event_count_ratio_gt": 10.0,
+      "false_event_rate_gt": 0.95
+    }
+  },
+  "stopping_rule": {
+    "evaluate_all_preregistered_configurations": true,
+    "no_new_family_or_parameter_after_outer_evaluation": true,
+    "retain_baseline_if_no_new_configuration_has_stable_inner_improvement": true,
+    "close_if_improvement_requires_degeneracy": true
+  }
+}

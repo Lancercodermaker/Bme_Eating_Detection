@@ -1,0 +1,315 @@
+{
+  "schema_version": "formal_g1_decision_function_probe_v1",
+  "probe_id": "bounded-candidate-model-decision-function-probe-v1",
+  "status": "FROZEN",
+  "purpose": "Test whether the participant-disjoint nonlinear decision-function gain reproduces under the formal CandidateModel protocol and transfers to MissingEvent score support and Formal G1 event behavior.",
+  "scope": {
+    "architecture": "FROZEN",
+    "production_model_replacement": false,
+    "full_training": "BLOCKED",
+    "representation": "production imu_stats_v1 only",
+    "window_seconds": 15.0,
+    "stride_seconds": 7.5,
+    "data_contract": "frozen",
+    "eligibility": "frozen",
+    "labels": "frozen",
+    "aggregation": "frozen",
+    "eventization": "frozen",
+    "formal_g1_definition": "frozen",
+    "forbidden": [
+      "temporal feature expansion",
+      "CNN/RNN/Transformer",
+      "learned sequence encoder",
+      "threshold tuning against outer validation",
+      "aggregation tuning",
+      "feature selection",
+      "hyperparameter search",
+      "full training",
+      "production model replacement",
+      "additional nonlinear candidate",
+      "post-hoc probability calibration"
+    ]
+  },
+  "source_of_truth": {
+    "temporal_probe_report": {
+      "path": "artifacts/g1-temporal-representation-probe-v1/report.json",
+      "sha256": "08885199be35403444d3772393cab4337a0665bde6406fece7b8fb005a0188d4"
+    },
+    "temporal_probe_spec": {
+      "path": "configs/formal-g1-temporal-representation-probe-v1.json",
+      "sha256": "2e6a24dab52ba27cd0424329925190d222e5659930feb10b77bb4c41a6df45ce"
+    },
+    "temporal_representation_review": {
+      "path": "artifacts/g1-model-temporal-representation-review-v1.json",
+      "sha256": "72e4a4659c22e83bdc861e55c823d48aab36838702d5a26462baa9f115b78bb3"
+    },
+    "aggregation_tournament_spec": {
+      "path": "configs/formal-g1-aggregation-tournament-v1.json",
+      "sha256": "fdf0ce511e7061064210d8a8f7b0c99e407cd63fb51cfde567b14fec89176de1"
+    },
+    "formal_g1_coverage_report": {
+      "path": "artifacts/g1-candidate-coverage-v4/coverage.json",
+      "sha256": "aed31f7313b5f45a63ffbc8aaff05ba3385a884db51388ec7cc992a4877c2e40"
+    },
+    "formal_eligibility": {
+      "path": "artifacts/g1-candidate-coverage-v4/eligibility.json",
+      "sha256": "68c5cd8ec6fe12813f8b39c9d31000d4e18bd6ea732840b67428db643aef3a30"
+    },
+    "production_candidate_implementation": {
+      "path": "src/eating_event/candidates.py",
+      "sha256": "d389e914bebfa0fe723c697ecd04dc324e874df1c0f208322d79620665fdcd21"
+    },
+    "formal_g1_implementation": {
+      "path": "scripts/run_candidate_coverage.py",
+      "sha256": "01eda3f3fb7d3d3337392ce82bea6560175c1b64a6579f2f9dc8cbdaa75c86ec"
+    },
+    "formal_g1_policy_constants": {
+      "path": "src/eating_event/coverage.py",
+      "sha256": "872d8f65d2977d27c5970d42ea347255e122a67ebd570a28793c75fddefe81d0"
+    },
+    "local_config": {
+      "path": "configs/example.local.yaml",
+      "sha256": "876ec520b437a3e82b106898ea401548d151c983f9ba850ee76f502b858f6090"
+    }
+  },
+  "dataset": {
+    "cache_dir": "artifacts/g1-formal-cache-v3-final",
+    "feature_table_path": "artifacts/g1-temporal-representation-probe-v1/feature-table.npz",
+    "feature_table_sha256": "c4d547b51beb8bab0c8f8de0e5d840243239d1636d6b23041a5d854a16882b53",
+    "representation": "imu_stats_v1",
+    "feature_width": 111,
+    "window_seconds": 15.0,
+    "stride_seconds": 7.5,
+    "labels": {
+      "positive": "label == 1",
+      "negative": "label == 0",
+      "unsupervised": "label == -1; excluded from all classifier fitting and supervised metrics"
+    },
+    "population": {
+      "processed_files": 1127,
+      "rows": 632100,
+      "supervised_rows": 619093,
+      "eligible_participants": 41,
+      "label_eligible_event_count": 234
+    }
+  },
+  "outer_protocol": {
+    "builder": "src/eating_event/evaluation.py::build_outer_folds",
+    "outer_fold_count": 5,
+    "seed": 20260910,
+    "participant_disjoint": true,
+    "validation_participants": {
+      "outer-0": ["HNU21001", "HNU21003", "HNU21011", "HNU21014", "HNU21016", "HNU21022", "HNU21028", "HNU21040", "hnu21033"],
+      "outer-1": ["HNU21006", "HNU21015", "HNU21024", "HNU21026", "HNU21035", "HNU21036", "HNU21041", "HNU212020"],
+      "outer-2": ["HNU 21013", "HNU21002", "HNU21005", "HNU21019", "HNU21023", "HNU21027", "HNU21032", "HNU21039"],
+      "outer-3": ["6C7", "HNU21007", "HNU21008", "HNU21010", "HNU21012", "HNU21017", "HNU21025", "HNU21031"],
+      "outer-4": ["HNU21004", "HNU21009", "HNU21021", "HNU21026j", "HNU21029", "HNU21034", "HNU21037", "HNU21038"]
+    },
+    "fit_rule": "fit only on outer-train participants; score outer-validation participants once; no outer-validation participant, row, event, or score enters fitting or policy selection"
+  },
+  "baseline_candidate_model": {
+    "name": "A_current_production_CandidateModel",
+    "implementation": "src/eating_event/candidates.py::fit_candidate_model",
+    "estimator": "sklearn.ensemble.HistGradientBoostingClassifier",
+    "objective": "binary classification with library log-loss objective",
+    "parameters": {
+      "learning_rate": 0.05,
+      "max_iter": 100,
+      "min_samples_leaf": 1,
+      "max_leaf_nodes": 31,
+      "l2_regularization": 0.001,
+      "random_state": 20260910,
+      "early_stopping": "library default"
+    },
+    "class_balancing": {
+      "method": "explicit sample_weight",
+      "negative_weight": 1.0,
+      "positive_weight": 3.0,
+      "unsupervised_rows": "excluded"
+    },
+    "preprocessing": "raw finite imu_stats_v1 feature units; no scaler, feature selection, or resampling",
+    "score_semantics": "estimator.predict_proba(features)[:,1]",
+    "probability_semantics": "model-local probability-like ranking score; not assumed calibrated across estimators"
+  },
+  "diagnostic_candidate_model": {
+    "name": "N_temporal_probe_preregistered_bounded_nonlinear",
+    "source": "configs/formal-g1-temporal-representation-probe-v1.json diagnostic_classifiers.N",
+    "estimator": "sklearn.ensemble.HistGradientBoostingClassifier",
+    "objective": "binary classification with library log-loss objective",
+    "parameters": {
+      "learning_rate": 0.05,
+      "max_iter": 100,
+      "min_samples_leaf": 20,
+      "max_leaf_nodes": 7,
+      "l2_regularization": 0.001,
+      "random_state": 20260910,
+      "early_stopping": "library default"
+    },
+    "class_balancing": {
+      "method": "sklearn.utils.class_weight.compute_sample_weight(class_weight='balanced', y=outer_train_labels)",
+      "weights_fit_on": "outer-train labels only",
+      "resampling": false,
+      "additional_weighting": false,
+      "unsupervised_rows": "excluded"
+    },
+    "preprocessing": "raw finite imu_stats_v1 feature units; no scaler, feature selection, or resampling",
+    "score_semantics": "estimator.predict_proba(features)[:,1]",
+    "probability_semantics": "model-local probability-like ranking score; not assumed calibrated across estimators",
+    "circuit_breaker": "no N2, no parameter change, no additional classifier"
+  },
+  "score_selection_policy": {
+    "policy_name": "existing_formal_fold_fit_score_quantile_selection",
+    "absolute_probability_threshold": false,
+    "reason": "A and N have different probability calibration; each model derives its own threshold from outer-train scores under the same frozen production policy",
+    "inner_folds": {
+      "builder": "src/eating_event/evaluation.py::build_inner_folds",
+      "count": "min(4, outer_train_participant_count)",
+      "seed": 20260910,
+      "participant_disjoint": true
+    },
+    "quantile_grid": [0.7, 0.8, 0.9],
+    "inner_candidate_evaluation": {
+      "fit": "fit the candidate model on inner-train participants only",
+      "threshold": "quantile of inner-train model scores at q",
+      "eventization": "frozen Formal G1 eventization on inner-valid participants",
+      "primary_metric": "pooled event recall = covered label-eligible truth events / label-eligible truth events",
+      "secondary_metrics": ["worst inner-valid participant event recall", "lower candidate event count", "larger quantile q"],
+      "selection_order": ["higher pooled event recall", "higher worst participant recall", "lower candidate count", "larger q"]
+    },
+    "outer_threshold": "fit candidate on all outer-train participants, then threshold its outer-train scores at the selected q",
+    "window_metrics": "threshold-free AUROC/AUPRC are computed on outer-validation scores; threshold is used only for policy controls and event replay",
+    "no_outer_validation_selection": true
+  },
+  "eventization_and_formal_g1": {
+    "source": "src/eating_event/candidates.py::eventize_windows and scripts/run_candidate_coverage.py",
+    "selected_window_rule": "score >= model-specific outer-train-derived threshold",
+    "scope": "eventize each processed record/session separately; never fuse across record boundaries",
+    "minimum_event_duration_ms": 1,
+    "fuse_gap_ms": 300000,
+    "truth_population": "training-eligible events from participant_eligibility_v3 event ledger",
+    "coverage_match": "a truth event is covered when any predicted interval for its participant has interval IoU > 0.25",
+    "formal_gate": "all five outer-fold pooled event recalls >= 0.90",
+    "architecture_or_production_change": false
+  },
+  "controls": {
+    "covered_event_positives": "label == 1 and window overlaps at least one review_report event with taxonomy COVERED",
+    "missing_event_positives": "label == 1 and window overlaps at least one of the 27 review_report events with taxonomy != COVERED",
+    "hard_negatives": {
+      "population": "label == 0 in outer-validation participants",
+      "membership": "frozen production CandidateModel outer-fold OOF score >= 0.5",
+      "source_protocol": "same five participant-disjoint outer folds and production CandidateModel parameters above",
+      "diagnostic_circularity": "membership is computed before and independently of N scores"
+    },
+    "easy_negatives": {
+      "population": "label == 0 in the same outer-validation population",
+      "membership": "same count as hard negatives, selected from lowest frozen production OOF scores; stable row-key tie break",
+      "use": "control only; never used to choose a model or threshold"
+    }
+  },
+  "missing_event_audit": {
+    "source": "artifacts/g1-model-temporal-representation-review-v1.json event_audit.rows",
+    "identity_rule": "taxonomy != COVERED",
+    "expected_event_count": 27,
+    "taxonomy_counts": {
+      "AGGREGATION_FIRST": 23,
+      "SCORE_THRESHOLD_FIRST": 4
+    },
+    "subgroups": {
+      "all_missing_events": "all 27",
+      "aggregation_first": "taxonomy == AGGREGATION_FIRST",
+      "score_threshold_first": "taxonomy == SCORE_THRESHOLD_FIRST",
+      "short_events": "gt_duration_s < 180",
+      "positive_windows_lt_10": "positive_windows < 10",
+      "low_recall_participants": "participant in review_report.participant_audit.low_recall_participants"
+    },
+    "per_event_fields": [
+      "participant",
+      "duration_ms",
+      "original_failure_taxonomy",
+      "baseline_positive_score_median",
+      "nonlinear_positive_score_median",
+      "baseline_positive_score_p90",
+      "nonlinear_positive_score_p90",
+      "baseline_fraction_positive_windows_above_outer_threshold",
+      "nonlinear_fraction_positive_windows_above_outer_threshold",
+      "baseline_selected_temporal_coverage",
+      "nonlinear_selected_temporal_coverage",
+      "baseline_longest_unsupported_interval_ms",
+      "nonlinear_longest_unsupported_interval_ms"
+    ],
+    "support_definitions": {
+      "positive_scores": "scores of label==1 windows overlapping the MissingEvent",
+      "fraction_above_threshold": "positive overlapping windows selected by that model's frozen outer threshold divided by positive overlapping windows",
+      "selected_temporal_coverage": "union length of selected-window intersections with the event divided by event duration",
+      "longest_unsupported_interval": "longest contiguous event subinterval not covered by selected-window intersections; event duration if no selected intersection"
+    }
+  },
+  "window_level_metrics": {
+    "primary": ["AUROC", "AUPRC"],
+    "pooled": "concatenated held-out outer-validation rows only",
+    "per_fold": "computed independently for each outer fold",
+    "participant_level": "computed independently for each held-out participant when both classes are present; otherwise null with reason",
+    "score_distributions": ["count", "min", "median", "P90", "max"],
+    "comparison": "N minus A within the same outer fold, participant, and control population",
+    "reproduction_gate": {
+      "fold_direction": "at least 4 of 5 finite AUROC fold deltas > 0",
+      "median_fold_delta": "> 0",
+      "participant_direction": "at least 60 percent of comparable participants have delta > 0 and improved_count > degraded_count",
+      "worst_fold_tolerance": "minimum finite AUROC fold delta >= -0.02",
+      "hard_negative_guard": "hard-negative AUROC delta >= -0.03; score P90 increase alone is not evidence of improvement"
+    },
+    "failure_action": "if N does not pass the window-level reproduction gate, write DECISION_FUNCTION_EFFECT=NOT_REPRODUCED and stop before event-level interpretation"
+  },
+  "event_level_replay": {
+    "precondition": "window-level nonlinear decision-function improvement passes the reproduction gate",
+    "score_source": "only outer-validation N scores from the preregistered model and outer-train-derived policy",
+    "unchanged": ["labels", "window", "stride", "eventization", "aggregation", "G1 definition", "participant folds"],
+    "required_outputs": [
+      "per-fold covered/total",
+      "per-fold event recall",
+      "overall covered/total",
+      "participant-level recall",
+      "predicted event count",
+      "false-event count and rate",
+      "duration ratio median and P90",
+      "boundary start/end MAE",
+      "MissingEvents",
+      "RecoveredEvents",
+      "NewlyLostEvents",
+      "NetCoverageChange",
+      "per-fold Formal G1 behavior"
+    ],
+    "recovered_events": "originally uncovered under A and covered under N at the same outer-fold policy",
+    "newly_lost_events": "covered under A and uncovered under N at the same outer-fold policy",
+    "formal_interpretation": {
+      "A": "G1 PASS",
+      "B": "meaningful stable event-level improvement but still FAIL",
+      "C": "no meaningful event-level transfer",
+      "D": "degeneration"
+    },
+    "threshold_posthoc_tuning": false
+  },
+  "escalation": {
+    "candidate_model_design_review": "JUSTIFIED only if window-level improvement reproduces; multiple folds and participants benefit; MissingEvent usable score support improves; hard negatives do not materially degenerate; event-level replay improves Formal G1 behavior; and no single fold/participant drives the gain",
+    "otherwise": "CANDIDATE_MODEL_DESIGN_REVIEW=NOT_JUSTIFIED and stop",
+    "production_authorization": "none"
+  },
+  "verification": {
+    "before_evaluation": [
+      "this JSON parses",
+      "sidecar SHA-256 matches this JSON",
+      "source artifact hashes match recorded values",
+      "A feature width is 111 and all features are finite",
+      "N exactly matches the temporal probe preregistered N definition",
+      "outer and inner folds are participant-disjoint",
+      "no production artifact is written"
+    ],
+    "after_evaluation": [
+      "report records the frozen spec hash",
+      "all score arrays are finite and aligned",
+      "production source/config hashes remain unchanged",
+      "full test suite passes"
+    ]
+  },
+  "stop_rule": "evaluate exactly A and N with imu_stats_v1 under this protocol; do not add candidates, features, parameters, thresholds, or aggregation variants after evaluation"
+}

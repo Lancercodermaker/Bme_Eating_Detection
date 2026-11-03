@@ -84,7 +84,7 @@ def test_002_rejects_any_change_to_frozen_scientific_fields(path, value) -> None
 def test_002_rejects_unknown_namespace_and_modified_predecessor() -> None:
     config, _ = load_config(ROOT, study_id=STUDY_002)
     with pytest.raises(ValueError):
-        load_config(ROOT, study_id="a2-context-verifier-v1-003")
+        load_config(ROOT, study_id="a2-context-verifier-v1-999")
     with pytest.raises(ValueError):
         validate_config({**config, "study_output": "artifacts/elsewhere"}, study_id=STUDY_002)
 

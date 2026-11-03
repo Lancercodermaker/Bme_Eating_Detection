@@ -8,6 +8,11 @@ from typing import Any, Mapping
 
 import yaml
 
+from eating_event.data.contract import (
+    ELIGIBILITY_CONTRACT_VERSION,
+    LABEL_CONTRACT_VERSION,
+)
+
 
 @dataclass(frozen=True)
 class ProjectConfig:
@@ -26,6 +31,9 @@ class ProjectConfig:
     use_coarse_context: bool = False
     feature_schema_version: str = "imu_stats_v1"
     label_schema_version: str = "window_event_labels_v1"
+    positive_overlap: float = 0.5
+    eligibility_contract_version: str = ELIGIBILITY_CONTRACT_VERSION
+    label_contract_version: str = LABEL_CONTRACT_VERSION
     raw_chunk_size: int = 200000
     host_memory_fraction: float = 0.60
     gpu_memory_limit_gb: float = 7.0
@@ -133,6 +141,11 @@ def load_config(path: str | Path) -> ProjectConfig:
         use_coarse_context=_bool_value(values, "use_coarse_context", False),
         feature_schema_version=_schema_version(values, "feature_schema_version", "imu_stats_v1"),
         label_schema_version=_schema_version(values, "label_schema_version", "window_event_labels_v1"),
+        positive_overlap=_bounded_fraction(values, "positive_overlap", 0.5),
+        eligibility_contract_version=_schema_version(
+            values, "eligibility_contract_version", ELIGIBILITY_CONTRACT_VERSION
+        ),
+        label_contract_version=_schema_version(values, "label_contract_version", LABEL_CONTRACT_VERSION),
         raw_chunk_size=_positive_int(values, "raw_chunk_size", 200000),
         host_memory_fraction=_bounded_fraction(values, "host_memory_fraction", 0.60),
         gpu_memory_limit_gb=_positive_float(values, "gpu_memory_limit_gb", 7.0),

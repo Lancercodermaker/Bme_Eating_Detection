@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 from collections import defaultdict
@@ -21,17 +22,34 @@ from eating_event.coverage import (
     G1_CANDIDATE_QUANTILE_GRID,
     G1_COVERAGE_THRESHOLD,
     QuantileResult,
+    apply_raw_failure_to_manifest,
+    build_formal_eligibility,
+    build_event_ledger_artifact,
+    build_participant_eligibility_artifact,
+    cache_manifest_sha256,
+    deduplicate_event_intervals,
+    formal_gate_passes,
     select_candidate_quantile,
+    validate_participant_eligibility_artifact,
+    validate_event_ledger_artifact,
     write_coverage_reports,
 )
 from eating_event.evaluation import build_inner_folds, build_outer_folds
-from eating_event.data.manifest import discover_raw_files_with_audit, events_for_record, load_meal_events
+from eating_event.data.manifest import (
+    ManifestAudit,
+    discover_raw_files_with_audit,
+    events_for_record,
+    filter_meal_events_by_ledger,
+    load_meal_events,
+)
 from eating_event.data.raw import RawFileFormatError
 from eating_event.metrics import EventInterval, interval_iou
 try:
-    from scripts.run_candidate_baseline import _build_table
+    from scripts.run_candidate_baseline import _build_table, _cache_key, _cache_metadata
 except ModuleNotFoundError:  # direct ``python scripts/...`` execution
-    from run_candidate_baseline import _build_table
+    from run_candidate_baseline import _build_table, _cache_key, _cache_metadata
+
+from eating_event.provenance import build_cache_runtime_provenance, resolve_formal_cache_dir
 
 
 def build_resource_failure_report(reason: str) -> CandidateCoverageReport:
@@ -43,6 +61,43 @@ def build_resource_failure_report(reason: str) -> CandidateCoverageReport:
     )
 
 
+def _dense_window_counts_from_tables(
+    meal_events: dict[str, tuple[object, ...]],
+    tables_by_participant: dict[str, list[tuple[object, object, tuple[object, ...]]]],
+) -> dict[tuple[str, int], int]:
+    counts = {
+        (participant, event_index): 0
+        for participant, events in meal_events.items()
+        for event_index, _ in enumerate(events)
+    }
+    for participant, entries in tables_by_participant.items():
+        for _, table, _ in entries:
+            for window in table.windows:
+                for event_index, event in enumerate(meal_events.get(participant, ())):
+                    if window.window.start_ms < event.end_ms and window.window.end_ms > event.start_ms:
+                        counts[(participant, event_index)] += 1
+    return counts
+
+
+def _finalize_unexpected_failure(artifact: RunArtifact, error: BaseException) -> None:
+    """Persist a fail-closed lifecycle before re-raising the unexpected error."""
+
+    try:
+        artifact.write_json(
+            "unexpected-failure.json",
+            {"failure_class": "IMPLEMENTATION", "reason": str(error)},
+        )
+        artifact.record_event(
+            "gate_result",
+            {"gate_id": "G1", "result": "fail", "failure_class": "IMPLEMENTATION"},
+        )
+        artifact.record_event("run_end", {"final_status": "fail"})
+        artifact.finalize()
+    except Exception:
+        # Preserve the original parser/runtime exception as the actionable error.
+        return
+
+
 def run_candidate_coverage(
     *,
     config_path: str | Path,
@@ -50,27 +105,174 @@ def run_candidate_coverage(
     cache_dir: str | Path,
     outer_folds: int = 5,
     formal: bool = False,
+    manifest_audit_path: str | Path | None = None,
+    eligibility_artifact_path: str | Path | None = None,
 ) -> CandidateCoverageReport:
     """Fit candidate scorers in nested participant folds and report G1 coverage."""
 
     config = load_config(config_path)
     run_config = CoverageRunConfig(formal=formal, outer_folds=outer_folds)
     output_path = Path(output).expanduser().resolve()
-    artifact = RunArtifact(output_path.parent, "g1-candidate-coverage")
-    artifact.record_event("run_start", {"workflow_path": "RESEARCH", "formal": formal})
-    records, audit = discover_raw_files_with_audit(config.raw_data_root)
-    meal_events = load_meal_events(config.metadata_root / "t_zsstnnrj_mealinfo_puadqog70826_1857.csv")
+    cache_root = (
+        resolve_formal_cache_dir(cache_dir)
+        if formal
+        else Path(cache_dir).expanduser().resolve()
+    )
+    cache_provenance: dict[str, object] | None = None
+    artifact = RunArtifact(output_path.parent, output_path.stem)
+    artifact.record_event(
+        "run_start",
+        {"workflow_path": "RESEARCH", "formal": formal, "resolved_cache_path": str(cache_root)},
+    )
+    if formal and (manifest_audit_path is None or eligibility_artifact_path is None):
+        raise ValueError("formal coverage requires --manifest-audit and --eligibility")
+    eligibility_payload: dict[str, object] | None = None
+    eligibility_artifact_sha256: str | None = None
+    eligibility_cache_hash: str | None = None
+    source_audit_sha256: str | None = None
+    if eligibility_artifact_path is not None:
+        eligibility_path = Path(eligibility_artifact_path).expanduser().resolve()
+        eligibility_bytes = eligibility_path.read_bytes()
+        eligibility_artifact_sha256 = hashlib.sha256(eligibility_bytes).hexdigest()
+        payload = json.loads(eligibility_bytes.decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("eligibility artifact must be a JSON object")
+        eligibility_payload = payload
+        eligibility_cache_hash = str(payload.get("label_eligible_event_denominator_sha256", ""))
+        if not eligibility_cache_hash:
+            raise ValueError("eligibility artifact lacks stable label-eligible ledger hash")
+    records, discovered_audit = discover_raw_files_with_audit(config.raw_data_root)
+    if manifest_audit_path is None:
+        audit = discovered_audit
+    else:
+        manifest_path = Path(manifest_audit_path).expanduser().resolve()
+        manifest_bytes = manifest_path.read_bytes()
+        source_audit_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+        audit_payload = json.loads(
+            manifest_bytes.decode("utf-8")
+        )
+        if not isinstance(audit_payload, dict):
+            raise ValueError("manifest audit artifact must be a JSON object")
+        audit = ManifestAudit.from_dict(audit_payload)
+        discovered_paths = {str(record.path) for record in records}
+        audited_paths = {
+            str(row["path_or_file_id"])
+            for row in audit.records
+            if row.get("path_or_file_id")
+        }
+        if discovered_paths != audited_paths:
+            raise ValueError("manifest audit does not cover exactly the discovered files")
+    all_meal_events = load_meal_events(config.metadata_root / "t_zsstnnrj_mealinfo_puadqog70826_1857.csv")
+    meal_events = all_meal_events
+    if eligibility_payload is not None:
+        if eligibility_payload.get("schema_version") != "participant_eligibility_v3":
+            raise ValueError("formal coverage requires participant_eligibility_v3")
+        meal_events = filter_meal_events_by_ledger(
+            all_meal_events, eligibility_payload, eligibility_field="training_eligibility"
+        )
     tables_by_participant: dict[str, list[tuple[object, object, tuple[object, ...]]]] = defaultdict(list)
-    skipped_files: dict[str, str] = {}
+    skipped_files: dict[str, dict[str, str]] = {}
+    status_by_path = {
+        str(row["path_or_file_id"]): str(row["status"])
+        for row in audit.records
+        if row.get("path_or_file_id")
+    }
+    details_by_path = {
+        str(row["path_or_file_id"]): row
+        for row in audit.records
+        if row.get("path_or_file_id")
+    }
     for record in records:
+        if status_by_path.get(str(record.path)) != "processed":
+            row = details_by_path.get(str(record.path), {})
+            skipped_files[str(record.path)] = {
+                "status": str(row.get("status", "unknown")),
+                "reason": str(row.get("reason", "missing manifest status")),
+                "error": str(row.get("parser_error", "")),
+            }
+            continue
         truths = events_for_record(record, meal_events)
         try:
-            table = _build_table(record, config, truths, Path(cache_dir).expanduser().resolve())
+            table = _build_table(
+                record,
+                config,
+                truths,
+                cache_root,
+                eligibility_artifact_sha256=eligibility_cache_hash,
+            )
         except RawFileFormatError as exc:
-            skipped_files[str(record.path)] = str(exc)
+            classification = apply_raw_failure_to_manifest(audit, record, exc)
+            skipped_files[str(record.path)] = {
+                "status": classification.status,
+                "reason": classification.reason,
+                "error": str(exc),
+            }
             continue
+        except Exception as exc:
+            _finalize_unexpected_failure(artifact, exc)
+            raise
         tables_by_participant[record.participant_id].append((record, table, truths))
-    participants = sorted({record.participant_id for record in records if record.participant_id.lower() != "test"})
+    try:
+        eligibility = build_formal_eligibility(records, audit)
+        if formal:
+            if eligibility_payload is None or source_audit_sha256 is None:
+                raise ValueError("formal coverage eligibility contract was not loaded")
+            dense_window_counts = _dense_window_counts_from_tables(all_meal_events, tables_by_participant)
+            expected_eligibility = build_event_ledger_artifact(
+                eligibility,
+                all_meal_events,
+                dense_window_counts=dense_window_counts,
+                records=records,
+                source_audit_sha256=source_audit_sha256,
+            )
+            validate_event_ledger_artifact(eligibility_payload, expected_eligibility)
+            expected_eligible_participants = {
+                participant
+                for participant, details in expected_eligibility["participant_eligibility"].items()
+                if details["participant_status"] == "eligible"
+            }
+            actual_eligible_participants = {
+                record.participant_id
+                for record in eligibility.eligible_records
+                if record.participant_id.lower() != "test"
+            }
+            if actual_eligible_participants != expected_eligible_participants:
+                raise ValueError("eligibility artifact mismatch: eligible participant set")
+        processed_records = eligibility.eligible_records
+        cache_entries: list[dict[str, object]] = []
+        for record in processed_records:
+            cache_path = cache_root / f"{_cache_key(record, config, eligibility_artifact_sha256=eligibility_cache_hash)}.npz"
+            if not cache_path.is_file():
+                raise RuntimeError(f"processed record has no cache: {record.path}")
+            digest = hashlib.sha256(cache_path.read_bytes()).hexdigest()
+            cache_entries.append(
+                {
+                    "participant_id": record.participant_id,
+                    "session_id": record.session_folder,
+                    "path": str(record.path),
+                    "cache_path": str(cache_path),
+                    "cache_sha256": digest,
+                }
+            )
+        cache_digest = cache_manifest_sha256(cache_entries)
+        if formal:
+            if not processed_records:
+                raise RuntimeError("formal coverage has no processed records for cache provenance")
+            expected_metadata = _cache_metadata(
+                processed_records[0],
+                config,
+                eligibility_artifact_sha256=eligibility_cache_hash,
+            )
+            cache_provenance = build_cache_runtime_provenance(
+                cache_root,
+                cache_entries,
+                expected_metadata,
+            )
+            artifact.write_json("cache-provenance.json", cache_provenance)
+    except Exception as exc:
+        _finalize_unexpected_failure(artifact, exc)
+        raise
+    participants = sorted({record.participant_id for record in processed_records if record.participant_id.lower() != "test"})
     folds = build_outer_folds(participants, n_folds=run_config.outer_folds, seed=run_config.selection_seed)
     fold_results: list[FoldCoverageResult] = []
     failure_class: str | None = None
@@ -98,7 +300,7 @@ def run_candidate_coverage(
         candidate_count = 0
         for record, table, record_truths in valid_items:
             scores = model.predict_scores(table.features)
-            predictions[record.participant_id].extend(
+            record_predictions = [
                 EventInterval(start_ms, end_ms)
                 for start_ms, end_ms in eventize_windows(
                     table.windows,
@@ -107,13 +309,15 @@ def run_candidate_coverage(
                     min_duration_ms=1,
                     fuse_gap_ms=G1_CANDIDATE_FUSE_GAP_MS,
                 )
-            )
+            ]
+            predictions[record.participant_id].extend(record_predictions)
             truths[record.participant_id].extend(record_truths)
-            candidate_count += len(predictions[record.participant_id])
+            candidate_count += len(record_predictions)
         pooled = 0
         total = 0
         participant_recall: dict[str, float] = {}
-        for participant, participant_truths in truths.items():
+        for participant, raw_participant_truths in truths.items():
+            participant_truths = deduplicate_event_intervals(raw_participant_truths)
             covered = sum(
                 1
                 for truth in participant_truths
@@ -160,7 +364,7 @@ def run_candidate_coverage(
             pooled, participant_recall, candidate_count = evaluate_subset(
                 model, outer_train_items, outer_valid_items, selected_quantile
             )
-        except (ValueError, RuntimeError) as exc:
+        except ValueError as exc:
             pooled = 0.0
             participant_recall = {participant: 0.0 for participant in fold.valid_participants}
             candidate_count = 0
@@ -175,9 +379,8 @@ def run_candidate_coverage(
                 candidate_count=candidate_count,
             )
         )
-    gate_pass = bool(fold_results) and all(
-        result.pooled_recall >= G1_COVERAGE_THRESHOLD for result in fold_results
-    ) and not skipped_files
+    unexpected_failures: tuple[str, ...] = ()
+    gate_pass = formal_gate_passes(fold_results, unexpected_failures=unexpected_failures)
     if not gate_pass and failure_class is None:
         failure_class = "DATA/PIPELINE"
     report = CandidateCoverageReport(
@@ -185,6 +388,20 @@ def run_candidate_coverage(
         fold_results=tuple(fold_results),
         result="pass" if gate_pass else "fail",
         failure_class=failure_class,
+        eligibility=eligibility,
+        cache_manifest_sha256=cache_digest,
+        event_denominator_sha256=(
+            str(eligibility_payload["event_denominator_sha256"])
+            if eligibility_payload is not None and "event_denominator_sha256" in eligibility_payload
+            else None
+        ),
+        effective_valid_event_count=(
+            int(eligibility_payload["effective_valid_event_count"])
+            if eligibility_payload is not None and "effective_valid_event_count" in eligibility_payload
+            else None
+        ),
+        eligibility_artifact_sha256=eligibility_artifact_sha256,
+        cache_provenance=cache_provenance,
     )
     write_coverage_reports(
         report,
@@ -194,6 +411,10 @@ def run_candidate_coverage(
     )
     artifact.write_json("coverage.json", report.to_dict())
     artifact.write_json("skipped_files.json", skipped_files)
+    artifact.write_json("manifest-audit.json", audit.to_dict())
+    artifact.write_json("cache-manifest.json", {"entries": cache_entries, "sha256": cache_digest})
+    if eligibility_payload is not None:
+        artifact.write_json("eligibility.json", eligibility_payload)
     artifact.record_event(
         "gate_result",
         {"gate_id": "G1", "result": report.result, "failure_class": report.failure_class},
@@ -210,6 +431,8 @@ def main() -> None:
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument("--outer-folds", type=int, default=5)
     parser.add_argument("--formal", action="store_true")
+    parser.add_argument("--manifest-audit", type=Path, default=None)
+    parser.add_argument("--eligibility", type=Path, default=None)
     args = parser.parse_args()
     try:
         report = run_candidate_coverage(
@@ -218,6 +441,8 @@ def main() -> None:
             cache_dir=args.cache_dir,
             outer_folds=args.outer_folds,
             formal=args.formal,
+            manifest_audit_path=args.manifest_audit,
+            eligibility_artifact_path=args.eligibility,
         )
     except KeyboardInterrupt:
         report = build_resource_failure_report("formal coverage interrupted after bounded resource observation")
@@ -228,7 +453,7 @@ def main() -> None:
             by_fold=output_path.with_name("g1-candidate-coverage-by-fold.json"),
             by_participant=output_path.with_name("g1-candidate-coverage-by-participant.json"),
         )
-        artifact = RunArtifact(output_path.parent, "g1-candidate-coverage")
+        artifact = RunArtifact(output_path.parent, output_path.stem)
         artifact.record_event("run_start", {"workflow_path": "RESEARCH", "resource_failure": True})
         artifact.record_event(
             "gate_result",
