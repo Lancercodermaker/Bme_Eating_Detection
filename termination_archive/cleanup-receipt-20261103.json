@@ -1,0 +1,31 @@
+{
+  "utc": "2026-11-03T12:23:54.672497+00:00",
+  "status": "TERMINATED_BY_OWNER_CLEANUP_PARTIAL_METADATA_BLOCKED",
+  "remote_archives": [
+    "0b5664ebac66b09c996d4ab08981b6ba2327e432\trefs/heads/archive/terminated-20261103-external-preserved",
+    "984ba460fc1231251028b92e55dc4e63f21b5abb\trefs/heads/archive/terminated-20261103-high-f1",
+    "bf293c27dc404871056e9459ecb08fa07cc4577b\trefs/heads/archive/terminated-20261103-main",
+    "1666b819afa896ba36cdc07445aeae24d4f1b60e\trefs/heads/archive/terminated-20261103-original-index",
+    "378ba93b994b370eb5a51b45f4f7ca4898d5c35c\trefs/heads/archive/terminated-20261103-smartwatch",
+    "4d6895db03743938897387eb6f6a7398ba44c4d8\trefs/heads/archive/terminated-20261103-wsl-source"
+  ],
+  "windows_project_contents": "recycled, except original .git metadata",
+  "windows_official_zip_and_extracted_directory": "recycled",
+  "wsl_deleted": [
+    "/opt/route2",
+    "/home/sdrdev/.local/share/route2-prep"
+  ],
+  "wsl_additional_route2_candidates": [],
+  "wsl_distribution": "Ubuntu-22.04 preserved and returned to stopped state",
+  "wsl_source_backup": {
+    "commit": "4d6895db03743938897387eb6f6a7398ba44c4d8",
+    "files": 2935,
+    "bytes": 49270329
+  },
+  "external_checkout": "E:\\Codex\\Home\\worktrees\\96fc\\bme_compitition",
+  "external_git": "independent; origin Github; original detached HEAD and index preserved",
+  "remaining_windows_metadata": "E:/bme_compitition/.git",
+  "remaining_reason": "Permanent recursive deletion blocked by automatic policy; recycle unsupported; metadata move denied access. No ACL elevation or bypass attempted.",
+  "raw_data_upload": "No newly selected raw participant/GT datasets, official ZIP, binaries or wheelhouse uploaded. Source-only snapshots; existing Git history retained.",
+  "permanent_erasure": "Not performed; recycled files still require manual recycle-bin purge if desired."
+}
